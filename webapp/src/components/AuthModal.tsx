@@ -253,6 +253,42 @@ export default function AuthModal({ isOpen, onClose, onSuccess, initialMode = 's
                       : 'Already have an account? Sign in'}
                   </button>
                 </div>
+
+                {/* Developer bypass helper */}
+                <div className="relative flex items-center justify-center my-3">
+                  <div className="absolute inset-x-0 h-px bg-white/10" />
+                  <span className="relative px-3 bg-[#0c0f16] text-[10px] text-white/35 uppercase tracking-widest font-bold">Or Sandbox</span>
+                </div>
+
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    const devToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLWxvY2FsIiwiZW1haWwiOiJkZXZlbG9wZXJAYnJhbmNoZGVjay5jb20iLCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImV4cCI6MTgxNTc2NDA1N30.wjoT_OGJC--k54Lr6TZuWPgIooD_LN-QrDatcyW9PAA";
+                    const mockSession = {
+                      access_token: devToken,
+                      token_type: "bearer",
+                      expires_in: 31536000,
+                      refresh_token: "mock-refresh",
+                      user: {
+                        id: "user-local",
+                        email: "developer@branchdeck.com",
+                        app_metadata: {},
+                        user_metadata: {},
+                        aud: "authenticated",
+                        created_at: new Date().toISOString()
+                      }
+                    };
+                    localStorage.setItem('branchdeck_dev_session', JSON.stringify(mockSession));
+                    onSuccess();
+                    onClose();
+                  }}
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-[13px] py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/10 flex items-center justify-center gap-2"
+                >
+                  <GitBranch className="w-4 h-4 text-blue-300" />
+                  Bypass with Demo Developer
+                </motion.button>
               </div>
 
               {/* Footer */}

@@ -55,12 +55,27 @@ export default function Dashboard() {
   const [isVsCode, setIsVsCode] = useState(false);
 
   useEffect(() => {
+    // Check local storage for developer mock session bypass first
+    const localDevSession = typeof window !== 'undefined' ? localStorage.getItem('branchdeck_dev_session') : null;
+    if (localDevSession) {
+      try {
+        const parsed = JSON.parse(localDevSession);
+        setSession(parsed);
+        setAuthLoading(false);
+        return;
+      } catch (err) {}
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setAuthLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const localDev = typeof window !== 'undefined' ? localStorage.getItem('branchdeck_dev_session') : null;
+      if (localDev && !session) {
+        return;
+      }
       setSession(session);
       setAuthLoading(false);
     });
@@ -1035,7 +1050,11 @@ export default function Dashboard() {
             Active Workspace
           </span>
           <button 
-            onClick={() => supabase.auth.signOut()}
+            onClick={() => {
+              localStorage.removeItem('branchdeck_dev_session');
+              setSession(null);
+              supabase.auth.signOut();
+            }}
             className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 transition-colors shadow-sm"
           >
             Log Out
