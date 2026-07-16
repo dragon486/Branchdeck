@@ -1,0 +1,251 @@
+@import "tailwindcss";
+
+/* ── Premium Spacing System (8px scale) ────────────────────── */
+:root {
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --space-5: 40px;
+  --space-6: 48px;
+  --space-8: 64px;
+  --space-10: 80px;
+  --space-12: 96px;
+  --space-16: 128px;
+  --space-20: 160px;
+  --space-24: 192px;
+  --space-28: 220px;
+
+  /* easeOutExpo */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  /* easeInOutQuart */
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+  /* easeOutCubic */
+  --ease-out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/* ── Smooth, momentum-based scrolling ──────────────────────── */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── GPU Acceleration layer hint ───────────────────────────── */
+body {
+  overflow-x: hidden;
+  will-change: scroll-position;
+}
+
+/* ── Noise texture overlay (subtle grain) ──────────────────── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.018;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 128px 128px;
+}
+
+/* ── Custom premium scrollbar ──────────────────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 99px;
+  transition: background 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.28);
+}
+
+/* ── Prefers-reduced-motion ─────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── GPU-accelerated element hints ─────────────────────────── */
+.will-change-transform {
+  will-change: transform;
+}
+
+/* ── CTA Shimmer keyframe ───────────────────────────────────── */
+@keyframes shimmer-slide {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 65%
+  );
+  background-size: 200% 100%;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.btn-shimmer:hover::after {
+  opacity: 1;
+  animation: shimmer-slide 1.2s var(--ease-out-cubic) infinite;
+}
+
+/* ── Card spotlight cursor effect ───────────────────────────── */
+.card-spotlight {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-spotlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    320px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(66, 133, 244, 0.08) 0%,
+    transparent 65%
+  );
+  opacity: 0;
+  transition: opacity 0.4s var(--ease-out-cubic);
+  pointer-events: none;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.card-spotlight:hover::before {
+  opacity: 1;
+}
+
+/* ── Glow border card ───────────────────────────────────────── */
+.card-glow {
+  transition: 
+    transform 0.5s var(--ease-out-expo),
+    box-shadow 0.5s var(--ease-out-expo),
+    border-color 0.3s ease;
+}
+
+.card-glow:hover {
+  transform: translateY(-6px);
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(66, 133, 244, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+/* ── Word reveal animation ──────────────────────────────────── */
+@keyframes word-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.word-reveal {
+  display: inline-block;
+  opacity: 0;
+  animation: word-reveal 0.65s var(--ease-out-expo) forwards;
+}
+
+/* ── Floating orb animation ─────────────────────────────────── */
+@keyframes orb-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.05); }
+  66% { transform: translate(-20px, 15px) scale(0.97); }
+}
+
+@keyframes orb-float-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  40% { transform: translate(-25px, 20px) scale(1.08); }
+  70% { transform: translate(20px, -10px) scale(0.95); }
+}
+
+@keyframes orb-float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(15px, 25px) scale(1.04); }
+}
+
+.orb-1 { animation: orb-float-1 18s ease-in-out infinite; }
+.orb-2 { animation: orb-float-2 22s ease-in-out infinite; }
+.orb-3 { animation: orb-float-3 15s ease-in-out infinite; }
+
+/* ── Gradient divider ───────────────────────────────────────── */
+.section-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.06) 20%,
+    rgba(0, 0, 0, 0.1) 50%,
+    rgba(0, 0, 0, 0.06) 80%,
+    transparent 100%
+  );
+}
+
+/* ── React Flow styling overrides ──────────────────────────── */
+.react-flow {
+  --xy-edge-stroke-default: rgba(0, 0, 0, 0.08) !important;
+  --xy-node-border-default: rgba(0, 0, 0, 0.06) !important;
+  --xy-node-background-default: #ffffff !important;
+  --xy-node-color-default: #0f172a !important;
+}
+
+.react-flow__handle {
+  background: var(--primary) !important;
+  border: 2px solid #ffffff !important;
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.react-flow__controls-button {
+  background: #ffffff !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+  fill: #475569 !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #f1f5f9 !important;
+}
+
+/* ── Loading bar shimmer keyframe ────────────────────────────── */
+@keyframes loading-bar {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(50%); }
+  100% { transform: translateX(200%); }
+}
+.animate-loading-bar {
+  animation: loading-bar 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}

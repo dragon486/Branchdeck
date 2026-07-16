@@ -1,0 +1,65 @@
+{
+  "name": "branchdeck-vscode",
+  "displayName": "Branchdeck",
+  "description": "Understand large codebases in hours. AI Project Maps, Visual Call Flows, Impact Analysis, and Story Mode.",
+  "version": "0.1.0",
+  "publisher": "branchdeck",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Visualization",
+    "Education",
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "branchdeck.showProjectMap",
+        "title": "Branchdeck: Show AI Project Map",
+        "category": "Branchdeck"
+      },
+      {
+        "command": "branchdeck.analyzeFunction",
+        "title": "Branchdeck: Visual Call Flow (Selected Function)",
+        "category": "Branchdeck"
+      },
+      {
+        "command": "branchdeck.impactAnalysis",
+        "title": "Branchdeck: Analyze Impact Scope",
+        "category": "Branchdeck"
+      },
+      {
+        "command": "branchdeck.storyMode",
+        "title": "Branchdeck: Explain as Workflow Story",
+        "category": "Branchdeck"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "branchdeck.analyzeFunction",
+          "when": "editorHasSelection",
+          "group": "branchdeck@1"
+        },
+        {
+          "command": "branchdeck.impactAnalysis",
+          "when": "editorHasSelection",
+          "group": "branchdeck@2"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.0.0"
+  }
+}

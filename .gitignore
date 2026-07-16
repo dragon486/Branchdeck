@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Next.js
+.next/
+**/.next/
+out/
+**/out/
+
+# Python
+venv/
+**/venv/
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+**/.pytest_cache/
+*.pyc
+
+# Env files
+.env*
+**/.env*
+
+# Vercel
+.vercel/
+**/.vercel/
+
+# Editor and OS files
+.vscode/
+.DS_Store
+*.pem

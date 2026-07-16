@@ -1,0 +1,346 @@
+/* ═══════════════════════════════════════════════════
+   BRANCHDECK STEPPER — Premium dark theme
+   Matches Branchdeck #0A0A0A / neutral palette
+═══════════════════════════════════════════════════ */
+
+.bd-stepper-outer {
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+/* ── Main container card ─────────────────────────── */
+.bd-step-circle-container {
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  background: #ffffff;
+  border-radius: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 32px 64px rgba(0, 0, 0, 0.06),
+    0 4px 16px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+/* ── Step indicator row ──────────────────────────── */
+.bd-step-indicator-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  padding: 28px 32px 24px;
+  gap: 0;
+}
+
+/* ── Content area ────────────────────────────────── */
+.bd-step-content-default {
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Each step's padding ─────────────────────────── */
+.bd-step-default {
+  padding: 0 32px 8px;
+}
+
+/* ── Footer ──────────────────────────────────────── */
+.bd-footer-container {
+  padding: 20px 32px 28px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  margin-top: 8px;
+}
+
+.bd-footer-nav {
+  display: flex;
+  align-items: center;
+}
+
+.bd-footer-nav.spread {
+  justify-content: space-between;
+}
+
+.bd-footer-nav.end {
+  justify-content: flex-end;
+}
+
+/* ── Back button ─────────────────────────────────── */
+.bd-back-button {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 8px;
+  padding: 8px 14px;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  letter-spacing: -0.01em;
+}
+
+.bd-back-button:hover {
+  color: #374151;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.bd-back-button.inactive {
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+/* ── Next / Complete button ──────────────────────── */
+.bd-next-button {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background-color: #0a0a0a;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  padding: 10px 24px;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.bd-next-button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.12) 50%, transparent 65%);
+  background-size: 200% 100%;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.bd-next-button:hover {
+  background-color: #1a1a1a;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+.bd-next-button:hover::after {
+  opacity: 1;
+  animation: stepper-shimmer 1s cubic-bezier(0.33, 1, 0.68, 1) infinite;
+}
+
+.bd-next-button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+@keyframes stepper-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* ── Step indicator circle ───────────────────────── */
+.bd-step-indicator {
+  position: relative;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.bd-step-indicator-inner {
+  display: flex;
+  height: 32px;
+  width: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-weight: 700;
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  transition: border-color 0.3s ease;
+}
+
+.bd-active-dot {
+  height: 10px;
+  width: 10px;
+  border-radius: 9999px;
+  background-color: #ffffff;
+}
+
+.bd-step-number {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ── Connector ───────────────────────────────────── */
+.bd-step-connector {
+  position: relative;
+  margin-left: 8px;
+  margin-right: 8px;
+  height: 2px;
+  flex: 1;
+  overflow: hidden;
+  border-radius: 2px;
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.bd-step-connector-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 100%;
+  transform-origin: left;
+}
+
+/* ── Check icon ──────────────────────────────────── */
+.bd-check-icon {
+  height: 14px;
+  width: 14px;
+  color: #ffffff;
+}
+
+/* ─────────────────────────────────────────────────
+   STEP CONTENT TYPOGRAPHY (for onboarding content)
+───────────────────────────────────────────────────*/
+.bd-onboard-title {
+  font-size: clamp(18px, 2vw, 22px);
+  font-weight: 800;
+  color: #0a0a0a;
+  letter-spacing: -0.04em;
+  line-height: 1.2;
+  margin: 0 0 8px;
+}
+
+.bd-onboard-subtitle {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.6;
+  margin: 0 0 24px;
+  font-weight: 400;
+}
+
+/* Option grid (use case cards) */
+.bd-option-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.bd-option-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(0, 0, 0, 0.08);
+  background: #fafafa;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+}
+
+.bd-option-card:hover {
+  border-color: rgba(0, 0, 0, 0.18);
+  background: #f3f4f6;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+}
+
+.bd-option-card.selected {
+  border-color: #0a0a0a;
+  background: #0a0a0a;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.bd-option-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.bd-option-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0a0a0a;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.bd-option-desc {
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+.bd-option-card.selected .bd-option-label,
+.bd-option-card.selected .bd-option-desc {
+  color: #ffffff;
+}
+
+.bd-option-card.selected .bd-option-desc {
+  color: rgba(255,255,255,0.6);
+}
+
+/* Input fields */
+.bd-input {
+  width: 100%;
+  background: #f9fafb;
+  border: 1.5px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #0a0a0a;
+  outline: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: inherit;
+  letter-spacing: -0.01em;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+}
+
+.bd-input:focus {
+  border-color: #0a0a0a;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+}
+
+.bd-input::placeholder {
+  color: #d1d5db;
+}
+
+/* Input label */
+.bd-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+/* Success / completed state */
+.bd-complete-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 32px 16px;
+  gap: 12px;
+}
+
+.bd-complete-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #0a0a0a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}

@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Branchdeck — Understand Any Codebase in Hours, Not Weeks</title>
+  <meta name="description" content="Branchdeck turns a 2-million-line codebase into an interactive feature map. Onboard in hours, not weeks. AI-powered call flows, impact analysis, and story mode for every team." />
+  
+  <!-- Preconnect and Load Premium Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,slnt,wdth,wght,ROND@8..144,-10..0,25..150,400..500,0..100&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Google+Symbols:opsz,wght,FILL,GRAD,ROND@40..48,300,0..1,0,50&display=block" rel="stylesheet" />
+  
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ─── HEADER NAVIGATION ────────────────────────────────── -->
+  <nav class="nav" id="nav">
+    <div class="nav__inner">
+      <a href="/" class="nav__logo" id="nav-logo">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#3279F9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+        <span>Branchdeck</span>
+      </a>
+
+      <!-- Navigation links -->
+      <ul class="nav__links" id="nav-links">
+        <li class="nav__item">
+          <span class="nav__link">Products <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div class="nav__dropdown">
+            <a href="/?app=branchdeck-webapp" class="nav__dropdown-item" data-route="/">
+              <span class="nav__dropdown-icon">🌐</span>
+              <div class="nav__dropdown-info">
+                <span class="nav__dropdown-title">Branchdeck Web App</span>
+                <span class="nav__dropdown-desc">The visual feature map and interactive code dashboard.</span>
+              </div>
+            </a>
+            <a href="/extension" class="nav__dropdown-item" data-route="/extension">
+              <span class="nav__dropdown-icon">🔌</span>
+              <div class="nav__dropdown-info">
+                <span class="nav__dropdown-title">VS Code Extension</span>
+                <span class="nav__dropdown-desc">Map and trace code directly inside your editor.</span>
+              </div>
+            </a>
+            <a href="/download?tab=cli" class="nav__dropdown-item" data-route="/download">
+              <span class="nav__dropdown-icon">💻</span>
+              <div class="nav__dropdown-info">
+                <span class="nav__dropdown-title">Branchdeck CLI</span>
+                <span class="nav__dropdown-desc">Automate codebase indexing via terminal and CI/CD.</span>
+              </div>
+            </a>
+          </div>
+        </li>
+
+        <li class="nav__item">
+          <span class="nav__link">Use Cases <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div class="nav__dropdown">
+            <a href="/use-cases?tab=onboarding" class="nav__dropdown-item" data-route="/use-cases">
+              <span class="nav__dropdown-icon">🚀</span>
+              <div class="nav__dropdown-info">
+                <span class="nav__dropdown-title">New Hire Onboarding</span>
+                <span class="nav__dropdown-desc">Navigate massive repositories in hours, not weeks.</span>
+              </div>
+            </a>
+            <a href="/use-cases?tab=incident" class="nav__dropdown-item" data-route="/use-cases">
+              <span class="nav__dropdown-icon">🔍</span>
+              <div class="nav__dropdown-info">
+                <span class="nav__dropdown-title">Incident Debugging</span>
+                <span class="nav__dropdown-desc">Trace error logs backward to their root dependencies.</span>
+              </div>
+            </a>
+            <a href="/use-cases?tab=refactoring" class="nav__dropdown-item" data-route="/use-cases">
+              <span class="nav__dropdown-icon">⚡</span>
+              <div class="nav__dropdown-info">
+                <span class="nav__dropdown-title">Safe Refactoring</span>
+                <span class="nav__dropdown-desc">Perform impact analysis before making code changes.</span>
+              </div>
+            </a>
+            <a href="/use-cases?tab=missions" class="nav__dropdown-item" data-route="/use-cases">
+              <span class="nav__dropdown-icon">📋</span>
+              <div class="nav__dropdown-info">
+                <span class="nav__dropdown-title">Ticket Missions</span>
+                <span class="nav__dropdown-desc">Get guided development paths for assignments.</span>
+              </div>
+            </a>
+          </div>
+        </li>
+
+        <li class="nav__item">
+          <a href="/pricing" class="nav__link" data-route="/pricing">Pricing</a>
+        </li>
+        
+        <li class="nav__item">
+          <a href="/blog" class="nav__link" data-route="/blog">Blog</a>
+        </li>
+      </ul>
+
+      <div class="nav__actions">
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme">
+          <div class="theme-toggle-knob">
+            <!-- Moon icon (active in light mode, indicating click for dark) -->
+            <svg class="moon-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+            <!-- Sun icon (active in dark mode, indicating click for light) -->
+            <svg class="sun-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            </svg>
+          </div>
+        </button>
+        <a href="#waitlist" class="btn btn--outline" id="nav-signin">Sign in</a>
+        <a href="/download" class="btn btn--primary" id="nav-cta" data-route="/download">Download</a>
+      </div>
+
+      <button class="nav__burger" id="nav-burger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ─── PAGE VIEWS (SPA LAYOUT) ────────────────────────── -->
+  <main id="main-content">
+
+    <!-- 1. HOME VIEW -->
+    <div id="view-home" class="page-view page-view--active">
+      <!-- HERO -->
+      <section class="hero">
+        <div class="particle-container">
+          <canvas id="particle-canvas" class="particle-canvas"></canvas>
+          <canvas id="hero-light-rays"></canvas>
+        </div>
+
+        <div class="container hero__inner">
+          <div class="hero__text">
+            <div class="hero__badge">
+              <span class="hero__badge-dot"></span>
+              Now in private beta · 2,400+ developers on waitlist
+            </div>
+            <h1 class="hero__headline" id="staggered-headline">
+              Understand any codebase in hours, not weeks.
+            </h1>
+            <p class="hero__sub">
+              Branchdeck maps complex repositories into interactive feature structures. Navigate call graphs, predict code change impact, and onboard instantly.
+            </p>
+            <div class="hero__actions">
+              <a href="#waitlist" class="btn btn--secondary btn--lg">Request early access</a>
+              <a href="/use-cases" class="btn btn--outline btn--lg" data-route="/use-cases">Explore use cases</a>
+            </div>
+          </div>
+
+          <div class="hero__visual">
+            <div class="dashboard-mock">
+              <!-- Mock toolbar -->
+              <div class="dmock-toolbar">
+                <div class="dmock-toolbar__left">
+                  <div class="dmock-dots"><span></span><span></span><span></span></div>
+                  <div class="dmock-breadcrumb">
+                    <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#3279F9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                    </svg>
+                    <span class="dmock-repo">github.com/acme-corp/platform</span>
+                  </div>
+                </div>
+                <div class="dmock-toolbar__center">
+                  <div class="dmock-search">
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <span>Ask codebase... e.g. 'where are invoices created?'</span>
+                  </div>
+                </div>
+                <div class="dmock-toolbar__right">
+                  <div class="dmock-live-badge"><span class="dmock-pulse"></span>Live</div>
+                  <div class="dmock-avatars">
+                    <span class="dmock-avatar" style="background:#0ea5e9;" title="Alex River">AR</span>
+                    <span class="dmock-avatar" style="background:#f43f5e;" title="Sarah Chen">SC</span>
+                    <span class="dmock-avatar" style="background:#f59e0b;" title="Dave Miller">DM</span>
+                    <span class="dmock-avatar" style="background:#10b981;" title="Marcus Vance">MV</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3-panel workspace -->
+              <div class="dmock-workspace">
+
+                <!-- LEFT: ProjectMap -->
+                <div class="dmock-left">
+                  <div class="dmock-panel-header">
+                    <span class="dmock-panel-label">PROJECT STRUCTURE</span>
+                    <div class="dmock-tab-toggle">
+                      <span class="dmock-tab-btn dmock-tab-btn--active">Features</span>
+                      <span class="dmock-tab-btn">Folders</span>
+                    </div>
+                  </div>
+                  <div class="dmock-feature-list">
+                    <div class="dmock-feature dmock-feature--open">
+                      <span class="dmock-feature-dot" style="background:#3279F9;box-shadow:0 0 5px #3279F9;"></span>
+                      <div class="dmock-feature-info">
+                        <div class="dmock-feature-name">Authentication</div>
+                        <div class="dmock-feature-desc">JWT login, OAuth, sessions</div>
+                      </div>
+                      <svg viewBox="0 0 24 24" width="10" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                    <div class="dmock-feature-files">
+                      <div class="dmock-file dmock-file--active">
+                        <svg viewBox="0 0 24 24" width="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                        auth.service.ts
+                      </div>
+                      <div class="dmock-file">
+                        <svg viewBox="0 0 24 24" width="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                        jwt.strategy.ts
+                      </div>
+                      <div class="dmock-file">
+                        <svg viewBox="0 0 24 24" width="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                        login.dto.ts
+                      </div>
+                    </div>
+
+                    <div class="dmock-feature">
+                      <span class="dmock-feature-dot" style="background:#10b981;box-shadow:0 0 5px #10b981;"></span>
+                      <div class="dmock-feature-info">
+                        <div class="dmock-feature-name">Checkout Flow</div>
+                        <div class="dmock-feature-desc">Cart, orders, fulfilment</div>
+                      </div>
+                      <svg viewBox="0 0 24 24" width="10" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                    </div>
+
+                    <div class="dmock-feature">
+                      <span class="dmock-feature-dot" style="background:#f59e0b;box-shadow:0 0 5px #f59e0b;"></span>
+                      <div class="dmock-feature-info">
+                        <div class="dmock-feature-name">Stripe Payments</div>
+                        <div class="dmock-feature-desc">Charges, webhooks, refunds</div>
+                      </div>
+                      <svg viewBox="0 0 24 24" width="10" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                    </div>
+
+                    <div class="dmock-feature">
+                      <span class="dmock-feature-dot" style="background:#8b5cf6;box-shadow:0 0 5px #8b5cf6;"></span>
+                      <div class="dmock-feature-info">
+                        <div class="dmock-feature-name">Order Management</div>
+                        <div class="dmock-feature-desc">CRUD, status, inventory</div>
+                      </div>
+                      <svg viewBox="0 0 24 24" width="10" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- CENTER: CallFlowGraph -->
+                <div class="dmock-center">
+                  <div class="dmock-graph-header">
+                    <span class="dmock-graph-fn">verifyToken<span style="opacity:0.45">()</span></span>
+                    <span class="dmock-graph-badge">6 hops · 38ms</span>
+                  </div>
+                  <div class="dmock-graph">
+                    <!-- Node 1 -->
+                    <div class="dmock-node dmock-node--selected" style="--ni:0;">
+                      <div class="dmock-node-top">
+                        <div class="dmock-node-badge dmock-badge-api">API</div>
+                        <div class="dmock-node-avatar-wrap">
+                          <span class="dmock-live-ping"></span>
+                          <span class="dmock-node-avatar" style="background:#f43f5e;">SC</span>
+                        </div>
+                      </div>
+                      <div class="dmock-node-title">AuthController</div>
+                      <div class="dmock-node-file">auth.controller.ts</div>
+                    </div>
+                    <div class="dmock-edge">
+                      <div class="dmock-edge-line"><div class="dmock-edge-dot"></div></div>
+                      <span class="dmock-edge-label">calls</span>
+                    </div>
+                    <!-- Node 2 -->
+                    <div class="dmock-node" style="--ni:1;">
+                      <div class="dmock-node-top">
+                        <div class="dmock-node-badge dmock-badge-service">SERVICE</div>
+                        <div class="dmock-node-avatar-wrap">
+                          <span class="dmock-live-ping dmock-live-ping--edit"></span>
+                          <span class="dmock-node-avatar" style="background:#0ea5e9;">AR</span>
+                        </div>
+                      </div>
+                      <div class="dmock-node-title">AuthService</div>
+                      <div class="dmock-node-file">auth.service.ts</div>
+                    </div>
+                    <div class="dmock-edge">
+                      <div class="dmock-edge-line"><div class="dmock-edge-dot"></div></div>
+                      <span class="dmock-edge-label">queries</span>
+                    </div>
+                    <!-- Node 3 -->
+                    <div class="dmock-node" style="--ni:2;">
+                      <div class="dmock-node-top">
+                        <div class="dmock-node-badge dmock-badge-db">DB</div>
+                      </div>
+                      <div class="dmock-node-title">UserRepository</div>
+                      <div class="dmock-node-file">user.repository.ts</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- RIGHT: StoryMode + ImpactPanel -->
+                <div class="dmock-right">
+                  <div class="dmock-right-tabs">
+                    <span class="dmock-right-tab dmock-right-tab--active">
+                      <svg viewBox="0 0 24 24" width="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                      Story Mode
+                    </span>
+                    <span class="dmock-right-tab">
+                      <svg viewBox="0 0 24 24" width="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                      Impact
+                    </span>
+                  </div>
+                  <div class="dmock-story">
+                    <div class="dmock-story-title">🔐 Authentication Feature</div>
+                    <div class="dmock-story-steps">
+                      <div class="dmock-step" style="--si:0">
+                        <span class="dmock-step-num">1</span>
+                        <span>Client sends credentials to <code>POST /auth/login</code></span>
+                      </div>
+                      <div class="dmock-step" style="--si:1">
+                        <span class="dmock-step-num">2</span>
+                        <span><code>AuthController</code> validates the DTO schema</span>
+                      </div>
+                      <div class="dmock-step" style="--si:2">
+                        <span class="dmock-step-num">3</span>
+                        <span><code>AuthService.verifyToken()</code> checks JWT signature</span>
+                      </div>
+                      <div class="dmock-step" style="--si:3">
+                        <span class="dmock-step-num">4</span>
+                        <span>User record fetched from <code>UserRepository</code></span>
+                      </div>
+                      <div class="dmock-step" style="--si:4">
+                        <span class="dmock-step-num">5</span>
+                        <span>Session created, signed JWT returned to client</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+
+      <!-- METRICS BAND -->
+      <section class="metrics scroll-reveal">
+        <div class="container metrics__inner">
+          <div class="metric">
+            <span class="metric__value" data-target="3">0</span>
+            <span class="metric__label">average hours onboarding time</span>
+          </div>
+          <div class="metric">
+            <span class="metric__value" data-target="94">0</span>
+            <span class="metric__label">% faster first pull request</span>
+          </div>
+          <div class="metric">
+            <span class="metric__value" data-target="2400">0</span>
+            <span class="metric__label">+ developers on the waitlist</span>
+          </div>
+          <div class="metric">
+            <span class="metric__value" data-target="12">0</span>
+            <span class="metric__label">+ coding languages supported</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- FEATURES GRID -->
+      <section class="features">
+        <div class="container">
+          <div class="section-header scroll-reveal">
+            <span class="section-eyebrow">Core Features</span>
+            <h2 class="section-title">Everything you need to master a codebase fast</h2>
+            <p class="section-sub">Powerful lenses into any repository, helping your developers index, trace, and inspect code confidently.</p>
+          </div>
+
+          <div class="features-grid">
+            <div class="feat-card feat-card--wide scroll-reveal">
+              <div>
+                <span class="feat-card__icon">🗺️</span>
+                <h3 class="feat-card__title">AI Project Map</h3>
+                <p class="feat-card__desc">Stop traversing arbitrary folder levels. See your code grouped logically by features, domains, and operations automatically without manual labeling.</p>
+                <a href="/use-cases" class="feat-card__cta" data-route="/use-cases">Learn more <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+              </div>
+              <div style="flex-shrink: 0; opacity: 0.85;" class="hidden-sm">
+                <svg width="180" height="140" viewBox="0 0 180 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="180" height="140" rx="12" fill="#F8F9FC" stroke="#E1E6EC"/>
+                  <circle cx="90" cy="40" r="16" fill="#3279F9" fill-opacity="0.1" stroke="#3279F9" stroke-width="1.5"/>
+                  <circle cx="50" cy="90" r="12" fill="#E1E6EC" stroke="#CDD4DC"/>
+                  <circle cx="90" cy="100" r="12" fill="#E1E6EC" stroke="#CDD4DC"/>
+                  <circle cx="130" cy="90" r="12" fill="#E1E6EC" stroke="#CDD4DC"/>
+                  <line x1="90" y1="56" x2="50" y2="78" stroke="#CDD4DC" stroke-width="1.5"/>
+                  <line x1="90" y1="56" x2="90" y2="88" stroke="#CDD4DC" stroke-width="1.5"/>
+                  <line x1="90" y1="56" x2="130" y2="78" stroke="#CDD4DC" stroke-width="1.5"/>
+                </svg>
+              </div>
+            </div>
+
+            <div class="feat-card scroll-reveal">
+              <span class="feat-card__icon">⛓️</span>
+              <h3 class="feat-card__title">Visual Call Flow</h3>
+              <p class="feat-card__desc">Interactively map call graph paths between APIs, components, and hooks inside seconds. No more guess-tracing.</p>
+              <a href="/use-cases" class="feat-card__cta" data-route="/use-cases">Explore <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+            </div>
+
+            <div class="feat-card scroll-reveal">
+              <span class="feat-card__icon">🎯</span>
+              <h3 class="feat-card__title">Impact Analysis</h3>
+              <p class="feat-card__desc">Identify affected functions, internal endpoints, and integrations before renaming code blocks or modifying utilities.</p>
+              <a href="/use-cases" class="feat-card__cta" data-route="/use-cases">Explore <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+            </div>
+
+            <div class="feat-card feat-card--wide scroll-reveal">
+              <div>
+                <span class="feat-card__icon">📖</span>
+                <h3 class="feat-card__title">AI Story Mode</h3>
+                <p class="feat-card__desc">Translate raw codebase graphs into structured, readable English explanations. Perfect for onboarding engineers, technical writing, and fast pull-request reviews.</p>
+                <a href="/use-cases" class="feat-card__cta" data-route="/use-cases">Learn more <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+              </div>
+              <div style="flex-shrink: 0; padding: 10px; background: #FFF; border-radius: 8px; border: 1px solid #E1E6EC; font-size: 0.75rem;" class="hidden-sm">
+                <div style="font-weight:bold;margin-bottom:6px;">📖 Story: checkout flow</div>
+                <div style="color:var(--palette-grey-800)">1. API receives checkout click.</div>
+                <div style="color:var(--palette-grey-800)">2. Validates inventory levels.</div>
+                <div style="color:var(--palette-grey-800)">3. Stripe processes transaction.</div>
+              </div>
+            </div>
+
+            <div class="feat-card scroll-reveal">
+              <span class="feat-card__icon">🔍</span>
+              <h3 class="feat-card__title">Ask the Codebase</h3>
+              <p class="feat-card__desc">Ditch basic keyword regex. Query your architecture using natural language and get precise answers ranked by codebase dependency importance.</p>
+              <a href="/use-cases" class="feat-card__cta" data-route="/use-cases">Explore <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 2. PRODUCTS: VS CODE EXTENSION (IDE APP) VIEW -->
+    <div id="view-extension" class="page-view">
+      <section class="product-hero">
+        <div class="container">
+          <h1 class="product-hero__title">Branchdeck VS Code Extension</h1>
+          <p class="product-hero__subtitle">
+            Integrate codebase feature maps, call path tracing, and natural language code commands directly inside your editor. Rebuilt to optimize your daily coding workflows.
+          </p>
+          <div class="product-hero__cta">
+            <a href="/download" class="btn btn--secondary btn--lg" data-route="/download">Download extension</a>
+            <a href="https://github.com/branchdeck/extension" class="btn btn--outline btn--lg" target="_blank">View GitHub</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="product-video-section">
+        <div class="container">
+          <div class="ext-demo-player">
+            <!-- Animated product demo replacing external video -->
+            <div class="ext-demo-header">
+              <div class="ext-demo-dots"><span></span><span></span><span></span></div>
+              <span class="ext-demo-title">Branchdeck — VS Code Extension · Live Demo</span>
+              <div class="ext-demo-badge">● Recording</div>
+            </div>
+            <div class="ext-demo-body">
+              <!-- Left: VS Code sidebar mock -->
+              <div class="ext-sidebar">
+                <div class="ext-sidebar-header">BRANCHDECK</div>
+                <div class="ext-sidebar-section">Features</div>
+                <div class="ext-sidebar-item ext-sidebar-item--active">
+                  <span class="ext-dot" style="background:#3279F9;"></span> Authentication
+                </div>
+                <div class="ext-sidebar-item">
+                  <span class="ext-dot" style="background:#10b981;"></span> Checkout Flow
+                </div>
+                <div class="ext-sidebar-item">
+                  <span class="ext-dot" style="background:#f59e0b;"></span> Payments
+                </div>
+                <div class="ext-sidebar-divider"></div>
+                <div class="ext-sidebar-section">Active File</div>
+                <div class="ext-sidebar-file">auth.service.ts</div>
+                <div class="ext-sidebar-section" style="margin-top:10px;">Impact Score</div>
+                <div class="ext-impact-bar">
+                  <div class="ext-impact-fill ext-impact-fill--high"></div>
+                </div>
+                <div class="ext-impact-label">High Risk · 24 callers</div>
+              </div>
+              <!-- Right: code editor + inline annotations -->
+              <div class="ext-editor">
+                <div class="ext-editor-tabs">
+                  <span class="ext-editor-tab ext-editor-tab--active">auth.service.ts</span>
+                  <span class="ext-editor-tab">jwt.strategy.ts</span>
+                </div>
+                <div class="ext-code-view">
+                  <div class="ext-line ext-line-num">1  <span class="ext-kw">import</span> <span class="ext-str">{ Injectable }</span> <span class="ext-kw">from</span> <span class="ext-str">'@nestjs/common'</span>;</div>
+                  <div class="ext-line ext-line-num">2  <span class="ext-kw">import</span> <span class="ext-str">{ JwtService }</span> <span class="ext-kw">from</span> <span class="ext-str">'@nestjs/jwt'</span>;</div>
+                  <div class="ext-line"></div>
+                  <div class="ext-line ext-line-num ext-line--annotated">
+                    <span class="ext-annotation">⚠ High Impact · 24 callers</span>
+                    4  <span class="ext-kw">async</span> <span class="ext-fn">verifyToken</span><span>(token: string) {</span>
+                  </div>
+                  <div class="ext-line ext-line-num">5    <span class="ext-kw">const</span> payload = <span class="ext-kw">await</span> <span class="ext-fn">this</span>.jwt.<span class="ext-fn">verifyAsync</span>(token);</div>
+                  <div class="ext-line ext-line-num">6    <span class="ext-kw">return</span> <span class="ext-fn">this</span>.users.<span class="ext-fn">findById</span>(payload.sub);</div>
+                  <div class="ext-line ext-line-num">7  }</div>
+                  <div class="ext-line"></div>
+                  <div class="ext-line ext-line-num">8  <span class="ext-kw">async</span> <span class="ext-fn">login</span>(dto: LoginDto) {</div>
+                  <div class="ext-line ext-line-num">9    <span class="ext-kw">const</span> user = <span class="ext-kw">await</span> <span class="ext-fn">this</span>.validateUser(dto);</div>
+                  <div class="ext-line ext-line-num">10   <span class="ext-kw">return</span> <span class="ext-fn">this</span>.jwt.<span class="ext-fn">sign</span>({ sub: user.id });</div>
+                  <div class="ext-line ext-line-num">11 }</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="product-grid-section">
+        <div class="container">
+          <div class="section-header">
+            <span class="section-eyebrow">Directly In-Editor</span>
+            <h2 class="section-title">Bring Codebase Intelligence to Your Workspace</h2>
+          </div>
+          <div class="prod-features-grid">
+            <div class="prod-feat-card">
+              <h3 class="prod-feat-card__title">Editor Map</h3>
+              <p class="prod-feat-card__desc">Visualize your directory tree as logical functional domains directly inside the VS Code sidebar. Zero context-switching required.</p>
+            </div>
+            <div class="prod-feat-card">
+              <h3 class="prod-feat-card__title">Interactive Tracing</h3>
+              <p class="prod-feat-card__desc">Hover over any method, class, or endpoint inside a file to trace call paths, variables origins, and imports instantly.</p>
+            </div>
+            <div class="prod-feat-card">
+              <h3 class="prod-feat-card__title">Active Code partner</h3>
+              <p class="prod-feat-card__desc">An active agent loop that can read files, write code edits, run tasks in your integrated terminal, and request feedback on structured artifacts.</p>
+            </div>
+            <div class="prod-feat-card">
+              <h3 class="prod-feat-card__title">Real-Time Risk Scores</h3>
+              <p class="prod-feat-card__desc">Receive inline markers pointing out high-risk method updates, warning you of wide-reaching downstream effects as you type.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 3. USE CASES VIEW -->
+    <div id="view-use-cases" class="page-view">
+      <section class="use-cases-section">
+        <div class="container">
+          <div class="section-header">
+            <span class="section-eyebrow">Use Cases</span>
+            <h2 class="section-title">Built for every stage of your engineering pipeline</h2>
+          </div>
+
+          <div class="uc-pane-layout">
+            <!-- Left Tabs -->
+            <div class="uc-tabs">
+              <div class="uc-tab uc-tab--active" data-uc="onboarding">
+                <span class="uc-tab-icon">🚀</span>
+                <span>New Hire Onboarding</span>
+              </div>
+              <div class="uc-tab" data-uc="incident">
+                <span class="uc-tab-icon">🔍</span>
+                <span>Incident Debugging</span>
+              </div>
+              <div class="uc-tab" data-uc="refactoring">
+                <span class="uc-tab-icon">⚡</span>
+                <span>Safe Refactoring</span>
+              </div>
+              <div class="uc-tab" data-uc="missions">
+                <span class="uc-tab-icon">📋</span>
+                <span>Ticket Missions</span>
+              </div>
+            </div>
+
+            <!-- Right Content Panes -->
+            <div class="uc-content-pane uc-content-pane--active" id="uc-pane-onboarding">
+              <div class="uc-pane-grid">
+                <div>
+                  <h3 class="uc-pane-title">Onboard developers in 3 hours, not 3 weeks</h3>
+                  <p class="uc-pane-desc">
+                    Make new engineers productive on day one. Rather than wading through outdated setup README files, new hires explore code organized by features.
+                  </p>
+                  <div class="uc-pane-points">
+                    <div class="uc-point"><span class="uc-point-bullet">✓</span> Guided interactive walks explaining key file relationships.</div>
+                    <div class="uc-point"><span class="uc-point-bullet">✓</span> Autolinked feature charts detailing domain boundaries.</div>
+                    <div class="uc-point"><span class="uc-point-bullet">✓</span> Immediate context for every microservice, controller, and database adapter.</div>
+                  </div>
+                  <a href="/download" class="btn btn--secondary" data-route="/download">Get started</a>
+                </div>
+                <div class="uc-visual-box">
+                  <div class="folder-tree">
+                    <div style="font-weight:bold;margin-bottom:6px;">🚀 Guided Path: User Checkout</div>
+                    <div class="folder-item">📍 Auth Verification</div>
+                    <div class="folder-item folder-item--indent">📍 Cart Validation</div>
+                    <div class="folder-item folder-item--indent">📍 Stripe API Hops</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="uc-content-pane" id="uc-pane-incident">
+              <div class="uc-pane-grid">
+                <div>
+                  <h3 class="uc-pane-title">Trace errors back to their root cause</h3>
+                  <p class="uc-pane-desc">
+                    Paste raw error strings or stack traces into Branchdeck. Our graph query identifies the exact methods, Redis endpoints, and external services responsible.
+                  </p>
+                  <div class="uc-pane-points">
+                    <div class="uc-point"><span class="uc-point-bullet">✓</span> Intercept cache resets and network dependency issues instantly.</div>
+                    <div class="uc-point"><span class="uc-point-bullet">✓</span> Track data flows from input endpoints down to system logs.</div>
+                    <div class="uc-point"><span class="uc-point-bullet">✓</span> Reduce Mean Time to Resolution (MTTR) by up to 80%.</div>
+                  </div>
+                  <a href="/download" class="btn btn--secondary" data-route="/download">Get started</a>
+                </div>
+                <div class="uc-visual-box">
+                  <div style="font-family: var(--font-mono); font-size: 0.75rem; color: #EF4444;">
+                    <div style="font-weight:bold;">❌ Exception: Redis Timeout (02:00:04 AM)</div>
+                    <div style="color: var(--palette-grey-800); margin-top: 6px;">Root Cause: Billing Cron Job clears caching keys at 02:00:00 AM. 38 downstream API endpoints affected.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="uc-content-pane" id="uc-pane-refactoring">
+              <div class="uc-pane-grid">
+                <div>
+                  <h3 class="uc-pane-title">Refactor complex code with surgical precision</h3>
+                  <p class="uc-pane-desc">
+                    Ship code updates with absolute confidence. Run automated impact checks to know exactly which classes, controllers, and APIs will break before you refactor.
+                  </p>
+                  <div class="uc-pane-points">
+                    <div class="uc-point"><span class="uc-point-bullet">✓</span> Auto-detect downstream impact paths for edited variables or interfaces.</div>
+                    <div class="uc-point"><span class="uc-point-bullet">✓</span> View unit and integration tests that cover edited code blocks.</div>
+                    <div class="uc-point"><span class="uc-point-bullet">✓</span> Eliminate regression errors and broken endpoint APIs.</div>
+                  </div>
+                  <a href="/download" class="btn btn--secondary" data-route="/download">Get started</a>
+                </div>
+                <div class="uc-visual-box">
+                  <div style="font-size: 0.8rem;">
+                    <div style="font-weight:bold;margin-bottom:6px;">🎯 Refactoring Scope:</div>
+                    <div style="color: #10B981;">✓ 14 files affected in Auth service</div>
+                    <div style="color: #F59E0B;">⚡ 2 integration tests require updating</div>
+                    <div style="color: #EF4444;">⚠ 1 checkout API signature changes</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="uc-content-pane" id="uc-pane-missions">
+              <div class="uc-pane-grid">
+                <div>
+                  <h3 class="uc-pane-title">Automated step-by-step dev assignments</h3>
+                  <p class="uc-pane-desc">
+                    Receive a task like "Add PayPal integration" and let Branchdeck construct a detailed blueprint of all target files, classes, and logic adapters you need to write.
+                  </p>
+                  <div class="uc-pane-points">
+                    <div class="uc-point"><span class="uc-point-bullet">✓</span> Custom blueprints based on your repo's specific adapters patterns.</div>
+                    <div class="uc-point"><span class="uc-point-bullet">✓</span> Recommended code locations, files to edit, and files to create.</div>
+                    <div class="uc-point"><span class="uc-point-bullet">✓</span> Automated unit test blueprints generated inline.</div>
+                  </div>
+                  <a href="/download" class="btn btn--secondary" data-route="/download">Get started</a>
+                </div>
+                <div class="uc-visual-box">
+                  <div style="font-size: 0.8rem;">
+                    <div style="font-weight:bold;margin-bottom:6px;">📋 Dev Mission: PayPal Adapter</div>
+                    <div style="color:var(--palette-grey-800)">1. Create <code>paypal.adapter.ts</code> under `/adapters`</div>
+                    <div style="color:var(--palette-grey-800)">2. Modify <code>checkout.service.ts</code> to route call</div>
+                    <div style="color:var(--palette-grey-800)">3. Mock PayPal calls in <code>checkout.test.ts</code></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 4. PRICING VIEW -->
+    <div id="view-pricing" class="page-view">
+      <section class="pricing-section">
+        <div class="container">
+          <div class="section-header">
+            <span class="section-eyebrow">Pricing</span>
+            <h2 class="section-title">Start free. Scale with your codebase.</h2>
+            <p class="section-sub">Choose the ideal level of intelligence for you and your team.</p>
+          </div>
+
+          <div class="pricing-grid">
+            <!-- Tier 1: Individual Free -->
+            <div class="pricing-card">
+              <div>
+                <span class="pricing-card__tier">For Individuals</span>
+                <p class="pricing-card__desc">Experience Branchdeck's core mapping without a subscription plan.</p>
+                <div class="pricing-card__price-wrapper">
+                  <span class="pricing-card__price">$0</span>
+                  <span class="pricing-card__period">/month</span>
+                </div>
+                <ul class="pricing-features">
+                  <li class="pricing-feature"><span>✓</span> 3 Indexed Repositories</li>
+                  <li class="pricing-feature"><span>✓</span> Visual Feature Maps</li>
+                  <li class="pricing-feature"><span>✓</span> Visual Call Flow</li>
+                  <li class="pricing-feature"><span>✓</span> 50 AI Code Queries/mo</li>
+                  <li class="pricing-feature pricing-feature--excluded"><span>✗</span> Dynamic Impact Analysis</li>
+                  <li class="pricing-feature pricing-feature--excluded"><span>✗</span> VS Code Extension</li>
+                </ul>
+              </div>
+              <a href="/download" class="btn btn--outline btn--full pricing-card__cta" data-route="/download">Download</a>
+            </div>
+
+            <!-- Tier 2: Pro -->
+            <div class="pricing-card pricing-card--featured">
+              <span class="pricing-card__badge">Most Popular</span>
+              <div>
+                <span class="pricing-card__tier">Branchdeck Pro</span>
+                <p class="pricing-card__desc">Unlock full contextual codebase navigation and extension access.</p>
+                <div class="pricing-card__price-wrapper">
+                  <span class="pricing-card__price">$29</span>
+                  <span class="pricing-card__period">/month</span>
+                </div>
+                <ul class="pricing-features">
+                  <li class="pricing-feature"><span>✓</span> Unlimited Repositories</li>
+                  <li class="pricing-feature"><span>✓</span> 100k indexed lines/repo</li>
+                  <li class="pricing-feature"><span>✓</span> VS Code Extension access</li>
+                  <li class="pricing-feature"><span>✓</span> Unlimited AI Search Queries</li>
+                  <li class="pricing-feature"><span>✓</span> Basic Impact Analysis</li>
+                  <li class="pricing-feature pricing-feature--excluded"><span>✗</span> Shared team dashboards</li>
+                </ul>
+              </div>
+              <a href="#waitlist" class="btn btn--secondary btn--full pricing-card__cta">Get plan</a>
+            </div>
+
+            <!-- Tier 3: Ultra -->
+            <div class="pricing-card">
+              <div>
+                <span class="pricing-card__tier">Branchdeck Ultra</span>
+                <p class="pricing-card__desc">For developers working in large scale startup codebases.</p>
+                <div class="pricing-card__price-wrapper">
+                  <span class="pricing-card__price">$49</span>
+                  <span class="pricing-card__period">/month</span>
+                </div>
+                <ul class="pricing-features">
+                  <li class="pricing-feature"><span>✓</span> Everything in Pro</li>
+                  <li class="pricing-feature"><span>✓</span> 1M+ indexed lines/repo</li>
+                  <li class="pricing-feature"><span>✓</span> Dynamic Impact Analysis</li>
+                  <li class="pricing-feature"><span>✓</span> High-frequency updates</li>
+                  <li class="pricing-feature"><span>✓</span> Priority indexing queue</li>
+                  <li class="pricing-feature pricing-feature--excluded"><span>✗</span> SSO / SAML integration</li>
+                </ul>
+              </div>
+              <a href="#waitlist" class="btn btn--outline btn--full pricing-card__cta">Get plan</a>
+            </div>
+
+            <!-- Tier 4: Enterprise -->
+            <div class="pricing-card">
+              <div>
+                <span class="pricing-card__tier">Organization Plan</span>
+                <p class="pricing-card__desc">Full scale, secure codebase intelligence for enterprise engineering teams.</p>
+                <div class="pricing-card__price-wrapper">
+                  <span class="pricing-card__price">Custom</span>
+                  <span class="pricing-card__period">via sales</span>
+                </div>
+                <ul class="pricing-features">
+                  <li class="pricing-feature"><span>✓</span> Unlimited repository sizes</li>
+                  <li class="pricing-feature"><span>✓</span> Local on-premise static indexes</li>
+                  <li class="pricing-feature"><span>✓</span> Shared team maps & reviews</li>
+                  <li class="pricing-feature"><span>✓</span> Single Sign-On (SSO / SAML)</li>
+                  <li class="pricing-feature"><span>✓</span> Dedicated support SLA</li>
+                  <li class="pricing-feature"><span>✓</span> Consumption-based API billing</li>
+                </ul>
+              </div>
+              <a href="#waitlist" class="btn btn--outline btn--full pricing-card__cta">Contact Sales</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 5. DOWNLOAD VIEW -->
+    <div id="view-download" class="page-view">
+      <section class="download-section">
+        <div class="container">
+          <div class="section-header">
+            <span class="section-eyebrow">Download Center</span>
+            <h2 class="section-title">Get Branchdeck for your setup</h2>
+          </div>
+
+          <!-- Tabs for different products -->
+          <div class="download-tabs">
+            <button class="download-tab-btn download-tab-btn--active" data-dtab="extension">VS Code Extension</button>
+            <button class="download-tab-btn" data-dtab="cli">Branchdeck CLI</button>
+            <button class="download-tab-btn" data-dtab="app">Desktop App</button>
+          </div>
+
+          <!-- Pane: Extension -->
+          <div class="download-pane download-pane--active" id="dpath-extension">
+            <div class="cli-install-box">
+              <div class="cli-code-block">
+                <span class="cli-code-text" id="ext-install-cmd">ext install Branchdeck.branchdeck-vscode</span>
+                <span class="cli-copy-btn" id="copy-ext-cmd" data-clipboard="ext install Branchdeck.branchdeck-vscode">Copy</span>
+              </div>
+              <div class="cli-instructions">
+                <div class="cli-instruction-item">
+                  <span class="cli-instruction-num">1</span>
+                  <p class="cli-instruction-text">Open <strong>VS Code</strong>, open the command palette (<code>Ctrl+Shift+P</code> or <code>Cmd+Shift+P</code>).</p>
+                </div>
+                <div class="cli-instruction-item">
+                  <span class="cli-instruction-num">2</span>
+                  <p class="cli-instruction-text">Type <code>Install Extension</code> and enter the command above.</p>
+                </div>
+                <div class="cli-instruction-item">
+                  <span class="cli-instruction-num">3</span>
+                  <p class="cli-instruction-text">Alternatively, search for <strong>Branchdeck</strong> directly in the extensions sidebar panel.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pane: CLI -->
+          <div class="download-pane" id="dpath-cli">
+            <div class="cli-install-box">
+              <div class="cli-code-block">
+                <span class="cli-code-text" id="cli-install-cmd">npm install -g @branchdeck/cli</span>
+                <span class="cli-copy-btn" id="copy-cli-cmd" data-clipboard="npm install -g @branchdeck/cli">Copy</span>
+              </div>
+              <div class="cli-instructions">
+                <div class="cli-instruction-item">
+                  <span class="cli-instruction-num">1</span>
+                  <p class="cli-instruction-text">Open your terminal and execute the global npm installation command above.</p>
+                </div>
+                <div class="cli-instruction-item">
+                  <span class="cli-instruction-num">2</span>
+                  <p class="cli-instruction-text">Run <code>branchdeck init</code> inside any project root folder to index your codebase.</p>
+                </div>
+                <div class="cli-instruction-item">
+                  <span class="cli-instruction-num">3</span>
+                  <p class="cli-instruction-text">Upload the static files or view call graphs locally using <code>branchdeck serve</code>.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pane: Desktop App -->
+          <div class="download-pane" id="dpath-app">
+            <div class="download-grid">
+              <div class="download-os-card">
+                <h3 class="download-os-card__title">🍎 macOS</h3>
+                <div class="download-os-card__links">
+                  <a href="#" class="btn btn--primary btn--full">macOS Apple Silicon (.dmg)</a>
+                  <a href="#" class="btn btn--outline btn--full">macOS Intel (.dmg)</a>
+                </div>
+                <p class="download-os-card__requirement">Requires macOS 12 Monterey or higher</p>
+              </div>
+
+              <div class="download-os-card">
+                <h3 class="download-os-card__title">💻 Windows</h3>
+                <div class="download-os-card__links">
+                  <a href="#" class="btn btn--primary btn--full">Windows x64 Installer (.exe)</a>
+                  <a href="#" class="btn btn--outline btn--full">Windows ARM64 Installer (.exe)</a>
+                </div>
+                <p class="download-os-card__requirement">Requires Windows 10, 11 (64-bit)</p>
+              </div>
+
+              <div class="download-os-card">
+                <h3 class="download-os-card__title">🐧 Linux</h3>
+                <div class="download-os-card__links">
+                  <a href="#" class="btn btn--primary btn--full">Linux x64 (.tar.gz)</a>
+                  <a href="#" class="btn btn--outline btn--full">Linux ARM64 (.tar.gz)</a>
+                </div>
+                <p class="download-os-card__requirement">Requires glibc >= 2.28 or higher</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </div>
+
+    <!-- 6. BLOG VIEW -->
+    <div id="view-blog" class="page-view">
+      <section class="blog-section">
+        <div class="container">
+          <div class="section-header">
+            <span class="section-eyebrow">Blog</span>
+            <h2 class="section-title">Latest insights and releases</h2>
+          </div>
+
+          <!-- Featured Post -->
+          <div class="blog-featured">
+            <div class="blog-featured__info">
+              <span class="blog-featured__badge">Feature Announcement</span>
+              <h3 class="blog-featured__title">Releasing Branchdeck 2.0 Feature Maps</h3>
+              <p class="blog-featured__desc">
+                We are excited to ship Branchdeck 2.0, completely overhauling how directories are parsed. Learn how we group directories into feature concepts automatically.
+              </p>
+              <a href="#" class="btn btn--primary">Read Article</a>
+            </div>
+            <div class="hidden-sm" style="opacity: 0.9;">
+              <svg width="280" height="180" viewBox="0 0 280 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="280" height="180" rx="16" fill="#EFF2F7"/>
+                <rect x="30" y="30" width="220" height="120" rx="8" fill="#FFF" stroke="#E1E6EC"/>
+                <path d="M50 60h180M50 80h140M50 100h160" stroke="#CDD4DC" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Filters -->
+          <div class="blog-filters">
+            <span class="blog-filter-btn blog-filter-btn--active" data-category="all">All posts</span>
+            <span class="blog-filter-btn" data-category="product">Product updates</span>
+            <span class="blog-filter-btn" data-category="engineering">Engineering guides</span>
+          </div>
+
+          <!-- Posts grid -->
+          <div class="blog-grid" id="blog-posts-grid">
+            <div class="blog-card" data-cat="engineering">
+              <div>
+                <span class="blog-card__category">Engineering</span>
+                <h4 class="blog-card__title">How we mapped 1.2M lines of code in 3 hours</h4>
+                <p class="blog-card__desc">A detailed case study on utilizing index caching to load massive directories into clean, visual graphs with minimal latency.</p>
+              </div>
+              <span class="blog-card__date">July 1, 2026</span>
+            </div>
+
+            <div class="blog-card" data-cat="product">
+              <div>
+                <span class="blog-card__category">Product</span>
+                <h4 class="blog-card__title">Automatic Impact Analysis in CI/CD pipelines</h4>
+                <p class="blog-card__desc">Prevent regression merges directly inside GitHub. Integrate our CLI checks into your pull requests automation.</p>
+              </div>
+              <span class="blog-card__date">June 20, 2026</span>
+            </div>
+
+            <div class="blog-card" data-cat="product">
+              <div>
+                <span class="blog-card__category">Product</span>
+                <h4 class="blog-card__title">Branchdeck VS Code Extension reaches Beta</h4>
+                <p class="blog-card__desc">We are releasing our IDE extension to beta developers. Get instant call graph outlines directly inside your active workspace tabs.</p>
+              </div>
+              <span class="blog-card__date">June 12, 2026</span>
+            </div>
+
+            <div class="blog-card" data-cat="engineering">
+              <div>
+                <span class="blog-card__category">Engineering</span>
+                <h4 class="blog-card__title">Legacy codebases: parsing code workflows with AI</h4>
+                <p class="blog-card__desc">Stop wasting developer hours explaining code histories. Translate call flows into plain English documentations.</p>
+              </div>
+              <span class="blog-card__date">May 28, 2026</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </main>
+
+  <!-- ─── WAITLIST / NEWSLETTER CTA ──────────────────────── -->
+  <section class="waitlist-section" id="waitlist">
+    <div class="container">
+      <div class="waitlist-card">
+        <h2 class="waitlist-card__title">Be the first to map your codebase</h2>
+        <p class="waitlist-card__sub">Join 2,400+ developers on the waitlist. Get early access during private beta.</p>
+        <form class="waitlist-form" id="newsletter-form" novalidate>
+          <input type="email" class="waitlist-input" placeholder="you@company.com" required id="newsletter-email" autocomplete="email" />
+          <button type="submit" class="btn btn--secondary btn--lg" id="newsletter-submit">Request Access</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── FOOTER ─────────────────────────────────────────── -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__inner">
+        <div class="footer__brand">
+          <a href="/" class="nav__logo">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#3279F9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+              <path d="M2 17l10 5 10-5"/>
+              <path d="M2 12l10 5 10-5"/>
+            </svg>
+            <span>Branchdeck</span>
+          </a>
+          <p class="footer__tagline">Understand any codebase in hours, not weeks.</p>
+        </div>
+
+        <div class="footer__col">
+          <span class="footer__col-title">Product</span>
+          <a href="/" data-route="/">Web App</a>
+          <a href="/extension" data-route="/extension">VS Code Extension</a>
+          <a href="/download?tab=cli" data-route="/download">CLI Tool</a>
+          <a href="/pricing" data-route="/pricing">Pricing Plans</a>
+        </div>
+
+        <div class="footer__col">
+          <span class="footer__col-title">Resources</span>
+          <a href="#">Documentation</a>
+          <a href="https://github.com/branchdeck" target="_blank">GitHub</a>
+          <a href="/blog" data-route="/blog">Release Blog</a>
+        </div>
+
+        <div class="footer__col">
+          <span class="footer__col-title">Company</span>
+          <a href="#">About Us</a>
+          <a href="#">Careers</a>
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms of Service</a>
+        </div>
+      </div>
+
+      <div class="footer__bottom">
+        <span>© 2026 Branchdeck, Inc. All rights reserved.</span>
+        <div class="footer__social">
+          <a href="#" aria-label="Twitter">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </a>
+          <a href="https://github.com/branchdeck" target="_blank" aria-label="GitHub">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
