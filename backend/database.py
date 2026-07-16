@@ -6,7 +6,7 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-from sqlalchemy import create_engine, Column, String, ForeignKey, DateTime, JSON, Text, select, text, Float
+from sqlalchemy import create_engine, Column, String, ForeignKey, DateTime, JSON, Text, select, text, Float, Integer, Index
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from sqlalchemy.types import TypeDecorator, NullType
 
@@ -55,6 +55,10 @@ class Repository(Base):
     name = Column(String(100), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    __table_args__ = (
+        Index("idx_repos_org", "organization_id"),
+    )
+
 class Commit(Base):
     __tablename__ = "commits"
     
@@ -62,6 +66,10 @@ class Commit(Base):
     repo_id = Column(String(36), ForeignKey("repos.id", ondelete="CASCADE"), nullable=False)
     parent_sha = Column(String(40), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("idx_commits_repo", "repo_id"),
+    )
 
 class CodeNode(Base):
     __tablename__ = "code_nodes"
@@ -73,7 +81,11 @@ class CodeNode(Base):
     file_path = Column(String(255), nullable=False)
     kind = Column(String(30), nullable=False) # ui, api, service, db, external, worker
     content_hash = Column(String(64), nullable=False)
-    embedding = Column(SafeVector(1536), nullable=True) # safe pgvector embeddings
+    embedding = Column(SafeVector(768), nullable=True) # safe pgvector embeddings
+
+    __table_args__ = (
+        Index("idx_nodes_repo_commit", "repo_id", "commit_sha"),
+    )
 
 class CodeEdge(Base):
     __tablename__ = "code_edges"
@@ -85,12 +97,94 @@ class CodeEdge(Base):
     to_id = Column(String(150), ForeignKey("code_nodes.id", ondelete="CASCADE"), nullable=False)
     kind = Column(String(30), nullable=False) # imports, calls
 
+    __table_args__ = (
+        Index("idx_edges_repo_commit", "repo_id", "commit_sha"),
+        Index("idx_edges_from", "from_id"),
+        Index("idx_edges_to", "to_id"),
+    )
+
+class CodeChunk(Base):
+    __tablename__ = "code_chunks"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    node_id = Column(String(150), ForeignKey("code_nodes.id", ondelete="CASCADE"), nullable=False)
+    content = Column(Text, nullable=False)
+    embedding = Column(SafeVector(768), nullable=True)
+    start_line = Column(Integer, nullable=False)
+    end_line = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("idx_chunks_node", "node_id"),
+    )
+
+class OrgMembership(Base):
+    __tablename__ = "org_memberships"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(100), nullable=False)
+    organization_id = Column(String(100), nullable=False)
+    role = Column(String(50), nullable=False, default="Developer")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("idx_memberships_user", "user_id"),
+    )
+
+class TeamInvitation(Base):
+    __tablename__ = "team_invitations"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String(100), nullable=False)
+    invited_by = Column(String(100), nullable=False)
+    invitee_email = Column(String(100), nullable=False)
+    role = Column(String(50), nullable=False, default="Developer")
+    repo_source = Column(String(255), nullable=True)
+    token = Column(String(64), nullable=False, unique=True)
+    status = Column(String(20), nullable=False, default="pending") # pending, accepted, expired
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+
+    __table_args__ = (
+        Index("idx_invitations_token", "token"),
+    )
+
 class FileCache(Base):
     __tablename__ = "file_cache"
     
     content_hash = Column(String(64), primary_key=True)
     ast_summary = Column(JSON, nullable=False) # Contains {"imports": [], "calls": []}
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class IndexingJob(Base):
+    __tablename__ = "indexing_jobs"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(100), nullable=False)
+    repo_name = Column(String(100), nullable=False)
+    status = Column(String(20), nullable=False, default="queued") # queued, processing, completed, failed
+    progress = Column(Integer, nullable=False, default=0)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        Index("idx_jobs_org", "organization_id"),
+    )
+
+class UsageLog(Base):
+    __tablename__ = "usage_logs"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(100), nullable=False)
+    organization_id = Column(String(100), nullable=False)
+    action = Column(String(50), nullable=False) # query, index
+    units = Column(Integer, nullable=False, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("idx_usage_org_date", "organization_id", "created_at"),
+    )
 
 # Database Session Dependency
 def get_db():

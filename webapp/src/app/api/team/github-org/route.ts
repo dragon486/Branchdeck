@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase-server';
 
 /**
  * GitHub Organization Member Sync
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
     const authHeader = request.headers.get('Authorization');
 
     if (!authHeader) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: 'Unauthorized: Missing token' }, { status: 401 });
     }
 
     if (!org?.trim()) {
@@ -41,6 +42,24 @@ export async function POST(request: Request) {
 
     const members = await res.json();
 
+    // Map and persist members directly to organization memberships in the database
+    const memberships = members.map((m: any) => ({
+      user_id: `github:${m.login}`,
+      organization_id: workspaceId || 'default',
+      role: 'Developer'
+    }));
+
+    if (memberships.length > 0) {
+      const { error: dbError } = await supabaseAdmin
+        .from('org_memberships')
+        .upsert(memberships, { onConflict: 'user_id,organization_id' });
+        
+      if (dbError) {
+        console.error('[GitHub Org Sync API] Database save failed:', dbError);
+        return NextResponse.json({ success: false, error: `Failed to persist membership sync: ${dbError.message}` }, { status: 500 });
+      }
+    }
+
     return NextResponse.json({
       success: true,
       org,
@@ -51,7 +70,7 @@ export async function POST(request: Request) {
         githubAvatar: m.avatar_url,
         profileUrl: m.html_url,
       })),
-      message: `${members.length} members from "${org}" synced to workspace.`,
+      message: `Successfully synced and persisted ${members.length} members from GitHub organization "${org}".`,
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

@@ -131,6 +131,39 @@ export default function Dashboard() {
   // VS Code loader handles
   const [isScanning, setIsScanning] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [indexingProgress, setIndexingProgress] = useState(0);
+
+  // Poll background job progress until completion
+  const pollJobStatus = async (jobId: string, onUpdateProgress: (progress: number) => void): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      const interval = setInterval(async () => {
+        try {
+          const response = await authenticatedFetch(`/api/analyze/status/${jobId}`, {
+            method: 'GET'
+          });
+          if (!response.ok) {
+            clearInterval(interval);
+            const errData = await response.json().catch(() => ({}));
+            reject(new Error(errData.error || `HTTP ${response.status} fetching job status`));
+            return;
+          }
+          const data = await response.json();
+          if (data.status === 'completed') {
+            clearInterval(interval);
+            resolve(data);
+          } else if (data.status === 'failed') {
+            clearInterval(interval);
+            reject(new Error(data.error_message || 'Indexing job failed.'));
+          } else {
+            onUpdateProgress(data.progress || 0);
+          }
+        } catch (err) {
+          clearInterval(interval);
+          reject(err);
+        }
+      }, 2000);
+    });
+  };
 
   // Supabase real-time presence collaboration
   const { members: realtimeMembers, updatePresence } = useCollaboration(
@@ -353,6 +386,7 @@ export default function Dashboard() {
           case 'workspaceFiles':
             if (data.value && data.value.length > 0) {
               setIsScanning(true);
+              setIndexingProgress(0);
               setAnalysisError(null);
               authenticatedFetch('/api/analyze', {
                 method: 'POST',
@@ -374,6 +408,18 @@ export default function Dashboard() {
                 }
                 return res.json();
               })
+              .then(async resData => {
+                if (resData.success && resData.job_id) {
+                  const result = await pollJobStatus(resData.job_id, (prog) => {
+                    setIndexingProgress(prog);
+                  });
+                  return result;
+                } else if (resData.success) {
+                  return resData;
+                } else {
+                  throw new Error(resData.error || 'Analysis initiation failed');
+                }
+              })
               .then(resData => {
                 if (resData.success) {
                   setFeatures(resData.features);
@@ -392,6 +438,7 @@ export default function Dashboard() {
               })
               .finally(() => {
                 setIsScanning(false);
+                setIndexingProgress(0);
               });
             } else {
               setAnalysisError('Workspace scan returned 0 files.');
@@ -446,6 +493,7 @@ export default function Dashboard() {
     }
 
     setAnalyzing(true);
+    setIndexingProgress(0);
     setWarningMsg(null);
     const targetUrl = urlOverride !== undefined ? urlOverride : repoUrl;
 
@@ -457,7 +505,31 @@ export default function Dashboard() {
       });
       const data = await response.json();
 
-      if (data.success) {
+      if (data.success && data.job_id) {
+        // Poll status
+        const result = await pollJobStatus(data.job_id, (prog) => {
+          setIndexingProgress(prog);
+        });
+        
+        if (result.success) {
+          setFeatures(result.features);
+          setCallNodes(result.callGraph.nodes);
+          setCallEdges(result.callGraph.edges);
+          setRepoSource(result.source || data.source);
+          if (result.warning) {
+            setWarningMsg(result.warning);
+          }
+          setHasData(true);
+          
+          // Auto trigger first story
+          if (result.features && result.features.length > 0) {
+            handleLoadStory(result.features[0].id);
+          }
+        } else {
+          alert(result.error || 'Failed to analyze repository.');
+        }
+      } else if (data.success) {
+        // Mock fallback returned immediately
         setFeatures(data.features);
         setCallNodes(data.callGraph.nodes);
         setCallEdges(data.callGraph.edges);
@@ -466,19 +538,18 @@ export default function Dashboard() {
           setWarningMsg(data.warning);
         }
         setHasData(true);
-        
-        // Auto trigger first story
         if (data.features.length > 0) {
           handleLoadStory(data.features[0].id);
         }
       } else {
         alert(data.error || 'Failed to analyze repository.');
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('Network error analyzing repository.');
+      alert(e.message || 'Network error analyzing repository.');
     } finally {
       setAnalyzing(false);
+      setIndexingProgress(0);
     }
   };
 
@@ -501,128 +572,63 @@ export default function Dashboard() {
   };
 
   // Dynamic client-side codebase Q&A parser that works on uploaded repos
-  const handleCodebaseQuery = (queryText: string) => {
-    const query = queryText.toLowerCase().trim();
-    
-    // 1. Check if user is asking about deleting a class / file (downstream dependencies check)
-    const isDeleteQuery = query.includes('delete') || query.includes('remove') || query.includes('destroy') || query.includes('what happens if');
-    
-    if (isDeleteQuery) {
-      let matchedNode = null;
-      for (const node of callNodes) {
-        const cleanLabel = node.label.toLowerCase();
-        const cleanFile = node.file.toLowerCase();
-        const fileBase = cleanFile.split('/').pop() || '';
-        if (query.includes(cleanLabel) || query.includes(fileBase.toLowerCase())) {
-          matchedNode = node;
-          break;
-        }
+  // Dynamic backend-powered codebase Q&A search query
+  const handleCodebaseQuery = async (queryText: string) => {
+    const query = queryText.trim();
+    if (!query) return;
+
+    setStoryLoading(true);
+    setStoryData(null);
+    setActiveRightTab('story');
+
+    let commitSha = 'local-commit';
+    if (callNodes.length > 0) {
+      const parts = callNodes[0].id.split(':');
+      if (parts.length >= 2) {
+        commitSha = parts[1];
       }
+    }
+
+    try {
+      const response = await authenticatedFetch('/api/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ queryText: query, commitSha })
+      });
       
-      if (matchedNode) {
-        // Calculate downstream dependencies (nodes that call the matchedNode)
-        const affectedNodes = new Set<string>();
-        const queue = [matchedNode.id];
-        
-        while (queue.length > 0) {
-          const currId = queue.shift()!;
-          callEdges.forEach(edge => {
-            if (edge.to === currId && !affectedNodes.has(edge.from)) {
-              affectedNodes.add(edge.from);
-              queue.push(edge.from);
-            }
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.answer) {
+          // Split the markdown answer into paragraphs to display as step-by-step logic
+          const paragraphs = data.answer
+            .split('\n')
+            .map((p: string) => p.trim())
+            .filter((p: string) => p.length > 0);
+
+          setStoryData({
+            title: `AI Search: "${query}"`,
+            steps: paragraphs,
+            provenance: 'database-llm'
           });
+          return;
+        } else {
+          throw new Error(data.error || 'Server error during AI search');
         }
-        
-        setImpactData({
-          target: `${matchedNode.label} (${matchedNode.file.split('/').pop()})`,
-          risk: affectedNodes.size > 5 ? 'High' : affectedNodes.size > 2 ? 'Medium' : 'Low',
-          stats: {
-            files: affectedNodes.size + 1,
-            apis: callNodes.filter(n => affectedNodes.has(n.id) && n.type === 'api').length,
-            services: callNodes.filter(n => affectedNodes.has(n.id) && n.type === 'service').length,
-            screens: callNodes.filter(n => affectedNodes.has(n.id) && n.type === 'ui').length
-          },
-          affectedList: Array.from(affectedNodes).map(id => {
-            const node = callNodes.find(n => n.id === id)!;
-            return {
-              name: node.label,
-              path: node.file,
-              level: 'High' as 'High' | 'Medium' | 'Low'
-            };
-          })
-        });
-        
-        setSelectedNode(matchedNode);
-        setSelectedFile(matchedNode.file);
-        setActiveRightTab('impact');
-        return;
       }
-    }
-
-    // 2. Check if user is asking about authentication module
-    const isAuthQuery = query.includes('auth') || query.includes('login') || query.includes('jwt') || query.includes('credential') || query.includes('session');
-    if (isAuthQuery) {
-      const authFiles = callNodes.filter(n => n.file.toLowerCase().includes('auth') || n.file.toLowerCase().includes('login') || n.file.toLowerCase().includes('session'));
-      if (authFiles.length > 0) {
-        setStoryData({
-          title: 'Authentication & Session Security Workflow',
-          steps: [
-            `Authentication entry points reside in: ${authFiles.find(n => n.type === 'api')?.file || authFiles[0].file}`,
-            `Core auth validation and credential verification run in: ${authFiles.find(n => n.type === 'service')?.file || authFiles[0].file}`,
-            `Requests are secured via token validation strategies and session middleware checks.`,
-            `A user session store (like Redis or token validation databases) tracks logged-in active tokens.`,
-            `Downstream services query the authentication context to verify scopes and roles.`
-          ]
-        });
-
-        // Locate folder path for auth files to focus it on folder map
-        const authFile = authFiles[0].file;
-        const authFolder = authFile.substring(0, authFile.lastIndexOf('/'));
-        if (authFolder && authFolder !== 'src' && authFolder !== '') {
-          setSelectedFolder(authFolder);
-        }
-        
-        setActiveRightTab('story');
-        return;
-      }
-    }
-
-    // 3. Fallback: try to match any node label to describe its logic
-    let foundNode = null;
-    for (const node of callNodes) {
-      if (query.includes(node.label.toLowerCase()) || node.file.toLowerCase().includes(query)) {
-        foundNode = node;
-        break;
-      }
-    }
-
-    if (foundNode) {
+      const errData = await response.json();
+      throw new Error(errData.error || 'Failed to retrieve AI search result');
+    } catch (e: any) {
+      console.error('[Codebase Query Error]', e);
       setStoryData({
-        title: `${foundNode.label} Workflow Story`,
+        title: `AI Search: "${query}"`,
         steps: [
-          `File location: ${foundNode.file}`,
-          `Scope role: ${foundNode.type.toUpperCase()} module processing core operations.`,
-          `Assigned Maintainer: ${foundNode.developer?.name || 'Local Dev'} (${foundNode.developer?.role || 'Lead'}).`,
-          `This code provides logic exports, orchestrates events, and integrates with downstream dependencies.`,
-          `Triggered by upstream controller routes or UI view pages.`
-        ]
+          `Failed to retrieve answer: ${e.message}`,
+          'Make sure the FastAPI backend and database are running and GEMINI_API_KEY is configured in your environment.'
+        ],
+        provenance: 'client-rules'
       });
-      setSelectedNode(foundNode);
-      setSelectedFile(foundNode.file);
-      setActiveRightTab('story');
-    } else {
-      // Generic answer
-      setStoryData({
-        title: `AI Codebase Search: "${queryText}"`,
-        steps: [
-          `Branchdeck AI scanned the codebase repository index.`,
-          `Search query matched elements in the workspace graph tree.`,
-          `Select specific folders or files in the Project Structure sidebar to explore call logic.`,
-          `Hover and click nodes on the diagram to see live collaborator status and context.`
-        ]
-      });
-      setActiveRightTab('story');
+    } finally {
+      setStoryLoading(false);
     }
   };
 
@@ -952,8 +958,11 @@ export default function Dashboard() {
                 Scanning local codebase and mapping AST static relations...
               </p>
             </div>
-            <div className="w-48 h-1 bg-white/5 rounded-full mx-auto overflow-hidden border border-white/5 relative">
-              <div className="h-full bg-white rounded-full animate-loading-bar absolute inset-y-0 left-0" style={{ width: '40%' }} />
+            <div className="space-y-4">
+              <div className="w-48 h-1.5 bg-white/5 rounded-full mx-auto overflow-hidden border border-white/5 relative">
+                <div className="h-full bg-white rounded-full absolute inset-y-0 left-0 transition-all duration-300" style={{ width: `${indexingProgress}%` }} />
+              </div>
+              <div className="text-[10px] text-neutral-450 font-mono tracking-widest">{indexingProgress}% COMPLETED</div>
             </div>
           </div>
         </div>

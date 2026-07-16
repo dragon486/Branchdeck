@@ -7,8 +7,8 @@ export async function GET(req: Request) {
     const token = searchParams.get("token");
 
     // Simple admin token protection to secure database signups
-    const expectedPasscode = process.env.ADMIN_PASSCODE || "branchdeck-admin-passkey";
-    if (!token || token !== expectedPasscode) {
+    const expectedPasscode = process.env.ADMIN_PASSCODE;
+    if (!expectedPasscode || !token || token !== expectedPasscode) {
       return NextResponse.json({ error: "Unauthorized access" }, { status: 401 });
     }
 

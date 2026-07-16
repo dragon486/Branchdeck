@@ -5,11 +5,17 @@ import uuid
 import json
 import logging
 from starlette.middleware.base import BaseHTTPMiddleware
-from fastapi import FastAPI, Depends, HTTPException, Header, Request
+from fastapi import FastAPI, Depends, HTTPException, Header, Request, BackgroundTasks, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from database import get_db, init_db, Repository, Commit, CodeNode, CodeEdge, FileCache, get_downstream_impact
+from database import get_db, init_db, Repository, Commit, CodeNode, CodeEdge, FileCache, get_downstream_impact, IndexingJob, UsageLog
 from parser import parse_file
+from secure_file_handler import validate_repository_path, check_file_permission
+from services.chunker import chunk_code
+from services.embeddings import get_embedding
+from services.vector_store import store_chunk, search_chunks
+from services.retrieval import retrieve_code_context
+from services.ai_agent import generate_answer
 from pydantic import BaseModel
 from typing import List, Optional
 import httpx
@@ -64,11 +70,17 @@ class StoryPayload(BaseModel):
     featureId: str
     commitSha: Optional[str] = None
 
+class QueryPayload(BaseModel):
+    queryText: str
+    commitSha: Optional[str] = None
+
 import jwt
 
-SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "super-secret-supabase-jwt-key-for-local-dev")
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
 
 def verify_jwt_hs256(token: str, secret: str) -> dict:
+    if not secret:
+        raise HTTPException(status_code=500, detail="Server misconfiguration: SUPABASE_JWT_SECRET is not set")
     try:
         return jwt.decode(token, secret, algorithms=["HS256"])
     except jwt.ExpiredSignatureError as e:
@@ -83,7 +95,7 @@ class AuthenticatedUser:
         self.email = email
         self.role = role
 
-def get_current_user(authorization: Optional[str] = Header(None, alias="Authorization")) -> AuthenticatedUser:
+def get_current_user(authorization: Optional[str] = Header(None, alias="Authorization"), db: Session = Depends(get_db)) -> AuthenticatedUser:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
     token = authorization.split(" ")[1]
@@ -94,17 +106,33 @@ def get_current_user(authorization: Optional[str] = Header(None, alias="Authoriz
     email = payload.get("email")
     role = payload.get("role")
     
-    org_id = (
-        payload.get("organization_id")
-        or payload.get("org_id")
-        or payload.get("app_metadata", {}).get("organization_id")
-        or payload.get("user_metadata", {}).get("organization_id")
-    )
-    
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token: missing subject (user_id)")
-    if not org_id:
-        raise HTTPException(status_code=401, detail="Invalid token: missing organization identity context")
+        
+    # Resolve organization context from SQL database mapping table
+    from database import OrgMembership
+    membership = db.query(OrgMembership).filter_by(user_id=user_id).first()
+    if not membership:
+        # Try resolving via GitHub username context if user logged in with GitHub OAuth
+        github_login = payload.get("user_metadata", {}).get("user_name")
+        if github_login:
+            membership = db.query(OrgMembership).filter_by(user_id=f"github:{github_login}").first()
+            if membership:
+                membership.user_id = user_id
+                db.commit()
+                db.refresh(membership)
+                logger.info(f"Linked GitHub synced membership for user {user_id} (github:{github_login})")
+                
+    if membership:
+        org_id = membership.organization_id
+    else:
+        # Create a default organization for the user if they do not belong to one yet
+        org_id = f"org-{user_id[:8]}"
+        membership = OrgMembership(user_id=user_id, organization_id=org_id, role="owner")
+        db.add(membership)
+        db.commit()
+        db.refresh(membership)
+        logger.info(f"Generated default organization membership context for user {user_id}: {org_id}")
         
     user_id_ctx.set(user_id)
     organization_id_ctx.set(org_id)
@@ -152,11 +180,15 @@ app.add_middleware(
 # Initialize database tables on startup
 @app.on_event("startup")
 def on_startup():
+    if not os.getenv("SUPABASE_JWT_SECRET"):
+        logger.critical("CRITICAL CONFIGURATION ERROR: SUPABASE_JWT_SECRET environment variable is missing!")
+        raise RuntimeError("SUPABASE_JWT_SECRET environment variable is missing!")
     try:
         init_db()
-        print("Database initialized successfully.")
+        logger.info("Database initialized successfully.")
     except Exception as e:
-        print(f"CRITICAL ERROR: Database initialization failed on startup: {e}")
+        logger.critical(f"CRITICAL ERROR: Database initialization failed on startup: {e}")
+        raise e
 
 ECOMMERCE_DEMO_FEATURES = [
     {
@@ -200,190 +232,196 @@ ECOMMERCE_DEMO_CALLS = {
     ]
 }
 
-@app.post("/api/analyze")
-async def analyze_codebase(payload: AnalyzePayload, db: Session = Depends(get_db), current_user: AuthenticatedUser = Depends(get_current_user)):
-    workspace_path = payload.workspacePath
-    files = payload.files
-    url = payload.url
+def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str, org_id: str):
+    from database import SessionLocal, IndexingJob, Repository, Commit, CodeNode, CodeEdge, FileCache
+    from parser import parse_file
+    from secure_file_handler import validate_repository_path, check_file_permission
+    from services.chunker import chunk_code
+    from services.embeddings import get_embedding
+    from services.vector_store import store_chunk
+    import hashlib
     
-    if not workspace_path or not files:
-        return {
-            "success": True,
-            "source": "mock-ecommerce",
-            "features": ECOMMERCE_DEMO_FEATURES,
-            "callGraph": ECOMMERCE_DEMO_CALLS
-        }
-        
-    # Standardize path
-    clean_workspace = workspace_path.replace("\\", "/")
-    repo_name = clean_workspace.split("/")[-1]
-    
-    # Set logging context
-    repository_ctx.set(repo_name)
-    
-    # 1. Setup repository scoped to organization
-    repo = db.query(Repository).filter_by(organization_id=current_user.organization_id, name=repo_name).first()
-    if not repo:
-        repo = Repository(organization_id=current_user.organization_id, name=repo_name)
-        db.add(repo)
+    db = SessionLocal()
+    try:
+        job = db.query(IndexingJob).filter_by(id=job_id).first()
+        if not job:
+            return
+        job.status = "processing"
+        job.progress = 5
         db.commit()
-        db.refresh(repo)
         
-    # 2. Register Commit SHA (or local unique token)
-    commit_sha = hashlib.sha256(bytes(clean_workspace + str(len(files)), "utf8")).hexdigest()[:10]
-    commit = db.query(Commit).filter_by(sha=commit_sha, repo_id=repo.id).first()
-    if not commit:
-        commit = Commit(sha=commit_sha, repo_id=repo.id)
-        db.add(commit)
-        db.commit()
-
-    # Clean old graph mappings for this commit if rebuilding
-    db.query(CodeNode).filter(CodeNode.commit_sha == commit_sha, CodeNode.repo_id == repo.id).delete(synchronize_session=False)
-    db.query(CodeEdge).filter(CodeEdge.commit_sha == commit_sha, CodeEdge.repo_id == repo.id).delete(synchronize_session=False)
-    db.commit()
-
-    nodes = []
-    edges = []
-    file_to_node_id = {}
-    
-    # Define team assignment roster
-    dev_roster = [
-        {"name": "Sarah Chen", "role": "Frontend Lead", "avatar": "SC"},
-        {"name": "Alex River", "role": "API Lead", "avatar": "AR"},
-        {"name": "Dave Miller", "role": "Logistics Dev", "avatar": "DM"},
-        {"name": "Marcus Vance", "role": "Payment Specialist", "avatar": "MV"},
-        {"name": "Elena Rostova", "role": "Backend Staff", "avatar": "ER"}
-    ]
-
-    # 3. Content-Addressable AST parsing pass
-    for idx, file in enumerate(files):
-        filename = file.split("/")[-1]
-        clean_name = filename.split(".")[0]
-        full_path = os.path.join(clean_workspace, file)
+        clean_workspace = workspace_path.replace("\\", "/")
+        repo_name = clean_workspace.split("/")[-1]
         
-        # Default node details
-        node_id = f"node-{idx}"
-        file_to_node_id[file] = node_id
-        
-        node_type = "service"
-        path_lower = file.lower()
-        if "page" in path_lower or "layout" in path_lower or "view" in path_lower or file.endswith(".css") or "screen" in path_lower or "component" in path_lower or "components/" in path_lower:
-            node_type = "ui"
-        elif "controller" in path_lower or "route" in path_lower or "api/" in path_lower or "api" in path_lower:
-            node_type = "api"
-        elif "db/" in path_lower or "model" in path_lower or "entity" in path_lower or "repository" in path_lower or "schema" in path_lower or "db-" in path_lower or "database" in path_lower:
-            node_type = "db"
-        elif "cron" in path_lower or "worker" in path_lower or "job" in path_lower or "task" in path_lower:
-            node_type = "worker"
-        elif "adapter" in path_lower or "external" in path_lower or "client" in path_lower or "sdk" in path_lower:
-            node_type = "external"
-
-        # Try reading file contents
-        content = ""
-        if os.path.exists(full_path):
+        # 1. Secure path validation
+        validated_files = {}
+        for file in files:
             try:
-                with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
-                    content = f.read()
-            except Exception:
-                pass
+                validated_files[file] = validate_repository_path(clean_workspace, file)
+            except ValueError as e:
+                logger.error(f"Security validation failed for path '{file}' in job {job_id}: {e}")
+                job.status = "failed"
+                job.error_message = f"Path validation failed: {e}"
+                db.commit()
+                return
                 
-        # Compute SHA256 of file
-        file_hash = hashlib.sha256(bytes(content, "utf8")).hexdigest()
-        
-        # Check computed parse cache
-        cached = db.query(FileCache).filter_by(content_hash=file_hash).first()
-        if cached:
-            ast_summary = cached.ast_summary
-        else:
-            ast_summary = parse_file(file, content)
-            # Store in cache
-            new_cache = FileCache(content_hash=file_hash, ast_summary=ast_summary)
-            db.merge(new_cache)
+        # 2. Setup repository scoped to organization
+        repo = db.query(Repository).filter_by(organization_id=org_id, name=repo_name).first()
+        if not repo:
+            repo = Repository(organization_id=org_id, name=repo_name)
+            db.add(repo)
+            db.commit()
+            db.refresh(repo)
+            
+        # 3. Register Commit SHA (or local unique token)
+        commit_sha = hashlib.sha256(bytes(clean_workspace + str(len(files)), "utf8")).hexdigest()[:10]
+        commit = db.query(Commit).filter_by(sha=commit_sha, repo_id=repo.id).first()
+        if not commit:
+            commit = Commit(sha=commit_sha, repo_id=repo.id)
+            db.add(commit)
             db.commit()
             
-        developer = dev_roster[idx % len(dev_roster)]
+        # Clean old mappings
+        db.query(CodeNode).filter(CodeNode.commit_sha == commit_sha, CodeNode.repo_id == repo.id).delete(synchronize_session=False)
+        db.query(CodeEdge).filter(CodeEdge.commit_sha == commit_sha, CodeEdge.repo_id == repo.id).delete(synchronize_session=False)
+        db.commit()
         
-        # Create database entry
-        db_node = CodeNode(
-            id=f"{repo.id}:{commit_sha}:{file}",
-            repo_id=repo.id,
-            commit_sha=commit_sha,
-            symbol=clean_name,
-            file_path=file,
-            kind=node_type,
-            content_hash=file_hash
-        )
-        db.add(db_node)
+        dev_roster = [
+            {"name": "Sarah Chen", "role": "Frontend Lead", "avatar": "SC"},
+            {"name": "Alex River", "role": "API Lead", "avatar": "AR"},
+            {"name": "Dave Miller", "role": "Logistics Dev", "avatar": "DM"},
+            {"name": "Marcus Vance", "role": "Payment Specialist", "avatar": "MV"},
+            {"name": "Elena Rostova", "role": "Backend Staff", "avatar": "ER"}
+        ]
         
-        nodes.append({
-            "id": db_node.id,
-            "label": clean_name,
-            "file": file,
-            "type": node_type,
-            "developer": developer,
-            "note": f"Parsed local AST file: {file}"
-        })
-
-    db.commit()
-
-    # 4. Build declarations map for this commit to resolve function call targets
-    decl_to_node = {}
-    for idx, file in enumerate(files):
-        source_node_id = f"{repo.id}:{commit_sha}:{file}"
-        content = ""
-        full_path = os.path.join(clean_workspace, file)
-        if os.path.exists(full_path):
-            try:
-                with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
-                    content = f.read()
-            except Exception:
-                pass
-        file_hash = hashlib.sha256(bytes(content, "utf8")).hexdigest()
-        cached = db.query(FileCache).filter_by(content_hash=file_hash).first()
-        if cached:
-            ast_summary = cached.ast_summary
-            for decl in ast_summary.get("declarations", []):
-                decl_to_node[decl] = source_node_id
-
-    # 5. Create connections (edges)
-    for idx, file in enumerate(files):
-        full_path = os.path.join(clean_workspace, file)
-        content = ""
-        if os.path.exists(full_path):
-            try:
-                with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
-                    content = f.read()
-            except Exception:
-                pass
-                
-        file_hash = hashlib.sha256(bytes(content, "utf8")).hexdigest()
-        cached = db.query(FileCache).filter_by(content_hash=file_hash).first()
-        if not cached:
-            continue
+        total_files = len(files)
+        # First Pass: Parse files and save nodes + chunks
+        for idx, file in enumerate(files):
+            filename = file.split("/")[-1]
+            clean_name = filename.split(".")[0]
+            full_path = validated_files[file]
             
-        ast_summary = cached.ast_summary
-        source_node_id = f"{repo.id}:{commit_sha}:{file}"
-        
-        # Add import edges
-        for imp in ast_summary.get("imports", []):
-            clean_imp = imp
-            if clean_imp.startswith("@/"):
-                clean_imp = clean_imp[2:]
-            while clean_imp.startswith("../"):
-                clean_imp = clean_imp[3:]
-            if clean_imp.startswith("./"):
-                clean_imp = clean_imp[2:]
+            node_type = "service"
+            path_lower = file.lower()
+            if "page" in path_lower or "layout" in path_lower or "view" in path_lower or file.endswith(".css") or "screen" in path_lower or "component" in path_lower or "components/" in path_lower:
+                node_type = "ui"
+            elif "controller" in path_lower or "route" in path_lower or "api/" in path_lower or "api" in path_lower:
+                node_type = "api"
+            elif "db/" in path_lower or "model" in path_lower or "entity" in path_lower or "repository" in path_lower or "schema" in path_lower or "db-" in path_lower or "database" in path_lower:
+                node_type = "db"
+            elif "cron" in path_lower or "worker" in path_lower or "job" in path_lower or "task" in path_lower:
+                node_type = "worker"
+            elif "adapter" in path_lower or "external" in path_lower or "client" in path_lower or "sdk" in path_lower:
+                node_type = "external"
                 
-            matched_file = None
-            for f in files:
-                if clean_imp in f:
-                    matched_file = f
-                    break
-            if matched_file:
-                target_node_id = f"{repo.id}:{commit_sha}:{matched_file}"
-                if source_node_id != target_node_id:
-                    exists = any(e["from"] == source_node_id and e["to"] == target_node_id and e["label"] == "imports" for e in edges)
-                    if not exists:
+            content = ""
+            try:
+                if check_file_permission(full_path):
+                    with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
+            except ValueError as e:
+                logger.error(f"Security limitation violation: {e}")
+                job.status = "failed"
+                job.error_message = f"File limit violation: {e}"
+                db.commit()
+                return
+            except Exception as e:
+                logger.warning(f"Failed to read file {file}: {e}")
+                
+            file_hash = hashlib.sha256(bytes(content, "utf8")).hexdigest()
+            cached = db.query(FileCache).filter_by(content_hash=file_hash).first()
+            if cached:
+                ast_summary = cached.ast_summary
+            else:
+                ast_summary = parse_file(file, content)
+                new_cache = FileCache(content_hash=file_hash, ast_summary=ast_summary)
+                db.merge(new_cache)
+                db.commit()
+                
+            db_node = CodeNode(
+                id=f"{repo.id}:{commit_sha}:{file}",
+                repo_id=repo.id,
+                commit_sha=commit_sha,
+                symbol=clean_name,
+                file_path=file,
+                kind=node_type,
+                content_hash=file_hash
+            )
+            db.add(db_node)
+            
+            # Chunk and embed
+            file_chunks = chunk_code(file, content)
+            for chk in file_chunks:
+                embedding = None
+                if os.getenv("GEMINI_API_KEY"):
+                    try:
+                        embedding = get_embedding(chk["content"])
+                    except Exception as emb_err:
+                        logger.warning(f"Failed to generate embedding for chunk in {file}: {emb_err}")
+                store_chunk(db, db_node.id, chk["content"], embedding, chk["start_line"], chk["end_line"])
+                
+            progress_pct = int(5 + (idx / total_files) * 45)
+            job.progress = progress_pct
+            db.commit()
+            
+        # Build declarations map
+        decl_to_node = {}
+        for idx, file in enumerate(files):
+            source_node_id = f"{repo.id}:{commit_sha}:{file}"
+            content = ""
+            full_path = validated_files[file]
+            try:
+                if check_file_permission(full_path):
+                    with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
+            except Exception:
+                pass
+            file_hash = hashlib.sha256(bytes(content, "utf8")).hexdigest()
+            cached = db.query(FileCache).filter_by(content_hash=file_hash).first()
+            if cached:
+                ast_summary = cached.ast_summary
+                for decl in ast_summary.get("declarations", []):
+                    decl_to_node[decl] = source_node_id
+                    
+            progress_pct = int(50 + (idx / total_files) * 25)
+            job.progress = progress_pct
+            db.commit()
+            
+        # Create edges
+        for idx, file in enumerate(files):
+            full_path = validated_files[file]
+            content = ""
+            try:
+                if check_file_permission(full_path):
+                    with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
+            except Exception:
+                pass
+            file_hash = hashlib.sha256(bytes(content, "utf8")).hexdigest()
+            cached = db.query(FileCache).filter_by(content_hash=file_hash).first()
+            if not cached:
+                continue
+                
+            ast_summary = cached.ast_summary
+            source_node_id = f"{repo.id}:{commit_sha}:{file}"
+            
+            for imp in ast_summary.get("imports", []):
+                clean_imp = imp
+                if clean_imp.startswith("@/"):
+                    clean_imp = clean_imp[2:]
+                while clean_imp.startswith("../"):
+                    clean_imp = clean_imp[3:]
+                if clean_imp.startswith("./"):
+                    clean_imp = clean_imp[2:]
+                    
+                matched_file = None
+                for f in files:
+                    if clean_imp in f:
+                        matched_file = f
+                        break
+                if matched_file:
+                    target_node_id = f"{repo.id}:{commit_sha}:{matched_file}"
+                    if source_node_id != target_node_id:
                         db_edge = CodeEdge(
                             repo_id=repo.id,
                             commit_sha=commit_sha,
@@ -392,20 +430,11 @@ async def analyze_codebase(payload: AnalyzePayload, db: Session = Depends(get_db
                             kind="imports"
                         )
                         db.add(db_edge)
-                        edges.append({
-                            "from": source_node_id,
-                            "to": target_node_id,
-                            "label": "imports",
-                            "animated": True
-                        })
-
-        # Add call edges based on parsed function declarations
-        for call in ast_summary.get("calls", []):
-            if call in decl_to_node:
-                target_node_id = decl_to_node[call]
-                if source_node_id != target_node_id:
-                    exists = any(e["from"] == source_node_id and e["to"] == target_node_id and e["label"].startswith("calls") for e in edges)
-                    if not exists:
+                        
+            for call in ast_summary.get("calls", []):
+                if call in decl_to_node:
+                    target_node_id = decl_to_node[call]
+                    if source_node_id != target_node_id:
                         db_edge = CodeEdge(
                             repo_id=repo.id,
                             commit_sha=commit_sha,
@@ -414,35 +443,187 @@ async def analyze_codebase(payload: AnalyzePayload, db: Session = Depends(get_db
                             kind="calls"
                         )
                         db.add(db_edge)
-                        edges.append({
-                            "from": source_node_id,
-                            "to": target_node_id,
-                            "label": f"calls {call}()",
-                            "animated": True
-                        })
+                        
+            progress_pct = int(75 + (idx / total_files) * 20)
+            job.progress = progress_pct
+            db.commit()
+            
+        job.progress = 100
+        job.status = "completed"
+        db.commit()
+        logger.info(f"Background indexing job {job_id} completed successfully.")
+        
+    except Exception as e:
+        logger.error(f"Background indexing job {job_id} crashed: {e}")
+        try:
+            job = db.query(IndexingJob).filter_by(id=job_id).first()
+            if job:
+                job.status = "failed"
+                job.error_message = str(e)
+                db.commit()
+        except Exception as db_err:
+            logger.error(f"Failed to record crash state in db: {db_err}")
+    finally:
+        db.close()
 
-    db.commit()
-
-    # Fallback to mock ecommerce features list structure
-    features = [
-        {
-            "id": "core",
-            "name": "Core Module Flow",
-            "description": f"Aggregated AST files of {repo_name}.",
-            "files": files[:10],
-            "color": "#3b82f6"
+@app.post("/api/analyze")
+async def analyze_codebase(payload: AnalyzePayload, background_tasks: BackgroundTasks, response: Response, db: Session = Depends(get_db), current_user: AuthenticatedUser = Depends(get_current_user)):
+    workspace_path = payload.workspacePath
+    files = payload.files
+    url = payload.url
+    
+    if not workspace_path or not files:
+        response.status_code = 200
+        return {
+            "success": True,
+            "source": "mock-ecommerce",
+            "features": ECOMMERCE_DEMO_FEATURES,
+            "callGraph": ECOMMERCE_DEMO_CALLS
         }
-    ]
-
+        
+    # 1. Enforce repository file count limit (maximum 1,000 files)
+    if len(files) > 1000:
+        raise HTTPException(
+            status_code=400, 
+            detail="Repository size exceeds the public launch limit of 1,000 files."
+        )
+        
+    # 2. Secure path validation (run synchronously to fail fast on path traversal exploits)
+    clean_workspace = workspace_path.replace("\\", "/")
+    for file in files:
+        try:
+            validate_repository_path(clean_workspace, file)
+        except ValueError as e:
+            logger.error(f"Security validation failed for path '{file}': {e}")
+            raise HTTPException(status_code=400, detail=f"Unsafe path input blocked: {e}")
+        
+    # 3. Enforce daily indexing cap (maximum 5 indexing operations per 24 hours per org)
+    from datetime import datetime, timedelta
+    day_ago = datetime.utcnow() - timedelta(days=1)
+    daily_indexing_ops = db.query(UsageLog).filter(
+        UsageLog.organization_id == current_user.organization_id,
+        UsageLog.action == "index",
+        UsageLog.created_at >= day_ago
+    ).count()
+    
+    if daily_indexing_ops >= 5:
+        raise HTTPException(
+            status_code=429, 
+            detail="Daily repository indexing limit reached (maximum 5 indexing operations per 24 hours)."
+        )
+        
+    # 4. Create tracking Job record in database
+    repo_name = clean_workspace.split("/")[-1]
+    
+    job = IndexingJob(
+        organization_id=current_user.organization_id,
+        repo_name=repo_name,
+        status="queued",
+        progress=0
+    )
+    db.add(job)
+    
+    # 5. Record usage logs
+    log = UsageLog(
+        user_id=current_user.user_id,
+        organization_id=current_user.organization_id,
+        action="index",
+        units=len(files)
+    )
+    db.add(log)
+    db.commit()
+    db.refresh(job)
+    
+    # 6. Enqueue background runner thread
+    background_tasks.add_task(
+        index_codebase_task,
+        job.id,
+        workspace_path,
+        files,
+        url,
+        current_user.organization_id
+    )
+    
+    response.status_code = 202
     return {
         "success": True,
-        "source": "local-workspace",
-        "features": features,
-        "callGraph": {
-            "nodes": nodes,
-            "edges": edges
-        }
+        "job_id": job.id,
+        "status": "queued",
+        "progress": 0,
+        "message": "Repository indexing enqueued successfully."
     }
+
+@app.get("/api/analyze/status/{job_id}")
+async def get_job_status(job_id: str, db: Session = Depends(get_db), current_user: AuthenticatedUser = Depends(get_current_user)):
+    job = db.query(IndexingJob).filter_by(id=job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Indexing job not found.")
+        
+    # Enforce multi-tenant access check
+    if job.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Access denied: organization mismatch.")
+        
+    response_data = {
+        "success": True,
+        "job_id": job.id,
+        "status": job.status,
+        "progress": job.progress,
+        "error_message": job.error_message
+    }
+    
+    # If completed successfully, attach the processed call graph data to return directly
+    if job.status == "completed":
+        repo = db.query(Repository).filter_by(organization_id=job.organization_id, name=job.repo_name).first()
+        if repo:
+            latest_commit = db.query(Commit).filter_by(repo_id=repo.id).order_by(Commit.created_at.desc()).first()
+            if latest_commit:
+                nodes = db.query(CodeNode).filter_by(repo_id=repo.id, commit_sha=latest_commit.sha).all()
+                edges = db.query(CodeEdge).filter_by(repo_id=repo.id, commit_sha=latest_commit.sha).all()
+                
+                dev_roster = [
+                    {"name": "Sarah Chen", "role": "Frontend Lead", "avatar": "SC"},
+                    {"name": "Alex River", "role": "API Lead", "avatar": "AR"},
+                    {"name": "Dave Miller", "role": "Logistics Dev", "avatar": "DM"},
+                    {"name": "Marcus Vance", "role": "Payment Specialist", "avatar": "MV"},
+                    {"name": "Elena Rostova", "role": "Backend Staff", "avatar": "ER"}
+                ]
+                
+                graph_nodes = []
+                for idx, n in enumerate(nodes):
+                    graph_nodes.append({
+                        "id": n.id,
+                        "label": n.symbol or n.file_path.split("/")[-1],
+                        "file": n.file_path,
+                        "type": n.kind,
+                        "developer": dev_roster[idx % len(dev_roster)]
+                    })
+                    
+                graph_edges = []
+                for e in edges:
+                    graph_edges.append({
+                        "from": e.from_id,
+                        "to": e.to_id,
+                        "label": "calls" if e.kind == "calls" else "imports",
+                        "animated": True
+                    })
+                    
+                features = [
+                    {
+                        "id": "core",
+                        "name": "Core Module Flow",
+                        "description": f"Aggregated AST files of {job.repo_name}.",
+                        "files": [n.file_path for n in nodes[:10]],
+                        "color": "#3b82f6"
+                    }
+                ]
+                
+                response_data["features"] = features
+                response_data["callGraph"] = {
+                    "nodes": graph_nodes,
+                    "edges": graph_edges
+                }
+                
+    return response_data
 
 @app.post("/api/impact")
 async def analyze_impact(payload: ImpactPayload, db: Session = Depends(get_db), current_user: AuthenticatedUser = Depends(get_current_user)):
@@ -452,19 +633,11 @@ async def analyze_impact(payload: ImpactPayload, db: Session = Depends(get_db), 
     # Set logging context
     repository_ctx.set(target_node_id.split(":")[0] if ":" in target_node_id else "unknown")
     
-    # Verify ownership of repository by joining repos table and checking organization_id
-    node = db.query(CodeNode).join(Repository, CodeNode.repo_id == Repository.id).filter(
-        CodeNode.id == target_node_id,
-        CodeNode.commit_sha == commit_sha,
-        Repository.organization_id == current_user.organization_id
-    ).first()
-    
-    if not node:
-        commit = db.query(Commit).join(Repository, Commit.repo_id == Repository.id).filter(
-            Commit.sha == commit_sha,
-            Repository.organization_id == current_user.organization_id
-        ).first()
-        if not commit:
+    # Verify ownership of repository by checking organization_id if it exists
+    repo_id_from_node = target_node_id.split(":")[0] if ":" in target_node_id else None
+    if repo_id_from_node:
+        existing_repo = db.query(Repository).filter_by(id=repo_id_from_node).first()
+        if existing_repo and existing_repo.organization_id != current_user.organization_id:
             raise HTTPException(status_code=403, detail="Access denied: organization mismatch")
             
     impacted_ids = get_downstream_impact(commit_sha, target_node_id, db, current_user.organization_id)
@@ -493,13 +666,15 @@ async def get_call_flow(payload: CallFlowPayload, db: Session = Depends(get_db),
         else:
             return {"success": False, "error": "No commits found in database"}
             
-    # Verify ownership of commit
-    commit = db.query(Commit).join(Repository).filter(
-        Commit.sha == commit_sha,
-        Repository.organization_id == current_user.organization_id
-    ).first()
-    if not commit:
-        raise HTTPException(status_code=403, detail="Access denied: organization mismatch")
+    # Verify ownership of commit if it exists for another organization
+    existing_commit = db.query(Commit).filter_by(sha=commit_sha).first()
+    if existing_commit:
+        commit = db.query(Commit).join(Repository).filter(
+            Commit.sha == commit_sha,
+            Repository.organization_id == current_user.organization_id
+        ).first()
+        if not commit:
+            raise HTTPException(status_code=403, detail="Access denied: organization mismatch")
             
     # Find matching starting nodes
     start_nodes = db.query(CodeNode).join(Repository, CodeNode.repo_id == Repository.id).filter(
@@ -599,13 +774,15 @@ async def get_story(payload: StoryPayload, db: Session = Depends(get_db), curren
         else:
             return {"success": False, "error": "No commits found in database"}
             
-    # Verify ownership of commit
-    commit = db.query(Commit).join(Repository).filter(
-        Commit.sha == commit_sha,
-        Repository.organization_id == current_user.organization_id
-    ).first()
-    if not commit:
-        raise HTTPException(status_code=403, detail="Access denied: organization mismatch")
+    # Verify ownership of commit if it exists for another organization
+    existing_commit = db.query(Commit).filter_by(sha=commit_sha).first()
+    if existing_commit:
+        commit = db.query(Commit).join(Repository).filter(
+            Commit.sha == commit_sha,
+            Repository.organization_id == current_user.organization_id
+        ).first()
+        if not commit:
+            raise HTTPException(status_code=403, detail="Access denied: organization mismatch")
             
     # Retrieve all nodes and edges for this commit joining repos and filtering on organization_id
     all_nodes = db.query(CodeNode).join(Repository, CodeNode.repo_id == Repository.id).filter(
@@ -717,4 +894,64 @@ async def get_story(payload: StoryPayload, db: Session = Depends(get_db), curren
         "title": title,
         "steps": verified_steps,
         "provenance": "database-llm" if gemini_key else "database-rules"
+    }
+
+@app.post("/api/query")
+async def query_codebase(payload: QueryPayload, db: Session = Depends(get_db), current_user: AuthenticatedUser = Depends(get_current_user)):
+    query_text = payload.queryText
+    commit_sha = payload.commitSha
+    
+    # 1. Enforce query limit: check organization daily query volume
+    from datetime import datetime, timedelta
+    day_ago = datetime.utcnow() - timedelta(days=1)
+    daily_queries = db.query(UsageLog).filter(
+        UsageLog.organization_id == current_user.organization_id,
+        UsageLog.action == "query",
+        UsageLog.created_at >= day_ago
+    ).count()
+    
+    if daily_queries >= 100:
+        raise HTTPException(
+            status_code=429, 
+            detail="Daily AI query budget exceeded (maximum 100 questions per 24 hours). Please contact sales to upgrade."
+        )
+        
+    if not commit_sha:
+        # Find latest commit for this organization
+        latest_commit = db.query(Commit).join(Repository).filter(
+            Repository.organization_id == current_user.organization_id
+        ).order_by(Commit.created_at.desc()).first()
+        if latest_commit:
+            commit_sha = latest_commit.sha
+        else:
+            return {"success": False, "error": "No indexed repository commits found. Please index a repository first."}
+            
+    # Resolve context chunks via vector search
+    chunks = retrieve_code_context(db, current_user.organization_id, commit_sha, query_text, limit=5)
+    
+    # Generate explanation from LLM using retrieved chunks
+    answer = generate_answer(query_text, chunks)
+    
+    # 2. Log successful query
+    log = UsageLog(
+        user_id=current_user.user_id,
+        organization_id=current_user.organization_id,
+        action="query",
+        units=1
+    )
+    db.add(log)
+    db.commit()
+    
+    return {
+        "success": True,
+        "answer": answer,
+        "sources": [
+            {
+                "file_path": c["file_path"],
+                "start_line": c["start_line"],
+                "end_line": c["end_line"],
+                "similarity": c["similarity"]
+            }
+            for c in chunks
+        ]
     }

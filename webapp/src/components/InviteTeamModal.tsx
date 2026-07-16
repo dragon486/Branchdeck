@@ -217,15 +217,8 @@ export default function InviteTeamModal({
       setSuccess(`✓ Invitation sent to ${emailList.length} member${emailList.length > 1 ? 's' : ''}!`);
       setEmails('');
     } catch (e: any) {
-      // Graceful fallback: save locally even if API is down
-      const newInvites = emailList.map(email => ({
-        email, status: 'pending' as const, sentAt: new Date().toISOString()
-      }));
-      const updated = [...pendingInvites, ...newInvites];
-      setPendingInvites(updated);
-      localStorage.setItem(`invites_${workspaceId}`, JSON.stringify(updated));
-      setSuccess(`✓ Invite recorded for ${emailList.length} member${emailList.length > 1 ? 's' : ''}. They'll receive access once email is configured.`);
-      setEmails('');
+      console.error('[Email Invite Error]', e);
+      setError(e.message || 'Invitation failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -241,10 +234,11 @@ export default function InviteTeamModal({
         body: JSON.stringify({ org: githubOrg.trim(), workspaceId }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
+      if (!res.ok) throw new Error(data.error || 'GitHub Organization sync failed');
       setSuccess(`✓ Members from ${githubOrg} have been synced!`);
-    } catch {
-      setSuccess(`✓ GitHub org "${githubOrg}" linked. Members will see the workspace invite on next login.`);
+    } catch (e: any) {
+      console.error('[GitHub Sync Error]', e);
+      setError(e.message || 'Failed to sync members from GitHub organization.');
     } finally {
       setLoading(false);
     }

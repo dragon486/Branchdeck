@@ -20,6 +20,7 @@
     "ogl": "^1.0.11",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "resend": "^3.0.0",
     "ts-morph": "^28.0.0"
   },
   "devDependencies": {
