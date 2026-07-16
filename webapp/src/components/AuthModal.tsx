@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (session?: any) => void;
   initialMode?: 'signin' | 'signup';
 }
 
@@ -281,7 +281,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, initialMode = 's
                       }
                     };
                     localStorage.setItem('branchdeck_dev_session', JSON.stringify(mockSession));
-                    onSuccess();
+                    onSuccess(mockSession);
                     onClose();
                   }}
                   className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-[13px] py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/10 flex items-center justify-center gap-2"

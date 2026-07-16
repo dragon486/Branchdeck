@@ -89,6 +89,13 @@ export default function Dashboard() {
     setIsAuthOpen(true);
   };
 
+  const handleAuthSuccess = (newSession?: any) => {
+    if (newSession) {
+      setSession(newSession);
+    }
+    setIsAuthOpen(false);
+  };
+
   // Helper for requests
   const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
     const activeSession = session || (await supabase.auth.getSession()).data.session;
@@ -910,7 +917,7 @@ export default function Dashboard() {
             <AuthModal
               isOpen={isAuthOpen}
               onClose={() => setIsAuthOpen(false)}
-              onSuccess={() => setIsAuthOpen(false)}
+              onSuccess={handleAuthSuccess}
               initialMode={authInitialMode}
             />
           </div>
@@ -1004,7 +1011,7 @@ export default function Dashboard() {
         <AuthModal
           isOpen={isAuthOpen}
           onClose={() => setIsAuthOpen(false)}
-          onSuccess={() => setIsAuthOpen(false)}
+          onSuccess={handleAuthSuccess}
           initialMode={authInitialMode}
         />
       </>
@@ -1262,7 +1269,7 @@ export default function Dashboard() {
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
-        onSuccess={() => setIsAuthOpen(false)}
+        onSuccess={handleAuthSuccess}
         initialMode={authInitialMode}
       />
       <InviteTeamModal
