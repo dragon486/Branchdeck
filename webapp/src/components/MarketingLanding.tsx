@@ -383,8 +383,8 @@ function Hero({ onLoadDemo, setIsModalOpen, typedWord, isDarkMode }: HeroProps) 
   const dashboardY = useSpring(rawY, { stiffness: 70, damping: 20, restDelta: 0.001 });
 
   return (
-    <section ref={heroRef} id="product" className={`relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-40 pb-32 transition-colors duration-300 ${isDarkMode ? 'bg-[#0A0C16] text-white' : 'bg-[#EEEFF4] text-neutral-900'}`}>
-      <div style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', opacity: isDarkMode ? 0.35 : 0.12 }}>
+    <section ref={heroRef} id="product" className={`relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-40 pb-32 transition-colors duration-300 ${isDarkMode ? 'bg-[#070913] text-white' : 'bg-white text-slate-900'}`}>
+      <div style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', opacity: isDarkMode ? 0.35 : 0.08 }}>
         <LightRays
           raysOrigin="top-center"
           raysColor="#3279F9"
@@ -398,12 +398,12 @@ function Hero({ onLoadDemo, setIsModalOpen, typedWord, isDarkMode }: HeroProps) 
           pulsating={true}
         />
       </div>
-      <div style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', opacity: isDarkMode ? 0.3 : 1 }}>
+      <div style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', opacity: isDarkMode ? 0.3 : 0.35 }}>
         <DotGrid
-          dotSize={2.5}
-          gap={15}
-          baseColor={isDarkMode ? '#3b4260' : '#c0bec4'}
-          activeColor={isDarkMode ? '#ffffff' : '#000000'}
+          dotSize={2}
+          gap={18}
+          baseColor={isDarkMode ? '#3b4260' : '#e2e8f0'}
+          activeColor={isDarkMode ? '#ffffff' : '#2563eb'}
           proximity={120}
           shockRadius={200}
           shockStrength={4}
@@ -417,27 +417,27 @@ function Hero({ onLoadDemo, setIsModalOpen, typedWord, isDarkMode }: HeroProps) 
           top: '15%', left: '8%',
           width: 480, height: 480,
           borderRadius: '50%',
-          background: isDarkMode ? 'radial-gradient(circle, rgba(66,133,244,0.15) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(66,133,244,0.10) 0%, transparent 70%)',
+          background: isDarkMode ? 'radial-gradient(circle, rgba(66,133,244,0.15) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(66,133,244,0.06) 0%, transparent 70%)',
           filter: 'blur(60px)',
         }} />
         <div className="orb-2 absolute" style={{
           top: '30%', right: '6%',
           width: 360, height: 360,
           borderRadius: '50%',
-          background: isDarkMode ? 'radial-gradient(circle, rgba(124,77,255,0.12) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(124,77,255,0.08) 0%, transparent 70%)',
+          background: isDarkMode ? 'radial-gradient(circle, rgba(124,77,255,0.12) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(124,77,255,0.05) 0%, transparent 70%)',
           filter: 'blur(50px)',
         }} />
         <div className="orb-3 absolute" style={{
           bottom: '20%', left: '35%',
           width: 320, height: 320,
           borderRadius: '50%',
-          background: isDarkMode ? 'radial-gradient(circle, rgba(0,188,212,0.10) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(0,188,212,0.07) 0%, transparent 70%)',
+          background: isDarkMode ? 'radial-gradient(circle, rgba(0,188,212,0.10) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(0,188,212,0.04) 0%, transparent 70%)',
           filter: 'blur(55px)',
         }} />
       </div>
 
       <div className="absolute inset-0 pointer-events-none transition-all duration-300"
-        style={{ background: isDarkMode ? 'radial-gradient(ellipse 85% 65% at 50% 40%, transparent 25%, rgba(10, 12, 22, 0.85) 100%)' : 'radial-gradient(ellipse 85% 65% at 50% 40%, transparent 25%, rgba(238,239,244,0.7) 100%)' }} />
+        style={{ background: isDarkMode ? 'radial-gradient(ellipse 85% 65% at 50% 40%, transparent 25%, rgba(7, 9, 19, 0.85) 100%)' : 'radial-gradient(ellipse 85% 65% at 50% 40%, transparent 25%, rgba(255, 255, 255, 0.95) 100%)' }} />
 
       <motion.div style={{ y: heroY, opacity: heroOpacity }} className="relative z-10 text-center px-6 max-w-5xl mx-auto w-full">
         <motion.div initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.7, delay: 0.1, ease: EASE_OUT_EXPO }}
@@ -535,7 +535,7 @@ function RealDashboardPreview({ onLoadDemo }: { onLoadDemo: () => void }) {
       />
 
       {/* Window chrome containing the REAL dashboard image */}
-      <div className="relative bg-[#F5F5F5] rounded-2xl overflow-hidden border border-black/[0.06] shadow-[0_8px_60px_rgba(0,0,0,0.12)]">
+      <div className="relative bg-white rounded-2xl overflow-hidden border border-slate-200/90 shadow-[0_25px_70px_rgba(0,0,0,0.16)]">
         <img 
           src="/dashboard-screenshot.png" 
           alt="Branchdeck Real Interactive Codebase Call Flow Dashboard" 
@@ -717,9 +717,9 @@ export default function MarketingLanding({
     const ref = useRef<HTMLDivElement>(null);
     const isInView = useInView(ref, { once: true, margin: '-60px' });
     return (
-      <section className="bg-neutral-950 py-28 px-6">
+      <section className={`py-28 px-6 transition-colors duration-300 border-t border-b bg-white border-slate-200/60`}>
         <div className="max-w-5xl mx-auto text-center space-y-4">
-          <div ref={ref} className="text-[clamp(1.3rem,3vw,2.4rem)] font-semibold text-white leading-tight tracking-tight max-w-3xl mx-auto">
+          <div ref={ref} className={`text-[clamp(1.3rem,3vw,2.4rem)] font-extrabold leading-tight tracking-tight max-w-3xl mx-auto transition-colors text-slate-900`}>
             {quoteWords.map((word, i) => (
               <span
                 key={i}
@@ -737,10 +737,10 @@ export default function MarketingLanding({
           <FadeIn delay={0.6} className="mt-12 flex items-center justify-center gap-5 flex-wrap">
             {[Network, BookOpen, ShieldAlert, Map, FileSearch, BarChart3, GitMerge, Eye, Cpu, Star, Zap, Globe].map((Icon, i) => (
               <motion.div key={i}
-                whileHover={{ scale: 1.2, backgroundColor: 'rgba(255,255,255,0.15)', y: -3 }}
+                whileHover={{ scale: 1.2, y: -3 }}
                 transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                className="w-10 h-10 rounded-full bg-white/[0.07] flex items-center justify-center border border-white/[0.06] cursor-default">
-                <Icon className="w-4 h-4 text-white/50" />
+                className={`w-10 h-10 rounded-full flex items-center justify-center border cursor-default transition-all bg-white border-slate-200 text-slate-700 hover:border-slate-300 shadow-sm`}>
+                <Icon className="w-4 h-4" />
               </motion.div>
             ))}
           </FadeIn>
@@ -751,12 +751,12 @@ export default function MarketingLanding({
 
   /* ── FEATURES ── */
   const Features = () => (
-    <section id="features" className={`py-44 px-6 transition-colors duration-300 ${isDarkMode ? 'bg-[#0B0C15]' : 'bg-[#EEEFF4]'}`}>
+    <section id="features" className={`py-44 px-6 transition-colors duration-300 bg-white`}>
       <div className="max-w-7xl mx-auto">
         <FadeIn className="text-center mb-24">
-          <span className={`text-[11px] font-bold uppercase tracking-[0.15em] mb-4 block transition-colors ${isDarkMode ? 'text-slate-500' : 'text-neutral-400'}`}>Built for Modern Engineering Teams</span>
-          <h2 className={`text-[clamp(2rem,4vw,3.2rem)] font-bold tracking-tight leading-tight transition-colors ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>Everything you need to<br />understand large codebases</h2>
-          <p className={`mt-5 text-[16px] font-normal leading-relaxed max-w-2xl mx-auto transition-colors ${isDarkMode ? 'text-slate-400' : 'text-neutral-500'}`}>
+          <span className={`text-[11px] font-bold uppercase tracking-[0.15em] mb-4 block transition-colors text-slate-400`}>Built for Modern Engineering Teams</span>
+          <h2 className={`text-[clamp(2rem,4vw,3.2rem)] font-bold tracking-tight leading-tight transition-colors text-slate-900`}>Everything you need to<br />understand large codebases</h2>
+          <p className={`mt-5 text-[16px] font-normal leading-relaxed max-w-2xl mx-auto transition-colors text-slate-600`}>
             From architecture visualization to dependency tracking and AI-powered code explanations, BranchDeck gives every engineer complete context before writing code.
           </p>
         </FadeIn>
@@ -768,20 +768,18 @@ export default function MarketingLanding({
                 whileHover={{ x: activeFeature === i ? 0 : 6 }}
                 transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                 className={`w-full text-left p-5 rounded-xl border transition-all duration-400 ${activeFeature === i
-                  ? 'bg-neutral-950 border-neutral-950 shadow-lg text-white'
-                  : isDarkMode
-                    ? 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700'
-                    : 'bg-white border-neutral-200 hover:border-neutral-300 hover:shadow-md text-neutral-900'
+                  ? 'bg-slate-950 border-slate-950 shadow-lg text-white'
+                  : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-md text-slate-900'
                   }`}>
                 <div className="flex items-start gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${activeFeature === i ? 'bg-white/15' : isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-neutral-50 border border-neutral-200'
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${activeFeature === i ? 'bg-white/15' : 'bg-slate-50 border border-slate-200'
                     }`}
                     style={{ color: activeFeature === i ? 'white' : f.color }}>
                     {f.icon}
                   </div>
                   <div>
-                    <div className={`text-[13px] font-bold mb-0.5 ${activeFeature === i ? 'text-white' : isDarkMode ? 'text-slate-200' : 'text-neutral-900'}`}>{f.title}</div>
-                    <div className={`text-[11px] leading-relaxed ${activeFeature === i ? 'text-white/65' : isDarkMode ? 'text-slate-450' : 'text-neutral-400'}`}>{f.desc}</div>
+                    <div className={`text-[13px] font-bold mb-0.5 ${activeFeature === i ? 'text-white' : 'text-slate-900'}`}>{f.title}</div>
+                    <div className={`text-[11px] leading-relaxed ${activeFeature === i ? 'text-white/65' : 'text-slate-500'}`}>{f.desc}</div>
                   </div>
                 </div>
               </motion.button>
@@ -793,11 +791,11 @@ export default function MarketingLanding({
               <motion.div key={activeFeature}
                 initial={{ opacity: 0, y: 20, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -20, scale: 0.98 }} transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                className={`rounded-2xl overflow-hidden border h-[440px] relative shadow-xl transition-colors ${isDarkMode ? 'border-slate-800 bg-slate-900' : 'border-neutral-200 bg-white'}`}>
+                className={`rounded-2xl overflow-hidden border h-[440px] relative shadow-[0_20px_60px_rgba(0,0,0,0.12)] transition-colors bg-white border-slate-200`}>
                 {/* Title bar */}
-                <div className={`flex items-center gap-2 px-4 py-3 border-b transition-colors ${isDarkMode ? 'border-slate-800 bg-slate-900' : 'border-neutral-100 bg-white'}`}>
+                <div className={`flex items-center gap-2 px-4 py-3 border-b transition-colors border-slate-100 bg-white`}>
                   <div className="flex gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" /><div className="w-2.5 h-2.5 rounded-full bg-[#FFBD2E]" /><div className="w-2.5 h-2.5 rounded-full bg-[#28C840]" /></div>
-                  <span className={`ml-2 text-[10px] font-semibold flex items-center gap-1.5 transition-colors ${isDarkMode ? 'text-slate-400' : 'text-neutral-500'}`}>
+                  <span className={`ml-2 text-[10px] font-semibold flex items-center gap-1.5 transition-colors text-slate-500`}>
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     {FEATURES[activeFeature].title} — Live Preview
                   </span>
@@ -927,28 +925,22 @@ export default function MarketingLanding({
 
   /* ── COMPARISON SECTION ── */
   const ComparisonSection = () => (
-    <section className={`py-32 px-6 border-t border-b transition-colors duration-300 ${isDarkMode ? 'bg-[#070913] border-slate-900' : 'bg-white border-neutral-200/50'}`}>
+    <section className="py-32 px-6 border-t border-b bg-white border-slate-200/60 transition-colors duration-300">
       <div className="max-w-4xl mx-auto">
         <FadeIn className="text-center mb-16">
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest mb-4 border transition-colors ${
-            isDarkMode 
-              ? 'bg-blue-950/60 border-blue-800/80 text-blue-400' 
-              : 'bg-blue-50 border-blue-200/80 text-blue-600 shadow-sm'
-          }`}>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest mb-4 border bg-blue-50 border-blue-200/80 text-blue-600 shadow-sm">
             WHY BRANCHDECK?
           </span>
-          <h2 className={`text-[clamp(2.2rem,4vw,3.2rem)] font-extrabold tracking-tight transition-colors ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+          <h2 className="text-[clamp(2.2rem,4vw,3.2rem)] font-extrabold tracking-tight text-slate-900">
             Why BranchDeck?
           </h2>
-          <p className={`mt-3 text-[15px] font-medium max-w-xl mx-auto leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          <p className="mt-3 text-[15px] font-medium max-w-xl mx-auto leading-relaxed text-slate-500">
             We combine powerful code intelligence with an intuitive experience.
           </p>
         </FadeIn>
 
         {/* Comparison Table Container */}
-        <FadeIn className={`rounded-3xl overflow-hidden border shadow-[0_8px_30px_rgba(0,0,0,0.04)] relative transition-colors duration-300 ${
-          isDarkMode ? 'bg-[#0E1220] border-slate-800/90 shadow-black/40' : 'bg-white border-slate-200/90'
-        }`}>
+        <FadeIn className="rounded-3xl overflow-hidden border shadow-[0_12px_40px_rgba(0,0,0,0.06)] relative bg-white border-slate-200/90 transition-colors duration-300">
           {/* Header Row */}
           <div className="grid grid-cols-2 relative">
             <div className="bg-slate-950 text-white py-4 px-6 flex items-center justify-center gap-2 text-xs font-bold font-mono tracking-wide border-r border-slate-800">
@@ -957,21 +949,17 @@ export default function MarketingLanding({
             </div>
 
             {/* Center VS Circle */}
-            <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full border shadow-md flex items-center justify-center text-[10px] font-extrabold tracking-wider ${
-              isDarkMode ? 'bg-[#0E1220] border-slate-700 text-blue-400' : 'bg-white border-slate-200 text-blue-600'
-            }`}>
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full border shadow-md flex items-center justify-center text-[10px] font-extrabold tracking-wider bg-white border-slate-200 text-blue-600">
               VS
             </div>
 
-            <div className={`py-4 px-6 flex items-center justify-center text-xs font-bold font-mono tracking-wide ${
-              isDarkMode ? 'bg-slate-900/90 text-slate-300' : 'bg-slate-100/90 text-slate-700'
-            }`}>
+            <div className="py-4 px-6 flex items-center justify-center text-xs font-bold font-mono tracking-wide bg-slate-100/90 text-slate-700">
               Without BranchDeck
             </div>
           </div>
 
           {/* Comparison Rows */}
-          <div className={`divide-y ${isDarkMode ? 'divide-slate-800/80' : 'divide-slate-100'}`}>
+          <div className="divide-y divide-slate-100">
             {[
               {
                 with: "Visualize the entire codebase in seconds",
@@ -996,25 +984,17 @@ export default function MarketingLanding({
             ].map((row, idx) => (
               <div key={idx} className="grid grid-cols-2 text-xs">
                 {/* With BranchDeck */}
-                <div className={`py-4 px-6 flex items-center gap-3 font-semibold border-r transition-colors ${
-                  isDarkMode ? 'bg-emerald-950/20 text-emerald-300 border-slate-800/80' : 'bg-emerald-50/20 text-slate-800 border-slate-100'
-                }`}>
-                  <div className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
-                    isDarkMode ? 'bg-emerald-950 border-emerald-700/60' : 'bg-emerald-100 border-emerald-200'
-                  }`}>
-                    <Check className={`w-3.5 h-3.5 stroke-[3] ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                <div className="py-4 px-6 flex items-center gap-3 font-semibold border-r transition-colors bg-emerald-50/20 text-slate-800 border-slate-100">
+                  <div className="w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 bg-emerald-100 border-emerald-200">
+                    <Check className="w-3.5 h-3.5 stroke-[3] text-emerald-600" />
                   </div>
                   <span>{row.with}</span>
                 </div>
 
                 {/* Without BranchDeck */}
-                <div className={`py-4 px-6 flex items-center gap-3 font-normal transition-colors ${
-                  isDarkMode ? 'bg-rose-950/20 text-rose-300' : 'bg-rose-50/40 text-slate-600'
-                }`}>
-                  <div className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
-                    isDarkMode ? 'bg-rose-950 border-rose-800/60' : 'bg-rose-100 border-rose-200'
-                  }`}>
-                    <X className={`w-3.5 h-3.5 stroke-[3] ${isDarkMode ? 'text-rose-400' : 'text-rose-500'}`} />
+                <div className="py-4 px-6 flex items-center gap-3 font-normal transition-colors bg-rose-50/40 text-slate-600">
+                  <div className="w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 bg-rose-100 border-rose-200">
+                    <X className="w-3.5 h-3.5 stroke-[3] text-rose-500" />
                   </div>
                   <span>{row.without}</span>
                 </div>
@@ -1025,20 +1005,16 @@ export default function MarketingLanding({
 
         {/* Bottom CTA Card */}
         <FadeIn delay={0.2} className="mt-10">
-          <div className={`max-w-2xl mx-auto border p-2.5 pl-6 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex items-center justify-between gap-4 transition-colors ${
-            isDarkMode ? 'bg-[#0E1220] border-slate-800 shadow-black/30' : 'bg-white border-slate-200/90'
-          }`}>
+          <div className="max-w-2xl mx-auto border p-2.5 pl-6 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex items-center justify-between gap-4 transition-colors bg-white border-slate-200/90">
             <div className="flex items-center gap-3">
               <Sparkles className="w-4 h-4 text-blue-500" />
-              <span className={`text-xs font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
+              <span className="text-xs font-bold transition-colors text-slate-800">
                 Experience the clarity. Ship better software.
               </span>
             </div>
             <button
               onClick={onLoadDemo}
-              className={`text-xs font-bold px-5 py-2.5 rounded-full transition-all shadow-sm flex items-center gap-1.5 cursor-pointer hover:gap-2 ${
-                isDarkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-slate-950 hover:bg-slate-850 text-white'
-              }`}
+              className="text-xs font-bold px-5 py-2.5 rounded-full transition-all shadow-sm flex items-center gap-1.5 cursor-pointer hover:gap-2 bg-slate-950 hover:bg-slate-850 text-white"
             >
               <span>Join Waitlist</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -1459,17 +1435,23 @@ export default function MarketingLanding({
 
   /* ── FOUNDER SECTION ── */
   const FounderSection = () => (
-    <section className={`py-44 px-6 overflow-hidden border-t border-b transition-colors duration-300 ${isDarkMode ? 'bg-[#0A0C16] border-slate-900' : 'bg-white border-neutral-200/50'}`}>
+    <section className={`py-44 px-6 overflow-hidden border-t border-b transition-colors duration-300 ${isDarkMode ? 'bg-[#070913] border-slate-900' : 'bg-[#FAFAFB] border-slate-200/60'}`}>
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-20 items-center">
         <FadeIn direction="left" className="lg:col-span-7 space-y-7">
-          <span className={`text-[11px] font-bold uppercase tracking-[0.15em] block transition-colors ${isDarkMode ? 'text-slate-500' : 'text-neutral-400'}`}>Behind the Code</span>
-          <h2 className={`text-[clamp(2.2rem,3.5vw,2.8rem)] font-bold tracking-tight leading-tight transition-colors ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest border transition-colors ${
+            isDarkMode 
+              ? 'bg-blue-950/60 border-blue-800/80 text-blue-400' 
+              : 'bg-blue-50 border-blue-200/80 text-blue-600 shadow-sm'
+          }`}>
+            BEHIND THE CODE
+          </span>
+          <h2 className={`text-[clamp(2.2rem,3.5vw,2.8rem)] font-extrabold tracking-tight leading-tight transition-colors ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
             Built by developers,<br />for developers.
           </h2>
-          <p className={`text-[15px] leading-relaxed max-w-xl transition-colors ${isDarkMode ? 'text-slate-400' : 'text-neutral-500'}`}>
+          <p className={`text-[15px] leading-relaxed max-w-xl transition-colors ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
             We built BranchDeck after spending countless hours navigating unfamiliar repositories, tracing dependencies, and trying to understand legacy systems.
           </p>
-          <p className={`text-[15px] leading-relaxed max-w-xl transition-colors ${isDarkMode ? 'text-slate-400' : 'text-neutral-500'}`}>
+          <p className={`text-[15px] leading-relaxed max-w-xl transition-colors ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
             Our goal is simple: make every codebase understandable in minutes, not weeks. BranchDeck acts as a living, self-documenting intelligence layer for engineering teams around the world.
           </p>
           <div className="pt-2">
@@ -1477,7 +1459,7 @@ export default function MarketingLanding({
               whileHover={{ scale: 1.02, boxShadow: '0 8px 30px rgba(0,0,0,0.1)' }}
               whileTap={{ scale: 0.98 }}
               onClick={() => setIsModalOpen(true)}
-              className={`btn-shimmer text-[13px] font-semibold px-7 py-3.5 rounded-full transition-all shadow-sm ${isDarkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-neutral-950 hover:bg-neutral-800 text-white'}`}>
+              className={`btn-shimmer text-[13px] font-semibold px-7 py-3.5 rounded-full transition-all shadow-sm ${isDarkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-slate-950 hover:bg-slate-850 text-white'}`}>
               Join the Beta
             </motion.button>
           </div>
@@ -1505,8 +1487,6 @@ export default function MarketingLanding({
       </div>
     </section>
   );
-
-  /* ── FAQ SECTION ── */
   const FaqSection = () => {
     const faqs = [
       { q: "Does BranchDeck support any programming language?", a: "Yes! BranchDeck is language-agnostic. It parses AST structures for TypeScript, JavaScript, Python, Go, Rust, Java, C++, Ruby, PHP, and more to map function scopes and import paths." },
@@ -1518,28 +1498,36 @@ export default function MarketingLanding({
     ];
 
     return (
-      <section className={`py-36 px-6 border-t transition-colors duration-300 ${isDarkMode ? 'bg-[#0B0C15] border-slate-900' : 'bg-[#EEEFF4] border-neutral-200/50'}`}>
+      <section className={`py-36 px-6 border-t transition-colors duration-300 ${isDarkMode ? 'bg-[#070913] border-slate-900' : 'bg-white border-slate-200/60'}`}>
         <div className="max-w-3xl mx-auto">
           <FadeIn className="text-center mb-20">
-            <span className={`text-[11px] font-bold uppercase tracking-[0.15em] mb-4 block transition-colors ${isDarkMode ? 'text-slate-500' : 'text-neutral-400'}`}>Frequently Asked Questions</span>
-            <h2 className={`text-[clamp(2rem,3.5vw,2.8rem)] font-bold tracking-tight transition-colors ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>FAQ</h2>
-            <p className={`mt-4 text-[15px] max-w-xl mx-auto leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-neutral-500'}`}>Everything you need to know about Branchdeck codebase intelligence.</p>
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest mb-4 border transition-colors ${
+              isDarkMode 
+                ? 'bg-blue-950/60 border-blue-800/80 text-blue-400' 
+                : 'bg-blue-50 border-blue-200/80 text-blue-600 shadow-sm'
+            }`}>
+              FREQUENTLY ASKED QUESTIONS
+            </span>
+            <h2 className={`text-[clamp(2.2rem,3.5vw,3rem)] font-extrabold tracking-tight transition-colors ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>FAQ</h2>
+            <p className={`mt-3 text-[15px] font-medium max-w-xl mx-auto leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Everything you need to know about Branchdeck codebase intelligence.</p>
           </FadeIn>
 
           <div className="space-y-4">
             {faqs.map((faq, idx) => (
               <FadeIn key={idx} delay={idx * 0.05}>
-                <div className={`border rounded-2xl overflow-hidden transition-all duration-300 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-neutral-200'}`}>
+                <div className={`border rounded-2xl overflow-hidden transition-all duration-300 ${
+                  isDarkMode ? 'bg-[#0E1220] border-slate-800 shadow-md' : 'bg-white border-slate-200/90 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.08)]'
+                }`}>
                   <button
                     onClick={() => setFaqOpenIdx(faqOpenIdx === idx ? null : idx)}
-                    className={`w-full text-left p-6 flex justify-between items-center gap-4 cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-slate-850/40' : 'hover:bg-neutral-50/50'}`}
+                    className={`w-full text-left p-6 flex justify-between items-center gap-4 cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50/60'}`}
                   >
-                    <span className={`text-[13px] font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>{faq.q}</span>
+                    <span className={`text-[13px] font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{faq.q}</span>
                     <motion.div
                       animate={{ rotate: faqOpenIdx === idx ? 180 : 0 }}
                       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                     >
-                      <ChevronDown className="w-4 h-4 text-neutral-400" />
+                      <ChevronDown className="w-4 h-4 text-slate-400" />
                     </motion.div>
                   </button>
                   <AnimatePresence initial={false}>
@@ -1550,7 +1538,7 @@ export default function MarketingLanding({
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                       >
-                        <div className={`px-6 pb-6 pt-1 text-[12px] leading-relaxed border-t transition-colors ${isDarkMode ? 'text-slate-400 border-slate-800/80' : 'text-neutral-500 border-neutral-100/60'}`}>
+                        <div className={`px-6 pb-6 pt-1 text-[12px] leading-relaxed border-t transition-colors ${isDarkMode ? 'text-slate-400 border-slate-800/80' : 'text-slate-500 border-slate-100'}`}>
                           {faq.a}
                         </div>
                       </motion.div>
@@ -1567,23 +1555,23 @@ export default function MarketingLanding({
 
   /* ── CTA ── */
   const CTASection = () => (
-    <section className={`py-44 px-6 relative overflow-hidden transition-colors duration-300 ${isDarkMode ? 'bg-[#0B0C15]' : 'bg-[#EEEFF4]'}`}>
+    <section className={`py-44 px-6 relative overflow-hidden transition-colors duration-300 ${isDarkMode ? 'bg-[#090C16]' : 'bg-[#FAFAFB]'}`}>
       {/* Data flow background */}
       <DataFlowCanvas />
       <div className="relative z-10 max-w-3xl mx-auto text-center space-y-10">
         <FadeIn>
-          <h2 className={`text-[clamp(2.2rem,5vw,4rem)] font-bold tracking-tight leading-tight transition-colors ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
+          <h2 className={`text-[clamp(2.2rem,5vw,4rem)] font-extrabold tracking-tight leading-tight transition-colors ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
             Ready to understand<br />your codebase?
           </h2>
         </FadeIn>
         <FadeIn delay={0.15}>
-          <p className={`text-[16px] font-normal leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-neutral-500'}`}>
+          <p className={`text-[16px] font-normal leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
             Connect your VS Code workspace or paste a GitHub URL. Branchdeck indexes everything in seconds.
           </p>
         </FadeIn>
         <FadeIn delay={0.25} className="flex items-center justify-center gap-4 flex-wrap">
           <MagneticBtn onClick={() => setIsModalOpen(true)}
-            className={`btn-shimmer text-[15px] font-semibold px-10 py-4 rounded-full flex items-center gap-2 transition-all shadow-xl group ${isDarkMode ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/20' : 'bg-neutral-950 hover:bg-neutral-800 text-white shadow-neutral-900/20'}`}>
+            className={`btn-shimmer text-[15px] font-semibold px-10 py-4 rounded-full flex items-center gap-2 transition-all shadow-xl group ${isDarkMode ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/20' : 'bg-slate-950 hover:bg-slate-850 text-white shadow-slate-950/20'}`}>
             Get Started Free
             <motion.div animate={{ x: [0, 4, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}>
               <ArrowRight className="w-4 h-4" />
@@ -1592,11 +1580,11 @@ export default function MarketingLanding({
           <motion.button
             whileHover={{ scale: 1.02, boxShadow: '0 8px 30px rgba(0,0,0,0.07)' }}
             onClick={onLoadDemo}
-            className={`text-[15px] font-semibold px-10 py-4 rounded-full border transition-all shadow-sm flex items-center gap-2 ${isDarkMode ? 'bg-slate-900 border-slate-800 text-white hover:bg-slate-800/80 hover:border-slate-700' : 'bg-white border-neutral-200 text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50'}`}>
+            className={`text-[15px] font-semibold px-10 py-4 rounded-full border transition-all shadow-sm flex items-center gap-2 ${isDarkMode ? 'bg-slate-900 border-slate-800 text-white hover:bg-slate-800/80 hover:border-slate-700' : 'bg-white border-slate-200 text-slate-900 hover:border-slate-300 hover:bg-slate-50'}`}>
             <Play className="w-4 h-4" /> Live Demo
           </motion.button>
         </FadeIn>
-        <FadeIn delay={0.4} className="flex justify-center gap-8 text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
+        <FadeIn delay={0.4} className={`flex justify-center gap-8 text-[10px] font-extrabold uppercase tracking-widest ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
           <span>No credit card</span><span>·</span><span>Works in VS Code</span><span>·</span><span>Any language</span>
         </FadeIn>
       </div>
@@ -1605,22 +1593,22 @@ export default function MarketingLanding({
 
   /* ── FOOTER ── */
   const Footer = () => (
-    <footer className={`transition-colors duration-300 border-t pt-16 pb-12 ${isDarkMode ? 'bg-[#06080E] border-slate-900' : 'bg-[#EEEFF4] border-neutral-200'}`}>
+    <footer className={`transition-colors duration-300 border-t pt-16 pb-12 ${isDarkMode ? 'bg-[#05070E] border-slate-900' : 'bg-white border-slate-200/80'}`}>
       {/* Links grid */}
       <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-12 text-[13px] mb-16">
         <div className="col-span-2 md:col-span-1 space-y-4">
           <div className="flex items-center gap-2.5">
-            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white ${isDarkMode ? 'bg-slate-800' : 'bg-neutral-950'}`}>{LOGO_SVG}</div>
-            <span className={`font-bold text-[14px] transition-colors ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>Branchdeck</span>
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white ${isDarkMode ? 'bg-slate-800' : 'bg-slate-950'}`}>{LOGO_SVG}</div>
+            <span className={`font-bold text-[14px] transition-colors ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Branchdeck</span>
           </div>
-          <p className={`text-[12px] leading-relaxed max-w-xs transition-colors ${isDarkMode ? 'text-slate-450' : 'text-neutral-500'}`}>AI-powered codebase intelligence for modern engineering teams.</p>
-          <div className="flex items-center gap-3 text-neutral-400">
-            <a href="#" aria-label="GitHub" className={`hover:scale-110 transition-all ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-700'}`}>
+          <p className={`text-[12px] leading-relaxed max-w-xs transition-colors ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>AI-powered codebase intelligence for modern engineering teams.</p>
+          <div className="flex items-center gap-3 text-slate-400">
+            <a href="#" aria-label="GitHub" className={`hover:scale-110 transition-all ${isDarkMode ? 'hover:text-white' : 'hover:text-slate-700'}`}>
               <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
               </svg>
             </a>
-            <a href="#" aria-label="Twitter" className={`hover:scale-110 transition-all ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-700'}`}>
+            <a href="#" aria-label="Twitter" className={`hover:scale-110 transition-all ${isDarkMode ? 'hover:text-white' : 'hover:text-slate-700'}`}>
               <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
               </svg>
@@ -1633,11 +1621,11 @@ export default function MarketingLanding({
           { heading: 'Company', links: ['About', 'Careers', 'Privacy', 'Terms'] },
         ].map(col => (
           <div key={col.heading} className="space-y-3">
-            <div className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${isDarkMode ? 'text-slate-500' : 'text-neutral-400'}`}>{col.heading}</div>
+            <div className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{col.heading}</div>
             {col.links.map(link => (
-              <a key={link} href="#" className={`block text-[13px] transition-colors relative group w-fit ${isDarkMode ? 'text-slate-400 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'}`}>
+              <a key={link} href="#" className={`block text-[13px] transition-colors relative group w-fit ${isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}>
                 {link}
-                <span className={`absolute -bottom-0.5 left-0 right-0 h-px scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left ${isDarkMode ? 'bg-white' : 'bg-neutral-900'}`} />
+                <span className={`absolute -bottom-0.5 left-0 right-0 h-px scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left ${isDarkMode ? 'bg-white' : 'bg-slate-900'}`} />
               </a>
             ))}
           </div>
@@ -1658,14 +1646,14 @@ export default function MarketingLanding({
         </motion.div>
 
         {/* Bottom row: Brand name & privacy links */}
-        <div className={`flex items-center justify-between text-[11px] pt-6 border-t transition-colors duration-300 ${isDarkMode ? 'text-slate-500 border-slate-900' : 'text-neutral-400 border-neutral-200/60 bg-[#EEEFF4]'}`}>
+        <div className={`flex items-center justify-between text-[11px] pt-6 border-t transition-colors duration-300 ${isDarkMode ? 'text-slate-500 border-slate-900' : 'text-slate-500 border-slate-200/80 bg-white'}`}>
           <div className="flex items-center gap-2">
-            <div className={`w-5 h-5 rounded-md flex items-center justify-center text-white p-0.5 ${isDarkMode ? 'bg-slate-800' : 'bg-neutral-950'}`}>{LOGO_SVG}</div>
-            <span className={`font-bold transition-colors ${isDarkMode ? 'text-white/80' : 'text-neutral-700'}`}>Branchdeck</span>
+            <div className={`w-5 h-5 rounded-md flex items-center justify-center text-white p-0.5 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-950'}`}>{LOGO_SVG}</div>
+            <span className={`font-bold transition-colors ${isDarkMode ? 'text-white/80' : 'text-slate-800'}`}>Branchdeck</span>
           </div>
           <div className="flex gap-6">
-            <a href="#" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Privacy</a>
-            <a href="#" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Terms</a>
+            <a href="#" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-slate-900'}`}>Privacy</a>
+            <a href="#" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-slate-900'}`}>Terms</a>
             <span>© 2026 Branchdeck. All rights reserved.</span>
           </div>
         </div>
