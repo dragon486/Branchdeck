@@ -22,12 +22,6 @@ export default function RepoPickerModal({
   const [inputUrl, setInputUrl] = useState('');
   const [error, setError] = useState('');
 
-  const PRESET_REPOS = [
-    { label: 'Next.js', url: 'https://github.com/vercel/next.js', desc: 'React framework for the web' },
-    { label: 'React', url: 'https://github.com/facebook/react', desc: 'UI library for web and native' },
-    { label: 'Branchdeck Engine', url: 'https://github.com/dragon486/Branchdeck', desc: 'Codebase intelligence platform' },
-  ];
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -41,13 +35,6 @@ export default function RepoPickerModal({
       return;
     }
     onAnalyze(cleanUrl);
-    onClose();
-  };
-
-  const handleSelectPreset = (url: string) => {
-    setInputUrl(url);
-    setError('');
-    onAnalyze(url);
     onClose();
   };
 
@@ -135,29 +122,6 @@ export default function RepoPickerModal({
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
-
-              {/* Preset Repositories */}
-              <div className="space-y-2.5">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-white/40 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Or Choose a Quick Preset</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {PRESET_REPOS.map((preset, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleSelectPreset(preset.url)}
-                      className="p-3 bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 rounded-xl text-left transition-all group cursor-pointer"
-                    >
-                      <div className="text-xs font-bold text-white group-hover:text-blue-400 transition-colors flex items-center justify-between">
-                        <span>{preset.label}</span>
-                        <Code2 className="w-3 h-3 text-white/30" />
-                      </div>
-                      <div className="text-[10px] text-white/40 mt-1 line-clamp-1">{preset.desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
 
             </div>
           </motion.div>
