@@ -491,7 +491,7 @@ export default function Dashboard() {
       const response = await authenticatedFetch('/api/callflow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ functionName })
+        body: JSON.stringify({ functionName, repoUrl })
       });
       const data = await response.json();
       if (data.success) {
@@ -580,7 +580,7 @@ export default function Dashboard() {
       const response = await authenticatedFetch('/api/story', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ featureId, commitSha })
+        body: JSON.stringify({ featureId, commitSha, repoUrl })
       });
       if (response.ok) {
         const data = await response.json();
