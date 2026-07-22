@@ -4,6 +4,11 @@
   "description": "Understand large codebases in hours. AI Project Maps, Visual Call Flows, Impact Analysis, and Story Mode.",
   "version": "0.1.0",
   "publisher": "branchdeck",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dragon486/Branchdeck"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
