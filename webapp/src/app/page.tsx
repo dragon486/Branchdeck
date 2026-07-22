@@ -1219,7 +1219,7 @@ export default function Dashboard() {
                     }`}
                   >
                     <BookOpen className="w-3.5 h-3.5" />
-                    Story Mode
+                    AI Story Mode
                   </button>
                   <button
                     onClick={() => setActiveRightTab('impact')}
