@@ -284,15 +284,30 @@ export function generateFeaturesFromFiles(files: string[]): FeatureNode[] {
     }));
 }
 
-// Parses GitHub repository url to extract owner and repo
+// Robust GitHub repository URL parser supporting full links, short format (owner/repo), and tree paths
 export function parseGitHubUrl(url: string): { owner: string; repo: string } | null {
   try {
-    const cleaned = url.replace(/\/$/, ''); // Remove trailing slash
-    const match = cleaned.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-    if (match) {
+    if (!url || typeof url !== 'string') return null;
+    let cleaned = url.trim().replace(/\/$/, '');
+    
+    // Strip trailing .git
+    cleaned = cleaned.replace(/\.git$/, '');
+
+    // 1. Full URL pattern matching: https://github.com/owner/repo or github.com/owner/repo
+    const fullMatch = cleaned.match(/github\.com\/([^\/]+)\/([^\/#?]+)/i);
+    if (fullMatch) {
       return {
-        owner: match[1],
-        repo: match[2].replace(/\.git$/, '') // Remove .git extension if present
+        owner: fullMatch[1],
+        repo: fullMatch[2]
+      };
+    }
+
+    // 2. Short format pattern matching: owner/repo
+    const shortMatch = cleaned.match(/^([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)$/);
+    if (shortMatch && !cleaned.includes('://')) {
+      return {
+        owner: shortMatch[1],
+        repo: shortMatch[2]
       };
     }
   } catch (e) {
@@ -304,15 +319,18 @@ export function parseGitHubUrl(url: string): { owner: string; repo: string } | n
 // Recursive file tree fetcher from GitHub REST API
 export async function fetchGitHubRepoTree(owner: string, repo: string): Promise<string[]> {
   try {
-    const headers: Record<string, string> = {};
-    if (process.env.GITHUB_TOKEN) {
-      headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
+    const headers: Record<string, string> = {
+      'User-Agent': 'Branchdeck-Codebase-Analyzer'
+    };
+    const token = process.env.GITHUB_TOKEN || process.env.GITHUB_API || process.env.NEXT_PUBLIC_GITHUB_TOKEN;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
 
     const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
     if (!repoRes.ok) {
-      if (repoRes.status === 403) throw new Error('GitHub API rate limit exceeded. Please try again later.');
-      if (repoRes.status === 404) throw new Error('Repository not found or private.');
+      if (repoRes.status === 403) throw new Error('GitHub API rate limit exceeded. Please try again later or configure a GITHUB_TOKEN.');
+      if (repoRes.status === 404) throw new Error(`GitHub repository "${owner}/${repo}" not found or private.`);
       throw new Error(`GitHub API error: ${repoRes.status} ${repoRes.statusText}`);
     }
     const repoData = await repoRes.json();
@@ -321,7 +339,7 @@ export async function fetchGitHubRepoTree(owner: string, repo: string): Promise<
     const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`, { headers });
     if (!treeRes.ok) {
       if (treeRes.status === 403) throw new Error('GitHub API rate limit exceeded on tree fetch.');
-      throw new Error('Failed to retrieve file tree');
+      throw new Error('Failed to retrieve repository file tree');
     }
     const treeData = await treeRes.json();
 
