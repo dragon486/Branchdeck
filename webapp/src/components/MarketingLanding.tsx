@@ -6,9 +6,10 @@ import {
   useMotionValue, useSpring, useInView, Variants,
 } from 'framer-motion';
 import {
-  GitBranch, Compass, BookOpen, Search, ArrowRight, CheckCircle2, X,
-  Play, ChevronDown, ChevronRight, ShieldAlert, Terminal, Radio, Zap, Globe, Users,
-  Network, Map, FileSearch, BarChart3, GitMerge, Eye, Cpu, Star, Menu,
+  GitBranch, Compass, BookOpen, Search, ArrowRight, CheckCircle2, X, Check, Code, Layers,
+  ShieldCheck, FileText, GraduationCap, Sparkles, Play, ChevronDown, ChevronRight, ShieldAlert,
+  Terminal, Radio, Zap, Globe, Users, Network, Map, FileSearch, BarChart3, GitMerge, Eye, Cpu, Star, Menu,
+  MessageSquare, GitFork, Files, Boxes, Box, Columns, MoreHorizontal,
 } from 'lucide-react';
 import DotGrid from './DotGrid';
 import ScrollVelocity from './ScrollVelocity';
@@ -573,6 +574,8 @@ export default function MarketingLanding({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
+  const [vscodeActiveTab, setVscodeActiveTab] = useState(0);
+  const [faqOpenIdx, setFaqOpenIdx] = useState<number | null>(null);
   const { scrollY } = useScroll();
   const typedWord = useTypingAnimation(TYPING_WORDS);
   const marqueeTexts = useMemo(() => ['Branchdeck ✦', 'Visual Call Flow ✦', 'Refactor Risk Analysis ✦'], []);
@@ -833,38 +836,81 @@ export default function MarketingLanding({
       </div>
     </section>
   );
-
-  /* ── PERFECT FOR ── */
   const PerfectFor = () => (
     <section className={`py-24 px-6 border-t border-b transition-colors duration-300 ${isDarkMode ? 'bg-[#0A0C16] border-slate-900' : 'bg-white border-neutral-200/50'}`}>
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <FadeIn className="text-center mb-16">
-          <span className={`text-[11px] font-bold uppercase tracking-[0.15em] mb-4 block transition-colors ${isDarkMode ? 'text-slate-500' : 'text-neutral-400'}`}>Target Audience</span>
-          <h2 className={`text-[clamp(2rem,3.5vw,2.8rem)] font-bold tracking-tight transition-colors ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>Perfect For</h2>
-          <p className={`mt-4 text-[15px] max-w-xl mx-auto leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-neutral-500'}`}>Designed for engineering teams managing scale, complexity, and rapid growth.</p>
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest mb-4 border transition-colors ${
+            isDarkMode 
+              ? 'bg-blue-950/60 border-blue-800/80 text-blue-400' 
+              : 'bg-blue-50 border-blue-200/80 text-blue-600 shadow-sm'
+          }`}>
+            FEATURES
+          </span>
+          <h2 className={`text-[clamp(2.2rem,4vw,3.2rem)] font-extrabold tracking-tight transition-colors ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+            Perfect For
+          </h2>
+          <p className={`mt-3 text-[15px] font-medium max-w-xl mx-auto leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            BranchDeck adapts to the way every engineering team works.
+          </p>
         </FadeIn>
 
-        <motion.div variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: true }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Row 1: 4 Cards */}
+        <motion.div 
+          variants={staggerContainer} 
+          initial="hidden" 
+          whileInView="visible" 
+          viewport={{ once: true }}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+        >
           {[
-            { title: "Teams Onboarding Developers", desc: "Reduce onboarding time by making software architecture easier to understand." },
-            { title: "Large Enterprise Codebases", desc: "Map complex dependency structures and trace paths across multiple microservices." },
-            { title: "Legacy Applications", desc: "Deconstruct old systems into clean, readable AI-generated stories." },
-            { title: "Complex Monorepos", desc: "Index cross-package references and analyze downstream change impacts instantly." },
-            { title: "Engineering Managers", desc: "Map team ownership by features rather than navigating arbitrary folders." },
-            { title: "Technical Leads & Staff", desc: "Enforce safety checks and visualize architectural patterns before refactoring." },
-            { title: "Open Source Maintainers", desc: "Help new contributors orient themselves and submit code with high confidence." }
+            { icon: <Code className="w-4 h-4 text-emerald-600" />, title: "Software Engineering Teams", desc: "Understand and onboard faster with complete codebase context." },
+            { icon: <Layers className="w-4 h-4 text-emerald-600" />, title: "DevOps & SRE Teams", desc: "Visualize dependencies and streamline system operations." },
+            { icon: <ShieldCheck className="w-4 h-4 text-emerald-600" />, title: "Product Engineering", desc: "Make informed decisions with clarity across the stack." },
+            { icon: <Users className="w-4 h-4 text-emerald-600" />, title: "New Team Members", desc: "Onboard in minutes and become productive from day one." }
           ].map((item, i) => (
             <motion.div key={i} variants={staggerItem}
-              whileHover={{ y: -4, boxShadow: '0 12px 30px rgba(0,0,0,0.04)', borderColor: '#d4d4d4' }}
+              whileHover={{ y: -4, boxShadow: '0 12px 30px rgba(0,0,0,0.06)' }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-              className={`p-6 border rounded-2xl flex gap-4 transition-colors duration-300 ${isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-[#FAFBFD] border-neutral-200'}`}>
-              <div className="w-6 h-6 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              className={`p-5 border rounded-2xl flex items-start gap-3.5 text-left transition-colors duration-300 ${
+                isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
+              }`}>
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
+                {item.icon}
               </div>
               <div>
-                <h3 className={`text-[13px] font-bold mb-1 transition-colors ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>{item.title}</h3>
-                <p className={`text-[11px] leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-neutral-500'}`}>{item.desc}</p>
+                <h3 className={`text-[13px] font-bold tracking-tight mb-1 transition-colors ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{item.title}</h3>
+                <p className={`text-[11px] leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{item.desc}</p>
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {/* Row 2: 3 Centered Cards */}
+        <motion.div 
+          variants={staggerContainer} 
+          initial="hidden" 
+          whileInView="visible" 
+          viewport={{ once: true }}
+          className="flex flex-wrap justify-center gap-4 mt-4"
+        >
+          {[
+            { icon: <Search className="w-4 h-4 text-emerald-600" />, title: "Technical Leads", desc: "Get deep insights and trace complex logic quickly." },
+            { icon: <FileText className="w-4 h-4 text-emerald-600" />, title: "Engineering Managers", desc: "Track progress, reduce risk and improve team efficiency." },
+            { icon: <GraduationCap className="w-4 h-4 text-emerald-600" />, title: "Students & Educators", desc: "Learn, explore and understand real-world codebases." }
+          ].map((item, i) => (
+            <motion.div key={i} variants={staggerItem}
+              whileHover={{ y: -4, boxShadow: '0 12px 30px rgba(0,0,0,0.06)' }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              className={`p-5 border rounded-2xl flex items-start gap-3.5 text-left w-full sm:w-[calc(50%-8px)] lg:w-[360px] transition-colors duration-300 ${
+                isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
+              }`}>
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
+                {item.icon}
+              </div>
+              <div>
+                <h3 className={`text-[13px] font-bold tracking-tight mb-1 transition-colors ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{item.title}</h3>
+                <p className={`text-[11px] leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{item.desc}</p>
               </div>
             </motion.div>
           ))}
@@ -878,37 +924,109 @@ export default function MarketingLanding({
     <section className={`py-32 px-6 border-t border-b transition-colors duration-300 ${isDarkMode ? 'bg-[#0A0C16] border-slate-900' : 'bg-white border-neutral-200/50'}`}>
       <div className="max-w-4xl mx-auto">
         <FadeIn className="text-center mb-16">
-          <span className={`text-[11px] font-bold uppercase tracking-[0.15em] mb-4 block transition-colors ${isDarkMode ? 'text-slate-500' : 'text-neutral-400'}`}>Platform Comparison</span>
-          <h2 className={`text-[clamp(2rem,3.5vw,2.8rem)] font-bold tracking-tight transition-colors ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>Why BranchDeck?</h2>
-          <p className={`mt-4 text-[15px] max-w-xl mx-auto leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-neutral-500'}`}>
-            How BranchDeck transforms software engineering compared to traditional IDE search methods.
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest mb-4 border transition-colors ${
+            isDarkMode 
+              ? 'bg-blue-950/60 border-blue-800/80 text-blue-400' 
+              : 'bg-blue-50 border-blue-200/80 text-blue-600 shadow-sm'
+          }`}>
+            WHY BRANCHDECK?
+          </span>
+          <h2 className={`text-[clamp(2.2rem,4vw,3.2rem)] font-extrabold tracking-tight transition-colors ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+            Why BranchDeck?
+          </h2>
+          <p className={`mt-3 text-[15px] font-medium max-w-xl mx-auto leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            We combine powerful code intelligence with an intuitive experience.
           </p>
         </FadeIn>
 
-        <FadeIn className={`border rounded-2xl overflow-hidden shadow-sm transition-colors duration-300 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-[#FAFBFD] border-neutral-200'}`}>
-          <div className="grid grid-cols-2 bg-neutral-950 text-white font-bold text-[12px] px-5 py-4 tracking-wide border-b border-neutral-800">
-            <div>TRADITIONAL IDE SEARCH</div>
-            <div className="text-blue-400">BRANCHDECK PLATFORM</div>
+        {/* Comparison Table Container */}
+        <FadeIn className={`rounded-3xl overflow-hidden border shadow-[0_8px_30px_rgba(0,0,0,0.04)] relative transition-colors duration-300 ${
+          isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200/90'
+        }`}>
+          {/* Header Row */}
+          <div className="grid grid-cols-2 relative">
+            <div className="bg-slate-950 text-white py-4 px-6 flex items-center justify-center gap-2 text-xs font-bold font-mono tracking-wide border-r border-slate-800">
+              <Layers className="w-4 h-4 text-white" />
+              <span>With BranchDeck</span>
+            </div>
+
+            {/* Center VS Circle */}
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-[10px] font-extrabold text-blue-600 tracking-wider">
+              VS
+            </div>
+
+            <div className="bg-slate-100/90 text-slate-700 py-4 px-6 flex items-center justify-center text-xs font-bold font-mono tracking-wide">
+              Without BranchDeck
+            </div>
           </div>
-          <div className={`divide-y transition-colors ${isDarkMode ? 'divide-slate-800/80' : 'divide-neutral-255/80'}`}>
+
+          {/* Comparison Rows */}
+          <div className="divide-y divide-slate-100">
             {[
-              { trad: "Search files manually with grep", bd: "Visual architecture mapping in real-time" },
-              { trad: "Read code line-by-line to understand flow", bd: "AI-generated code walkthrough narratives" },
-              { trad: "Guess downstream impacts and dependencies", bd: "Interactive dependency & call flow graphs" },
-              { trad: "Weeks of developer onboarding time", bd: "Instant codebase understanding in minutes" },
-              { trad: "Navigate repositories by folders & paths", bd: "Feature-first logical domain navigation" }
+              {
+                with: "Visualize the entire codebase in seconds",
+                without: "Spend hours reading through files and docs"
+              },
+              {
+                with: "AI explains complex logic in simple terms",
+                without: "Struggle to understand unfamiliar code"
+              },
+              {
+                with: "Instant impact analysis before making changes",
+                without: "Risk unexpected bugs and broken dependencies"
+              },
+              {
+                with: "Powerful search across code, docs & architecture",
+                without: "Juggle multiple tools and lose context"
+              },
+              {
+                with: "Everything in one place, beautifully organized",
+                without: "Scattered information across drives and docs"
+              }
             ].map((row, idx) => (
-              <div key={idx} className={`grid grid-cols-2 text-[12px] px-5 py-4 transition-colors ${isDarkMode ? 'hover:bg-slate-900/30' : 'hover:bg-neutral-50/60'}`}>
-                <div className={`font-medium pr-4 flex items-center gap-2 transition-colors ${isDarkMode ? 'text-slate-400' : 'text-neutral-500'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${isDarkMode ? 'bg-slate-700' : 'bg-neutral-300'}`} />
-                  {row.trad}
+              <div key={idx} className="grid grid-cols-2 text-xs">
+                {/* With BranchDeck */}
+                <div className={`py-4 px-6 flex items-center gap-3 font-semibold border-r transition-colors ${
+                  isDarkMode ? 'bg-emerald-950/20 text-emerald-300 border-slate-800' : 'bg-emerald-50/20 text-slate-800 border-slate-100'
+                }`}>
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center flex-shrink-0">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                  </div>
+                  <span>{row.with}</span>
                 </div>
-                <div className={`font-bold flex items-center gap-2 transition-colors ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  {row.bd}
+
+                {/* Without BranchDeck */}
+                <div className={`py-4 px-6 flex items-center gap-3 font-normal transition-colors ${
+                  isDarkMode ? 'bg-rose-950/20 text-rose-300' : 'bg-rose-50/40 text-slate-600'
+                }`}>
+                  <div className="w-5 h-5 rounded-full bg-rose-100 border border-rose-200 flex items-center justify-center flex-shrink-0">
+                    <X className="w-3.5 h-3.5 text-rose-500 stroke-[3]" />
+                  </div>
+                  <span>{row.without}</span>
                 </div>
               </div>
             ))}
+          </div>
+        </FadeIn>
+
+        {/* Bottom CTA Card */}
+        <FadeIn delay={0.2} className="mt-10">
+          <div className={`max-w-2xl mx-auto border p-2.5 pl-6 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex items-center justify-between gap-4 transition-colors ${
+            isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/90'
+          }`}>
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-4 h-4 text-blue-500" />
+              <span className={`text-xs font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
+                Experience the clarity. Ship better software.
+              </span>
+            </div>
+            <button
+              onClick={onLoadDemo}
+              className="bg-slate-950 hover:bg-slate-850 text-white text-xs font-bold px-5 py-2.5 rounded-full transition-all shadow-sm flex items-center gap-1.5 cursor-pointer hover:gap-2"
+            >
+              <span>Join Waitlist</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </FadeIn>
       </div>
@@ -917,27 +1035,37 @@ export default function MarketingLanding({
 
   /* ── HOW IT WORKS ── */
   const HowItWorks = () => (
-    <section className={`py-40 px-6 transition-colors duration-300 ${isDarkMode ? 'bg-[#0B0C15]' : 'bg-[#EEEFF4]'}`}>
+    <section className={`py-36 px-6 transition-colors duration-300 ${isDarkMode ? 'bg-[#0B0C15]' : 'bg-[#FAFAFB]'}`}>
       <div className="max-w-5xl mx-auto">
-        <FadeIn className="text-center mb-24">
-          <span className={`text-[11px] font-bold uppercase tracking-[0.15em] mb-4 block transition-colors ${isDarkMode ? 'text-slate-500' : 'text-neutral-400'}`}>Simple Setup</span>
-          <h2 className={`text-[clamp(2rem,4vw,3rem)] font-bold tracking-tight transition-colors ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>How Branchdeck works</h2>
-          <p className={`mt-5 text-[16px] max-w-xl mx-auto leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-neutral-500'}`}>Zero config. Works with your existing tools. Ready in 60 seconds.</p>
+        <FadeIn className="text-center mb-20">
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest mb-4 border transition-colors ${
+            isDarkMode 
+              ? 'bg-blue-950/60 border-blue-800/80 text-blue-400' 
+              : 'bg-blue-50 border-blue-200/80 text-blue-600 shadow-sm'
+          }`}>
+            SIMPLE SETUP
+          </span>
+          <h2 className={`text-[clamp(2.2rem,4vw,3.2rem)] font-extrabold tracking-tight transition-colors ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+            How Branchdeck works
+          </h2>
+          <p className={`mt-3 text-[15px] font-medium max-w-xl mx-auto leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            Zero config. Works with your existing tools. Ready in 60 seconds.
+          </p>
         </FadeIn>
         <div className="relative">
-          <div className={`hidden md:block absolute top-10 left-[16.66%] right-[16.66%] h-px transition-colors duration-300 ${isDarkMode ? 'bg-gradient-to-r from-transparent via-slate-800 to-transparent' : 'bg-gradient-to-r from-transparent via-neutral-300 to-transparent'}`} />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
+          <div className={`hidden md:block absolute top-10 left-[16.66%] right-[16.66%] h-px transition-colors duration-300 ${isDarkMode ? 'bg-gradient-to-r from-transparent via-slate-800 to-transparent' : 'bg-gradient-to-r from-transparent via-slate-200 to-transparent'}`} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {HOW_IT_WORKS.map((step, i) => (
               <FadeIn key={i} delay={i * 0.12} className="relative text-center">
                 <motion.div
                   whileHover={{ scale: 1.08, rotate: -2, boxShadow: '0 20px 50px rgba(0,0,0,0.12)' }}
                   transition={{ type: 'spring', stiffness: 280, damping: 20 }}
-                  className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg cursor-default transition-colors duration-300 ${isDarkMode ? 'bg-blue-600 text-white shadow-blue-900/10' : 'bg-neutral-950 text-white shadow-neutral-900/15'}`}>
+                  className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-md cursor-default transition-colors duration-300 ${isDarkMode ? 'bg-blue-600 text-white shadow-blue-900/20' : 'bg-slate-950 text-white shadow-slate-900/15'}`}>
                   {step.icon}
                 </motion.div>
-                <div className={`text-[11px] font-bold uppercase tracking-widest mb-2 transition-colors ${isDarkMode ? 'text-slate-500' : 'text-neutral-400'}`}>{step.step}</div>
-                <h3 className={`text-[18px] font-bold mb-4 transition-colors ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>{step.title}</h3>
-                <p className={`text-[14px] leading-relaxed transition-colors ${isDarkMode ? 'text-slate-450' : 'text-neutral-500'}`}>{step.desc}</p>
+                <div className={`text-[11px] font-extrabold uppercase tracking-widest mb-2 transition-colors ${isDarkMode ? 'text-slate-400' : 'text-blue-600'}`}>{step.step}</div>
+                <h3 className={`text-[17px] font-extrabold mb-3 transition-colors ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{step.title}</h3>
+                <p className={`text-[13px] leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{step.desc}</p>
               </FadeIn>
             ))}
           </div>
@@ -948,18 +1076,24 @@ export default function MarketingLanding({
 
   /* ── USE CASES ── */
   const UseCases = () => (
-    <section id="solutions" className={`py-44 px-6 transition-colors duration-300 ${isDarkMode ? 'bg-[#0B0C15]' : 'bg-[#EEEFF4]'}`}>
+    <section id="solutions" className={`py-36 px-6 transition-colors duration-300 ${isDarkMode ? 'bg-[#0B0C15]' : 'bg-white'}`}>
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-20 items-center">
-          <FadeIn direction="left" className="lg:col-span-4 space-y-7">
-            <span className={`text-[11px] font-bold uppercase tracking-[0.15em] block transition-colors ${isDarkMode ? 'text-slate-500' : 'text-neutral-400'}`}>Solutions Matrix</span>
-            <h2 className={`text-[clamp(2rem,3.5vw,2.8rem)] font-bold tracking-tight leading-tight transition-colors ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+          <FadeIn direction="left" className="lg:col-span-4 space-y-6">
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest border transition-colors ${
+              isDarkMode 
+                ? 'bg-blue-950/60 border-blue-800/80 text-blue-400' 
+                : 'bg-blue-50 border-blue-200/80 text-blue-600 shadow-sm'
+            }`}>
+              SOLUTIONS MATRIX
+            </span>
+            <h2 className={`text-[clamp(2.2rem,3.8vw,3rem)] font-extrabold tracking-tight leading-tight transition-colors ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
               See the whole picture.<br />Dive into the details.
             </h2>
-            <p className={`text-[15px] leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-neutral-500'}`}>
+            <p className={`text-[14px] leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
               BranchDeck transforms complex repositories into interactive architecture maps, AI-generated code walkthroughs, dependency graphs, and impact analysis—helping engineering teams understand software faster.
             </p>
-            <div className="pt-2 space-y-4">
+            <div className="pt-2 space-y-3.5">
               {[
                 'Visual software architecture maps',
                 'Interactive software dependency graphs',
@@ -967,10 +1101,10 @@ export default function MarketingLanding({
                 'Understand legacy code monorepos',
                 'Self-documenting code walkthroughs'
               ].map((item, i) => (
-                <motion.div key={i} className={`flex items-center gap-3 text-[14px] transition-colors duration-300 ${isDarkMode ? 'text-slate-300' : 'text-neutral-700'}`}
+                <motion.div key={i} className={`flex items-center gap-3 text-[13px] font-medium transition-colors duration-300 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}
                   initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }} transition={{ delay: i * 0.08, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}>
-                  <CheckCircle2 className={`w-4 h-4 flex-shrink-0 transition-colors ${isDarkMode ? 'text-emerald-500' : 'text-neutral-900'}`} /> {item}
+                  <CheckCircle2 className={`w-4 h-4 flex-shrink-0 transition-colors ${isDarkMode ? 'text-emerald-500' : 'text-emerald-600'}`} /> {item}
                 </motion.div>
               ))}
             </div>
@@ -980,22 +1114,19 @@ export default function MarketingLanding({
               className="grid grid-cols-2 md:grid-cols-3 gap-5">
               {USE_CASES.map((uc, i) => (
                 <motion.div key={i} variants={staggerItem}
-                  onMouseMove={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    e.currentTarget.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
-                    e.currentTarget.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
-                  }}
-                  whileHover={{ y: -6, boxShadow: '0 24px 60px rgba(0,0,0,0.08)', borderColor: '#d4d4d4' }}
-                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                  className={`card-spotlight border rounded-2xl p-6 space-y-4 cursor-default transition-all duration-300 ${isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-neutral-200'}`}>
+                  whileHover={{ y: -6, boxShadow: '0 16px 36px rgba(0,0,0,0.06)' }}
+                  transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                  className={`border rounded-2xl p-6 space-y-3.5 cursor-default transition-all duration-300 ${
+                    isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200/90 shadow-sm hover:border-slate-300'
+                  }`}>
                   <motion.div
                     whileHover={{ scale: 1.1, rotate: -5 }}
                     transition={{ type: 'spring', stiffness: 300, damping: 18 }}
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 text-blue-400' : 'bg-neutral-950 text-white'}`}>
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors duration-300 ${isDarkMode ? 'bg-slate-800 text-blue-400' : 'bg-slate-950 text-white'}`}>
                     {uc.icon}
                   </motion.div>
-                  <h3 className={`text-[13px] font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>{uc.title}</h3>
-                  <p className={`text-[12px] leading-relaxed transition-colors ${isDarkMode ? 'text-slate-455' : 'text-neutral-500'}`}>{uc.desc}</p>
+                  <h3 className={`text-[13px] font-bold tracking-tight transition-colors ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{uc.title}</h3>
+                  <p className={`text-[11px] leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{uc.desc}</p>
                 </motion.div>
               ))}
             </motion.div>
@@ -1006,65 +1137,309 @@ export default function MarketingLanding({
   );
 
   /* ── VS CODE SECTION ── */
-  const VsCodeSection = () => (
-    <section className="py-44 px-6 bg-neutral-950 overflow-hidden">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-20 items-center">
-        <FadeIn direction="left" className="lg:col-span-5 space-y-7">
-          <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-500 block">VS Code Extension</span>
-          <h2 className="text-[clamp(2rem,4vw,3rem)] font-bold text-white tracking-tight leading-tight">Works inside<br />your editor.</h2>
-          <p className="text-[15px] text-neutral-400 leading-relaxed">Install the Branchdeck VS Code extension and get full codebase intelligence without ever leaving your editor. Zero context switching.</p>
-          <div className="space-y-3">
-            {[
-              { cmd: 'branchdeck.showProjectMap', desc: 'Open the full interactive project map' },
-              { cmd: 'branchdeck.analyzeFunction', desc: 'Trace call flow for selected function' },
-              { cmd: 'branchdeck.impactAnalysis', desc: 'Analyze change impact for any symbol' },
-              { cmd: 'branchdeck.storyMode', desc: 'Generate AI narrative for selected feature' },
-            ].map((c, i) => (
-              <FadeIn key={i} delay={i * 0.08}>
-                <motion.div
-                  whileHover={{ x: 6, backgroundColor: 'rgba(255,255,255,0.08)' }}
-                  transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                  className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-4 font-mono cursor-default">
-                  <div className="text-[12px] text-blue-400">{c.cmd}</div>
-                  <div className="text-[11px] text-neutral-500 mt-1">{c.desc}</div>
-                </motion.div>
-              </FadeIn>
-            ))}
-          </div>
-        </FadeIn>
-        <FadeIn direction="right" delay={0.2} className="lg:col-span-7">
-          <div className="bg-[#1E1E2E] rounded-2xl overflow-hidden border border-white/[0.07] shadow-[0_0_80px_rgba(66,133,244,0.07)] font-mono">
-            <div className="flex items-center gap-2 px-4 py-3 bg-[#181825] border-b border-white/[0.06]">
-              <div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-[#FF5F57]" /><div className="w-3 h-3 rounded-full bg-[#FFBD2E]" /><div className="w-3 h-3 rounded-full bg-[#28C840]" /></div>
-              <div className="flex-1 flex items-center justify-center gap-3 text-[10px] text-white/25">
-                <span className="border-b border-blue-500 pb-1 text-white/70">extension.ts</span>
-                <span>analyzer.ts</span><span>route.ts</span>
+  const VsCodeSection = () => {
+    const EXTENSION_FEATURES = [
+      {
+        icon: <MessageSquare className="w-5 h-5 text-indigo-400" />,
+        title: "Codebase Chat",
+        subtitle: "Ask anything about your code."
+      },
+      {
+        icon: <FileSearch className="w-5 h-5 text-slate-400" />,
+        title: "Go to Definition",
+        subtitle: "Jump to any function or file."
+      },
+      {
+        icon: <GitFork className="w-5 h-5 text-slate-400" />,
+        title: "Impact Analysis",
+        subtitle: "See what changes break."
+      },
+      {
+        icon: <Sparkles className="w-5 h-5 text-slate-400" />,
+        title: "Smart Context",
+        subtitle: "AI that understands your project."
+      }
+    ];
+
+    return (
+      <section className={`py-32 px-6 overflow-hidden border-t border-b transition-colors duration-300 ${
+        isDarkMode ? 'bg-[#070913] border-white/5 text-white' : 'bg-[#FAFAFB] border-slate-200/60 text-slate-900'
+      }`}>
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+          {/* Left Column */}
+          <FadeIn direction="left" className="lg:col-span-5 space-y-6">
+            <div>
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest mb-3 border transition-colors ${
+                isDarkMode 
+                  ? 'bg-indigo-950/60 border-indigo-800/80 text-indigo-400' 
+                  : 'bg-blue-50 border-blue-200/80 text-blue-600 shadow-sm'
+              }`}>
+                VS CODE EXTENSION
+              </span>
+              <h2 className={`text-[clamp(2.4rem,4.5vw,3.5rem)] font-extrabold tracking-tight leading-[1.1] transition-colors ${
+                isDarkMode ? 'text-white' : 'text-slate-900'
+              }`}>
+                Works inside<br />your editor<span className="text-blue-600">.</span>
+              </h2>
+              <p className={`text-[14px] font-normal leading-relaxed mt-4 max-w-md transition-colors ${
+                isDarkMode ? 'text-slate-400' : 'text-slate-600'
+              }`}>
+                Install the Branchdeck VS Code extension and get AI-powered codebase intelligence without ever leaving your editor.<br />
+                Zero context switching.
+              </p>
+            </div>
+
+            {/* Vertical Stack Cards */}
+            <div className="space-y-3 pt-2">
+              {EXTENSION_FEATURES.map((feat, idx) => {
+                const isActive = vscodeActiveTab === idx;
+                return (
+                  <motion.div
+                    key={idx}
+                    onClick={() => setVscodeActiveTab(idx)}
+                    whileHover={{ scale: 1.01 }}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                      isActive
+                        ? isDarkMode
+                          ? 'bg-[#121629] border-indigo-500/50 shadow-lg shadow-indigo-950/30 text-white'
+                          : 'bg-slate-900 border-slate-900 shadow-md text-white'
+                        : isDarkMode
+                          ? 'bg-white/[0.02] border-white/5 text-slate-400 hover:border-white/10 hover:bg-white/[0.05]'
+                          : 'bg-white border-slate-200/90 text-slate-700 hover:border-slate-300 hover:bg-slate-50/80 shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`p-2.5 rounded-xl border transition-colors ${
+                        isActive
+                          ? 'bg-indigo-950/80 border-indigo-500/40 text-indigo-400'
+                          : isDarkMode
+                            ? 'bg-white/[0.04] border-white/5 text-slate-400'
+                            : 'bg-slate-100 border-slate-200 text-slate-600'
+                      }`}>
+                        {feat.icon}
+                      </div>
+                      <div>
+                        <div className={`text-xs font-bold ${
+                          isActive 
+                            ? 'text-white' 
+                            : isDarkMode 
+                              ? 'text-slate-200' 
+                              : 'text-slate-900'
+                        }`}>
+                          {feat.title}
+                        </div>
+                        <div className={`text-[11px] mt-0.5 font-normal ${
+                          isActive 
+                            ? 'text-slate-300' 
+                            : isDarkMode 
+                              ? 'text-slate-400' 
+                              : 'text-slate-500'
+                        }`}>
+                          {feat.subtitle}
+                        </div>
+                      </div>
+                    </div>
+
+                    {isActive && (
+                      <ArrowRight className={`w-4 h-4 mr-2 ${isDarkMode ? 'text-indigo-400' : 'text-blue-400'}`} />
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          </FadeIn>
+
+          {/* Right Column: VS Code Window Mockup */}
+          <FadeIn direction="right" delay={0.2} className="lg:col-span-7">
+            <div className="bg-[#0B0D18] border border-white/10 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col font-mono text-xs">
+              
+              {/* Inner Layout Container */}
+              <div className="flex min-h-[460px]">
+                {/* Left VS Code Activity Bar */}
+                <div className="w-12 bg-[#070912] border-r border-white/5 flex flex-col items-center py-4 gap-5 text-slate-500 flex-shrink-0 select-none">
+                  <Files className="w-4 h-4 opacity-50 hover:opacity-100 cursor-pointer" />
+                  <Search className="w-4 h-4 opacity-50 hover:opacity-100 cursor-pointer" />
+                  <GitBranch className="w-4 h-4 opacity-50 hover:opacity-100 cursor-pointer" />
+                  <Play className="w-4 h-4 opacity-50 hover:opacity-100 cursor-pointer" />
+                  <Boxes className="w-4 h-4 opacity-50 hover:opacity-100 cursor-pointer" />
+
+                  {/* Active Branchdeck Extension Icon */}
+                  <div className="mt-2 w-8 h-8 rounded-lg bg-indigo-950/90 border border-indigo-500/50 flex items-center justify-center text-indigo-400 shadow-md">
+                    <Box className="w-4.5 h-4.5" />
+                  </div>
+                </div>
+
+                {/* Main Code Editor Area */}
+                <div className="flex-1 flex flex-col bg-[#0B0D18] overflow-hidden">
+                  {/* Top Editor Tab Bar */}
+                  <div className="flex items-center justify-between border-b border-white/5 px-4 py-2 bg-[#070912] text-xs select-none">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 bg-[#0B0D18] border-t-2 border-indigo-500 px-3.5 py-1.5 rounded-t text-white text-xs font-mono">
+                        <span className="text-[9px] font-extrabold px-1 rounded bg-blue-500/30 text-blue-400">TS</span>
+                        <span>auth.service.ts</span>
+                        <X className="w-3 h-3 text-slate-400 ml-2 hover:text-white cursor-pointer" />
+                      </div>
+                      {vscodeActiveTab === 1 && (
+                        <div className="flex items-center gap-2 bg-[#070912] border-t-2 border-slate-700 px-3.5 py-1.5 rounded-t text-slate-400 text-xs font-mono">
+                          <span className="text-[9px] font-extrabold px-1 rounded bg-emerald-500/30 text-emerald-400">TS</span>
+                          <span>user.repository.ts</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Columns className="w-3.5 h-3.5 hover:text-slate-300 cursor-pointer" />
+                      <MoreHorizontal className="w-3.5 h-3.5 hover:text-slate-300 cursor-pointer" />
+                    </div>
+                  </div>
+
+                  {/* Editor Code View */}
+                  <div className="p-5 text-xs leading-6 font-mono text-slate-300 overflow-x-auto flex-1 select-none relative">
+                    <div className="flex gap-4">
+                      {/* Line Numbers */}
+                      <div className="text-slate-600 select-none text-right font-mono w-4 space-y-1">
+                        <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div><div>11</div><div>12</div><div>13</div><div>14</div><div>15</div><div>17</div><div>19</div>
+                      </div>
+                      
+                      {/* Code Content */}
+                      <div className="space-y-1 flex-1">
+                        <div><span className="text-purple-400 font-semibold">export class</span> <span className="text-yellow-300 font-semibold">AuthService</span> {'{'}</div>
+                        <div className="pl-4"><span className="text-blue-400">constructor</span>(<span className="text-purple-300">private</span> <span className="text-slate-300">userRepo</span>: <span className="text-emerald-400">UserRepository</span>) {'{}'}</div>
+                        <div className="h-2" />
+                        <div className="pl-4"><span className="text-purple-400 font-semibold">async</span> <span className="text-blue-400 font-semibold">login</span>(<span className="text-slate-300">email</span>: <span className="text-emerald-400">string</span>, <span className="text-slate-300">password</span>: <span className="text-emerald-400">string</span>) {'{'}</div>
+                        
+                        {/* Highlighted Line 5 for Go To Definition */}
+                        <div className={`pl-8 transition-colors ${vscodeActiveTab === 1 ? 'bg-indigo-950/60 -mx-4 px-4 py-0.5 border-l-2 border-indigo-400' : ''}`}>
+                          <span className="text-purple-400">const</span> <span className="text-slate-200">user</span> = <span className="text-purple-400">await</span> <span className="text-purple-300">this</span>.userRepo.<span className="text-yellow-300 font-bold underline decoration-indigo-400 underline-offset-4">findByEmail</span>(email);
+                        </div>
+
+                        <div className="pl-8"><span className="text-purple-400">if</span> (!user) <span className="text-purple-400">throw new</span> <span className="text-emerald-400">Error</span>(<span className="text-amber-300">&apos;User not found&apos;</span>);</div>
+                        <div className="h-2" />
+                        <div className="pl-8"><span className="text-purple-400">const</span> <span className="text-slate-200">isValid</span> = <span className="text-purple-400 font-semibold">await</span> <span className="text-purple-300">this</span>.<span className="text-yellow-300">validatePassword</span>(</div>
+                        <div className="pl-12 text-slate-300">password,</div>
+                        <div className="pl-12 text-slate-300">user.passwordHash</div>
+                        <div className="pl-8">);</div>
+                        <div className="pl-8"><span className="text-purple-400">if</span> (!isValid) <span className="text-purple-400">throw new</span> <span className="text-emerald-400">Error</span>(<span className="text-amber-300">&apos;Invalid credentials&apos;</span>);</div>
+                        <div className="h-2" />
+                        <div className="pl-8"><span className="text-purple-400">const</span> <span className="text-slate-200">token</span> = <span className="text-purple-300">this</span>.<span className="text-yellow-300">generateToken</span>(user.id);</div>
+                        <div className="pl-8"><span className="text-purple-400">return</span> {'{'} user, token {'}'};</div>
+                        <div className="pl-4">{'}'}</div>
+                        <div>{'}'}</div>
+                      </div>
+                    </div>
+
+                    {/* DYNAMIC FEATURE OVERLAYS FOR THE 4 CARDS */}
+                    <AnimatePresence mode="wait">
+                      {vscodeActiveTab === 0 && (
+                        <motion.div key="chat" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                          className="mt-4 bg-[#111425] border border-indigo-500/40 rounded-xl p-3.5 text-xs shadow-lg space-y-2 font-sans">
+                          <div className="flex items-center justify-between">
+                            <span className="text-indigo-400 font-bold text-[11px] flex items-center gap-1.5">
+                              <MessageSquare className="w-3.5 h-3.5" /> AI Codebase Assistant
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-[9px] font-bold">Live AI Answer</span>
+                          </div>
+                          <div className="text-slate-300 text-[11px] leading-relaxed">
+                            <div className="text-slate-400 font-mono mb-1">&gt; How is authentication handled in this service?</div>
+                            <span className="text-white font-semibold">AuthService</span> queries <code className="text-amber-300 font-mono">UserRepository.findByEmail</code>, verifies password hash, and issues signed JWT tokens via <code className="text-yellow-300 font-mono">generateToken(user.id)</code>.
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {vscodeActiveTab === 1 && (
+                        <motion.div key="definition" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                          className="mt-4 bg-indigo-950/90 border border-indigo-500/60 rounded-xl p-3.5 text-xs shadow-lg font-sans">
+                          <div className="text-indigo-300 font-bold text-[11px] flex items-center gap-1.5 mb-1.5">
+                            <FileSearch className="w-3.5 h-3.5 text-indigo-400" /> Go To Definition · Symbol Found
+                          </div>
+                          <div className="text-slate-200 text-[11px] font-mono leading-relaxed">
+                            <span className="text-slate-400">Target:</span> <span className="text-emerald-400 font-bold">src/repositories/user.repository.ts:L42</span><br />
+                            <span className="text-purple-300">async</span> <span className="text-yellow-300">findByEmail</span>(email: <span className="text-emerald-300">string</span>): <span className="text-emerald-300">Promise&lt;User | null&gt;</span>
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {vscodeActiveTab === 2 && (
+                        <motion.div key="impact" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                          className="mt-4 bg-[#1A1224] border border-rose-500/40 rounded-xl p-3.5 text-xs shadow-lg space-y-2 font-sans">
+                          <div className="flex items-center justify-between">
+                            <span className="text-rose-400 font-bold text-[11px] flex items-center gap-1.5">
+                              <GitFork className="w-3.5 h-3.5" /> Impact Analysis: AuthService.login
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[9px] font-bold">High Risk (3 Callers)</span>
+                          </div>
+                          <div className="text-[11px] text-slate-300 space-y-1 font-mono">
+                            <div className="flex items-center justify-between">
+                              <span>&bull; <span className="text-amber-300">POST /api/v1/auth/login</span></span>
+                              <span className="text-[9px] text-slate-500">routes/auth.ts:24</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span>&bull; <span className="text-amber-300">SSOAdapter.authenticate</span></span>
+                              <span className="text-[9px] text-slate-500">lib/sso.ts:18</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span>&bull; <span className="text-amber-300">AuthMiddleware.verifySession</span></span>
+                              <span className="text-[9px] text-slate-500">middleware/auth.ts:31</span>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {vscodeActiveTab === 3 && (
+                        <motion.div key="context" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                          className="mt-4 bg-[#0D1B2A] border border-blue-500/50 rounded-xl p-3.5 text-xs shadow-lg space-y-2 font-sans">
+                          <div className="flex items-center justify-between">
+                            <span className="text-blue-400 font-bold text-[11px] flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5" /> Smart Architecture Walkthrough
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 text-[9px] font-bold">AI Verified Context</span>
+                          </div>
+                          <div className="text-[11px] text-slate-300 leading-relaxed">
+                            <span className="text-blue-300 font-semibold">Auth Subsystem Architecture:</span> Client requests pass through API Router &rarr; AuthController &rarr; AuthService &rarr; UserRepository. Password hashes verified via BCrypt with RS256 JWT key signing.
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* VS Code Bottom Status Bar */}
+                  <div className="px-4 py-1.5 bg-[#070912] border-t border-white/5 flex items-center justify-between text-[10px] text-slate-500 font-mono select-none">
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1"><GitBranch className="w-3 h-3 text-slate-400" /> main*</span>
+                      <span>0 🛈 0 ⚠</span>
+                    </div>
+                    <span>Ln 12, Col 25 &nbsp; Spaces: 2 &nbsp; UTF-8 &nbsp; LF &nbsp; TypeScript</span>
+                  </div>
+
+                  {/* Bottom AI Codebase Query Box inside Editor */}
+                  <div className="p-3 bg-[#070912]/90 border-t border-white/5">
+                    <div className="flex items-center justify-between bg-[#131627] border border-indigo-500/30 rounded-xl px-4 py-2.5 shadow-inner">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Sparkles className="w-4 h-4 text-indigo-400 flex-shrink-0 animate-pulse" />
+                        <input
+                          type="text"
+                          readOnly
+                          value={
+                            vscodeActiveTab === 0 ? "Ask anything about your code..." :
+                            vscodeActiveTab === 1 ? "Jump to any function or file..." :
+                            vscodeActiveTab === 2 ? "Analyze change impact for AuthService.login..." :
+                            "AI architecture context loaded."
+                          }
+                          className="bg-transparent text-xs text-slate-300 outline-none w-full cursor-pointer font-sans"
+                        />
+                      </div>
+                      <button className="w-7 h-7 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-md transition-all">
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="p-6 text-[12px] leading-7">
-              <div><span className="text-purple-400">import</span> <span className="text-white/75">* as vscode</span> <span className="text-purple-400">from</span> <span className="text-amber-300">&apos;vscode&apos;</span><span className="text-white/40">;</span></div>
-              <div className="mt-2"><span className="text-blue-400">export function</span> <span className="text-yellow-300">activate</span><span className="text-white/60">(context: vscode.ExtensionContext) {'{'}</span></div>
-              <div className="pl-6 text-white/30">{'// Register Branchdeck commands'}</div>
-              <div className="pl-6 text-white/55">vscode.commands.<span className="text-yellow-300">registerCommand</span><span className="text-white/55">(</span></div>
-              <div className="pl-12 text-amber-300">&apos;branchdeck.showProjectMap&apos;<span className="text-white/55">,</span></div>
-              <div className="pl-12 text-white/55">{'() => {'}</div>
-              <div className="pl-16 text-white/55">BranchdeckPanel.<span className="text-yellow-300">createOrShow</span>(extensionUri);</div>
-              <div className="pl-12 text-white/55">{'}'}</div>
-              <div className="pl-6 text-white/55">{')'};</div>
-              <div className="text-white/55">{'}'}</div>
-            </div>
-            <div className="px-4 py-2 bg-[#181825] border-t border-white/[0.06] flex items-center justify-between text-[10px] text-white/30">
-              <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />Branchdeck Active</span>
-                <span>TypeScript</span>
-              </div>
-              <span>extension.ts · 202 lines</span>
-            </div>
-          </div>
-        </FadeIn>
-      </div>
-    </section>
-  );
+          </FadeIn>
+        </div>
+      </section>
+    );
+  };
 
   /* ── FOUNDER SECTION ── */
   const FounderSection = () => (
@@ -1117,7 +1492,6 @@ export default function MarketingLanding({
 
   /* ── FAQ SECTION ── */
   const FaqSection = () => {
-    const [openIdx, setOpenIdx] = useState<number | null>(null);
     const faqs = [
       { q: "Does BranchDeck support any programming language?", a: "Yes! BranchDeck is language-agnostic. It parses AST structures for TypeScript, JavaScript, Python, Go, Rust, Java, C++, Ruby, PHP, and more to map function scopes and import paths." },
       { q: "How does BranchDeck analyze a repository?", a: "BranchDeck runs local or secure cloud-based static analysis to trace imports, call patterns, references, and symbol paths. No compilation is required, allowing it to instantly generate software architecture maps." },
@@ -1141,19 +1515,19 @@ export default function MarketingLanding({
               <FadeIn key={idx} delay={idx * 0.05}>
                 <div className={`border rounded-2xl overflow-hidden transition-all duration-300 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-neutral-200'}`}>
                   <button
-                    onClick={() => setOpenIdx(openIdx === idx ? null : idx)}
+                    onClick={() => setFaqOpenIdx(faqOpenIdx === idx ? null : idx)}
                     className={`w-full text-left p-6 flex justify-between items-center gap-4 cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-slate-850/40' : 'hover:bg-neutral-50/50'}`}
                   >
                     <span className={`text-[13px] font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>{faq.q}</span>
                     <motion.div
-                      animate={{ rotate: openIdx === idx ? 180 : 0 }}
+                      animate={{ rotate: faqOpenIdx === idx ? 180 : 0 }}
                       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                     >
                       <ChevronDown className="w-4 h-4 text-neutral-400" />
                     </motion.div>
                   </button>
                   <AnimatePresence initial={false}>
-                    {openIdx === idx && (
+                    {faqOpenIdx === idx && (
                       <motion.div
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
