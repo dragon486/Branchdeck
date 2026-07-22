@@ -652,7 +652,7 @@ export default function MarketingLanding({
                   if (onOpenRepoPicker) onOpenRepoPicker();
                   else onAnalyze(repoUrl);
                 }}
-                className="text-[12px] font-bold bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-100 px-4 py-2 rounded-full transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                className="text-[12px] font-bold bg-slate-950 text-white hover:bg-slate-850 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 px-4.5 py-2 rounded-full transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
               >
                 <span>Launch Dashboard</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -660,21 +660,29 @@ export default function MarketingLanding({
               {onSignOut && (
                 <button
                   onClick={onSignOut}
-                  className={`text-[12px] font-semibold transition-colors px-3 py-2 rounded-full ${isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'}`}
+                  className={`text-[12px] font-semibold transition-colors px-3 py-2 rounded-full cursor-pointer ${isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
                 >
                   Sign Out
                 </button>
               )}
             </div>
           ) : (
-            onSignIn && (
-              <button
-                onClick={onSignIn}
-                className={`hidden md:block text-[13px] font-semibold transition-colors px-4 py-2 rounded-full ${isDarkMode ? 'text-neutral-300 hover:text-white hover:bg-slate-900' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'}`}
+            <div className="flex items-center gap-2">
+              {onSignIn && (
+                <button
+                  onClick={onSignIn}
+                  className={`hidden md:block text-[13px] font-semibold transition-colors px-4 py-2 rounded-full cursor-pointer ${isDarkMode ? 'text-slate-300 hover:text-white hover:bg-slate-900' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}
+                >
+                  Sign In
+                </button>
+              )}
+              <MagneticBtn
+                onClick={() => onSignIn ? onSignIn() : setIsModalOpen(true)}
+                className={`text-[13px] font-semibold px-5 py-2.5 rounded-full transition-all shadow-sm flex items-center gap-2 cursor-pointer ${isDarkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-slate-950 hover:bg-slate-850 text-white'}`}
               >
-                Sign In
-              </button>
-            )
+                Get Started
+              </MagneticBtn>
+            </div>
           )}
 
           {/* Theme Toggle Switch */}
@@ -713,13 +721,6 @@ export default function MarketingLanding({
               )}
             </motion.div>
           </button>
-
-          <MagneticBtn
-            onClick={() => setIsModalOpen(true)}
-            className={`text-[13px] font-semibold px-5 py-2.5 rounded-full transition-all shadow-sm flex items-center gap-2 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-slate-950 hover:bg-slate-850 text-white'}`}
-          >
-            Get Started
-          </MagneticBtn>
 
           {/* Mobile menu trigger is handled by StaggeredMenu */}
         </div>
@@ -1196,6 +1197,28 @@ export default function MarketingLanding({
                 Install the Branchdeck VS Code extension and get AI-powered codebase intelligence without ever leaving your editor.<br />
                 Zero context switching.
               </p>
+              <div className="flex items-center gap-3 mt-6 flex-wrap">
+                <a
+                  href="vscode:extension/branchdeck.branchdeck-vscode"
+                  className={`text-[12px] font-bold px-5 py-2.5 rounded-full flex items-center gap-2 transition-all shadow-md cursor-pointer ${
+                    isDarkMode ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/20' : 'bg-slate-950 hover:bg-slate-850 text-white shadow-slate-950/15'
+                  }`}
+                >
+                  <Box className="w-3.5 h-3.5" />
+                  <span>Install in VS Code</span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-70" />
+                </a>
+                <a
+                  href="https://marketplace.visualstudio.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`text-[12px] font-bold px-5 py-2.5 rounded-full border transition-all cursor-pointer ${
+                    isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white' : 'bg-white border-slate-200/90 text-slate-700 hover:text-slate-900 hover:border-slate-300'
+                  }`}
+                >
+                  <span>VS Code Marketplace</span>
+                </a>
+              </div>
             </div>
 
             {/* Vertical Stack Cards */}
