@@ -836,8 +836,9 @@ export default function MarketingLanding({
       </div>
     </section>
   );
+  /* ── PERFECT FOR ── */
   const PerfectFor = () => (
-    <section className={`py-24 px-6 border-t border-b transition-colors duration-300 ${isDarkMode ? 'bg-[#0A0C16] border-slate-900' : 'bg-white border-neutral-200/50'}`}>
+    <section className={`py-24 px-6 border-t border-b transition-colors duration-300 ${isDarkMode ? 'bg-[#070913] border-slate-900' : 'bg-white border-neutral-200/50'}`}>
       <div className="max-w-6xl mx-auto">
         <FadeIn className="text-center mb-16">
           <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest mb-4 border transition-colors ${
@@ -864,18 +865,20 @@ export default function MarketingLanding({
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
         >
           {[
-            { icon: <Code className="w-4 h-4 text-emerald-600" />, title: "Software Engineering Teams", desc: "Understand and onboard faster with complete codebase context." },
-            { icon: <Layers className="w-4 h-4 text-emerald-600" />, title: "DevOps & SRE Teams", desc: "Visualize dependencies and streamline system operations." },
-            { icon: <ShieldCheck className="w-4 h-4 text-emerald-600" />, title: "Product Engineering", desc: "Make informed decisions with clarity across the stack." },
-            { icon: <Users className="w-4 h-4 text-emerald-600" />, title: "New Team Members", desc: "Onboard in minutes and become productive from day one." }
+            { icon: <Code className="w-4 h-4" />, title: "Software Engineering Teams", desc: "Understand and onboard faster with complete codebase context." },
+            { icon: <Layers className="w-4 h-4" />, title: "DevOps & SRE Teams", desc: "Visualize dependencies and streamline system operations." },
+            { icon: <ShieldCheck className="w-4 h-4" />, title: "Product Engineering", desc: "Make informed decisions with clarity across the stack." },
+            { icon: <Users className="w-4 h-4" />, title: "New Team Members", desc: "Onboard in minutes and become productive from day one." }
           ].map((item, i) => (
             <motion.div key={i} variants={staggerItem}
-              whileHover={{ y: -4, boxShadow: '0 12px 30px rgba(0,0,0,0.06)' }}
+              whileHover={{ y: -4, boxShadow: isDarkMode ? '0 12px 30px rgba(0,0,0,0.4)' : '0 12px 30px rgba(0,0,0,0.06)' }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
               className={`p-5 border rounded-2xl flex items-start gap-3.5 text-left transition-colors duration-300 ${
-                isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
+                isDarkMode ? 'bg-[#0E1220] border-slate-800/90 shadow-md hover:border-slate-700' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
               }`}>
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
+              <div className={`w-9 h-9 rounded-xl border flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5 ${
+                isDarkMode ? 'bg-emerald-950/60 border-emerald-800/80 text-emerald-400' : 'bg-emerald-50 border-emerald-200/60 text-emerald-600'
+              }`}>
                 {item.icon}
               </div>
               <div>
@@ -895,17 +898,19 @@ export default function MarketingLanding({
           className="flex flex-wrap justify-center gap-4 mt-4"
         >
           {[
-            { icon: <Search className="w-4 h-4 text-emerald-600" />, title: "Technical Leads", desc: "Get deep insights and trace complex logic quickly." },
-            { icon: <FileText className="w-4 h-4 text-emerald-600" />, title: "Engineering Managers", desc: "Track progress, reduce risk and improve team efficiency." },
-            { icon: <GraduationCap className="w-4 h-4 text-emerald-600" />, title: "Students & Educators", desc: "Learn, explore and understand real-world codebases." }
+            { icon: <Search className="w-4 h-4" />, title: "Technical Leads", desc: "Get deep insights and trace complex logic quickly." },
+            { icon: <FileText className="w-4 h-4" />, title: "Engineering Managers", desc: "Track progress, reduce risk and improve team efficiency." },
+            { icon: <GraduationCap className="w-4 h-4" />, title: "Students & Educators", desc: "Learn, explore and understand real-world codebases." }
           ].map((item, i) => (
             <motion.div key={i} variants={staggerItem}
-              whileHover={{ y: -4, boxShadow: '0 12px 30px rgba(0,0,0,0.06)' }}
+              whileHover={{ y: -4, boxShadow: isDarkMode ? '0 12px 30px rgba(0,0,0,0.4)' : '0 12px 30px rgba(0,0,0,0.06)' }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
               className={`p-5 border rounded-2xl flex items-start gap-3.5 text-left w-full sm:w-[calc(50%-8px)] lg:w-[360px] transition-colors duration-300 ${
-                isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
+                isDarkMode ? 'bg-[#0E1220] border-slate-800/90 shadow-md hover:border-slate-700' : 'bg-white border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
               }`}>
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
+              <div className={`w-9 h-9 rounded-xl border flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5 ${
+                isDarkMode ? 'bg-emerald-950/60 border-emerald-800/80 text-emerald-400' : 'bg-emerald-50 border-emerald-200/60 text-emerald-600'
+              }`}>
                 {item.icon}
               </div>
               <div>
@@ -921,7 +926,7 @@ export default function MarketingLanding({
 
   /* ── COMPARISON SECTION ── */
   const ComparisonSection = () => (
-    <section className={`py-32 px-6 border-t border-b transition-colors duration-300 ${isDarkMode ? 'bg-[#0A0C16] border-slate-900' : 'bg-white border-neutral-200/50'}`}>
+    <section className={`py-32 px-6 border-t border-b transition-colors duration-300 ${isDarkMode ? 'bg-[#070913] border-slate-900' : 'bg-white border-neutral-200/50'}`}>
       <div className="max-w-4xl mx-auto">
         <FadeIn className="text-center mb-16">
           <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest mb-4 border transition-colors ${
@@ -941,7 +946,7 @@ export default function MarketingLanding({
 
         {/* Comparison Table Container */}
         <FadeIn className={`rounded-3xl overflow-hidden border shadow-[0_8px_30px_rgba(0,0,0,0.04)] relative transition-colors duration-300 ${
-          isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200/90'
+          isDarkMode ? 'bg-[#0E1220] border-slate-800/90 shadow-black/40' : 'bg-white border-slate-200/90'
         }`}>
           {/* Header Row */}
           <div className="grid grid-cols-2 relative">
@@ -951,17 +956,21 @@ export default function MarketingLanding({
             </div>
 
             {/* Center VS Circle */}
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-[10px] font-extrabold text-blue-600 tracking-wider">
+            <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full border shadow-md flex items-center justify-center text-[10px] font-extrabold tracking-wider ${
+              isDarkMode ? 'bg-[#0E1220] border-slate-700 text-blue-400' : 'bg-white border-slate-200 text-blue-600'
+            }`}>
               VS
             </div>
 
-            <div className="bg-slate-100/90 text-slate-700 py-4 px-6 flex items-center justify-center text-xs font-bold font-mono tracking-wide">
+            <div className={`py-4 px-6 flex items-center justify-center text-xs font-bold font-mono tracking-wide ${
+              isDarkMode ? 'bg-slate-900/90 text-slate-300' : 'bg-slate-100/90 text-slate-700'
+            }`}>
               Without BranchDeck
             </div>
           </div>
 
           {/* Comparison Rows */}
-          <div className="divide-y divide-slate-100">
+          <div className={`divide-y ${isDarkMode ? 'divide-slate-800/80' : 'divide-slate-100'}`}>
             {[
               {
                 with: "Visualize the entire codebase in seconds",
@@ -987,10 +996,12 @@ export default function MarketingLanding({
               <div key={idx} className="grid grid-cols-2 text-xs">
                 {/* With BranchDeck */}
                 <div className={`py-4 px-6 flex items-center gap-3 font-semibold border-r transition-colors ${
-                  isDarkMode ? 'bg-emerald-950/20 text-emerald-300 border-slate-800' : 'bg-emerald-50/20 text-slate-800 border-slate-100'
+                  isDarkMode ? 'bg-emerald-950/20 text-emerald-300 border-slate-800/80' : 'bg-emerald-50/20 text-slate-800 border-slate-100'
                 }`}>
-                  <div className="w-5 h-5 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center flex-shrink-0">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                  <div className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                    isDarkMode ? 'bg-emerald-950 border-emerald-700/60' : 'bg-emerald-100 border-emerald-200'
+                  }`}>
+                    <Check className={`w-3.5 h-3.5 stroke-[3] ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />
                   </div>
                   <span>{row.with}</span>
                 </div>
@@ -999,8 +1010,10 @@ export default function MarketingLanding({
                 <div className={`py-4 px-6 flex items-center gap-3 font-normal transition-colors ${
                   isDarkMode ? 'bg-rose-950/20 text-rose-300' : 'bg-rose-50/40 text-slate-600'
                 }`}>
-                  <div className="w-5 h-5 rounded-full bg-rose-100 border border-rose-200 flex items-center justify-center flex-shrink-0">
-                    <X className="w-3.5 h-3.5 text-rose-500 stroke-[3]" />
+                  <div className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                    isDarkMode ? 'bg-rose-950 border-rose-800/60' : 'bg-rose-100 border-rose-200'
+                  }`}>
+                    <X className={`w-3.5 h-3.5 stroke-[3] ${isDarkMode ? 'text-rose-400' : 'text-rose-500'}`} />
                   </div>
                   <span>{row.without}</span>
                 </div>
@@ -1012,7 +1025,7 @@ export default function MarketingLanding({
         {/* Bottom CTA Card */}
         <FadeIn delay={0.2} className="mt-10">
           <div className={`max-w-2xl mx-auto border p-2.5 pl-6 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex items-center justify-between gap-4 transition-colors ${
-            isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/90'
+            isDarkMode ? 'bg-[#0E1220] border-slate-800 shadow-black/30' : 'bg-white border-slate-200/90'
           }`}>
             <div className="flex items-center gap-3">
               <Sparkles className="w-4 h-4 text-blue-500" />
@@ -1022,7 +1035,9 @@ export default function MarketingLanding({
             </div>
             <button
               onClick={onLoadDemo}
-              className="bg-slate-950 hover:bg-slate-850 text-white text-xs font-bold px-5 py-2.5 rounded-full transition-all shadow-sm flex items-center gap-1.5 cursor-pointer hover:gap-2"
+              className={`text-xs font-bold px-5 py-2.5 rounded-full transition-all shadow-sm flex items-center gap-1.5 cursor-pointer hover:gap-2 ${
+                isDarkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-slate-950 hover:bg-slate-850 text-white'
+              }`}
             >
               <span>Join Waitlist</span>
               <ArrowRight className="w-3.5 h-3.5" />
