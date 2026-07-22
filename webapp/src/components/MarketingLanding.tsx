@@ -217,7 +217,7 @@ const TYPING_WORDS = ["Codebase", "Repository", "Dependency", "Service", "System
 
 const FEATURES = [
   { icon: <Network className="w-5 h-5" />, title: 'Interactive Call Flow', desc: 'Trace function calls in real-time with live collaborator avatars highlighting active developer edits.', color: '#4285F4' },
-  { icon: <BookOpen className="w-5 h-5" />, title: 'AI Story Mode', desc: 'Generate dynamic narratives of codebase logic for features, files, or custom queries.', color: '#34A853' },
+  { icon: <BookOpen className="w-5 h-5" />, title: 'Architecture Walkthrough', desc: 'Generate dynamic narratives of codebase logic for features, files, or custom queries.', color: '#34A853' },
   { icon: <ShieldAlert className="w-5 h-5" />, title: 'Impact Analysis', desc: 'Simulate refactoring risk, counting affected files, services, and team ownership before committing code.', color: '#EA4335' },
   { icon: <Map className="w-5 h-5" />, title: 'Project Map', desc: 'Toggle between logical feature folders and directory trees, visualizing who is working in each folder.', color: '#FBBC04' },
   { icon: <FileSearch className="w-5 h-5" />, title: 'Natural Language Search', desc: 'Query your repository context to locate precise lines of code and trace downstream impacts.', color: '#9C27B0' },
@@ -1320,10 +1320,10 @@ export default function MarketingLanding({
               <div className="w-full h-full bg-gradient-to-br from-slate-900 to-indigo-950 flex flex-col">
                 <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06]">
                   <div className="flex gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" /><div className="w-2.5 h-2.5 rounded-full bg-[#FFBD2E]" /><div className="w-2.5 h-2.5 rounded-full bg-[#28C840]" /></div>
-                  <span className="ml-2 text-[10px] text-white/50 font-semibold">AI Story Mode</span>
+                  <span className="ml-2 text-[10px] text-white/50 font-semibold">Architecture Walkthrough</span>
                 </div>
                 <div className="flex-1 flex items-center justify-center p-6">
-                  <img src="/preview-story.png" alt="Story Mode Preview" className="w-full h-full object-contain rounded-lg opacity-90" />
+                  <img src="/preview-story.png" alt="Architecture Walkthrough Preview" className="w-full h-full object-contain rounded-lg opacity-90" />
                 </div>
               </div>
             </Card>

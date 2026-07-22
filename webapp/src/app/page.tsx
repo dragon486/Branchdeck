@@ -1170,7 +1170,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Right Pane: AI Story Mode / Impact analysis */}
+        {/* Right Pane: Architecture Walkthrough / Impact analysis */}
         <div className={`h-full flex flex-col bg-white border border-slate-200/80 rounded-xl shadow-sm transition-all duration-300 overflow-hidden flex-shrink-0 ${
           rightSidebarCollapsed ? 'w-12' : 'w-80'
         }`}>
@@ -1182,7 +1182,7 @@ export default function Dashboard() {
                   setRightSidebarCollapsed(false);
                 }}
                 className={`p-2 rounded-lg hover:bg-slate-100 transition-colors ${activeRightTab === 'story' ? 'text-slate-800 bg-slate-50' : 'text-slate-400'}`}
-                title="Story Mode"
+                title="Architecture Walkthrough"
               >
                 <BookOpen className="w-5 h-5" />
               </button>
@@ -1219,7 +1219,7 @@ export default function Dashboard() {
                     }`}
                   >
                     <BookOpen className="w-3.5 h-3.5" />
-                    AI Story Mode
+                    Architecture Walkthrough
                   </button>
                   <button
                     onClick={() => setActiveRightTab('impact')}

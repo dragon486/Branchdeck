@@ -13,7 +13,7 @@ export default function StoryMode({ loading, story }: StoryModeProps) {
     <div className="flex flex-col h-full bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm">
       <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-3 bg-slate-50/50">
         <BookOpen className="w-4 h-4 text-slate-800" />
-        <span className="text-xs font-bold tracking-wider text-slate-500 uppercase">AI Story Mode</span>
+        <span className="text-xs font-bold tracking-wider text-slate-500 uppercase">Architecture Walkthrough</span>
       </div>
 
       <div className="p-4 flex-1 overflow-y-auto">

@@ -33,7 +33,7 @@
       },
       {
         "command": "branchdeck.storyMode",
-        "title": "Branchdeck: Explain as Workflow Story",
+        "title": "Branchdeck: Architecture Walkthrough",
         "category": "Branchdeck"
       }
     ],
