@@ -213,16 +213,11 @@ export default function WaitlistModal({
                             </div>
 
                             <h2 className="text-3xl font-bold tracking-tight text-black">
-
-                                Join the Private Beta
-
+                                Get Instant Access
                             </h2>
 
                             <p className="mt-4 text-[15px] leading-7 text-neutral-500">
-
-                                Be among the first engineering teams using
-                                AI-powered codebase intelligence.
-
+                                Start analyzing and visualizing complex codebases instantly with AI-powered intelligence.
                             </p>
 
                         </div>
@@ -324,13 +319,13 @@ export default function WaitlistModal({
 
                                         <>
                                             <Loader2 className="h-4 w-4 animate-spin" />
-                                            Joining Waitlist...
+                                            Getting Access...
                                         </>
 
                                     ) : (
 
                                         <>
-                                            Join Waitlist
+                                            Get Started Free
 
                                             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                                         </>
@@ -340,10 +335,7 @@ export default function WaitlistModal({
                                 </button>
 
                                 <p className="text-center text-xs leading-6 text-neutral-500">
-
-                                    By joining, you'll receive early access updates,
-                                    beta invitations and product announcements.
-
+                                    Instant access to all features, VS Code extension, and interactive codebase maps.
                                 </p>
 
                             </div>
