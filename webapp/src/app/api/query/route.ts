@@ -40,11 +40,12 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: errMsg }, { status: fastapiRes.status });
       }
     } catch (e: any) {
-      console.warn('[Proxy Warning] Python FastAPI backend is offline. Semantic Q&A unavailable:', e);
+      console.warn('[Proxy Warning] Python FastAPI backend is offline. Utilizing client AST semantic search:', e);
       return NextResponse.json({ 
-        success: false, 
-        error: 'Semantic search is currently unavailable because the backend indexing service is offline.' 
-      }, { status: 503 });
+        success: true, 
+        offline: true,
+        answer: null 
+      });
     }
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

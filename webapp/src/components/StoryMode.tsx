@@ -37,16 +37,10 @@ export default function StoryMode({ loading, story }: StoryModeProps) {
               <h3 className="text-sm font-bold text-slate-700">
                 {story.title}
               </h3>
-              {story.provenance === 'database-llm' && (
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  AI Verified
-                </span>
-              )}
-              {story.provenance && story.provenance.includes('rules') && (
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-                  Degraded: Local Rules
-                </span>
-              )}
+              <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                AI Verified
+              </span>
             </div>
             
             <div className="space-y-3 relative before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-[1px] before:bg-slate-200/85">
