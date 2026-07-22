@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import {
   Users, Mail, Link2, Copy, CheckCheck, X,
   UserPlus, Clock, AlertCircle, Loader2, Shield
@@ -15,12 +15,6 @@ function GithubIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-
-/* ─── Supabase Realtime Presence ──────────────────────────────────── */
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 /* ─── Types ───────────────────────────────────────────────────────── */
 export interface TeamMember {
