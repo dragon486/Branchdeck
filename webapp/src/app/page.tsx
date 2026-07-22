@@ -585,11 +585,20 @@ export default function Dashboard() {
     let targetNodeId = '';
     let commitSha = '';
 
-    // Find the node in callNodes to get targetNodeId and commitSha
-    const matchedNode = callNodes.find(n => 
-      n.label.toLowerCase() === symbolName.toLowerCase() ||
+    // Flexible matching: exact label/id, exact file, or substring match
+    const normSymbol = symbolName.toLowerCase().trim();
+    let matchedNode = callNodes.find(n => 
+      n.label.toLowerCase() === normSymbol ||
+      n.file.toLowerCase() === normSymbol ||
       n.id === symbolName
     );
+
+    if (!matchedNode) {
+      matchedNode = callNodes.find(n => 
+        n.label.toLowerCase().includes(normSymbol) ||
+        n.file.toLowerCase().includes(normSymbol)
+      );
+    }
 
     if (matchedNode) {
       targetNodeId = matchedNode.id;
@@ -610,7 +619,7 @@ export default function Dashboard() {
         
         if (response.ok) {
           const data = await response.json();
-          if (data.success && data.impactedNodes) {
+          if (data.success && data.impactedNodes && data.impactedNodes.length > 0) {
             const affectedNodes = new Set<string>(data.impactedNodes);
             setImpactData({
               target: matchedNode ? matchedNode.label : symbolName,
@@ -635,11 +644,11 @@ export default function Dashboard() {
           }
         }
       } catch (e) {
-        console.warn('[Impact Fetch Warning] Backend DB impact analysis failed, falling back to local simulation:', e);
+        console.warn('[Impact Fetch Warning] Backend DB impact analysis failed, using local AST graph traversal:', e);
       }
     }
 
-    // Client-side fallback computation
+    // Graph traversal computation from active callGraph
     if (matchedNode) {
       const affectedNodes = new Set<string>();
       const queue = [matchedNode.id];
@@ -663,34 +672,21 @@ export default function Dashboard() {
           screens: callNodes.filter(n => affectedNodes.has(n.id) && n.type === 'ui').length
         },
         affectedList: Array.from(affectedNodes).map(id => {
-          const node = callNodes.find(n => n.id === id)!;
+          const node = callNodes.find(n => n.id === id);
           return {
-            name: node.label,
-            path: node.file,
+            name: node ? node.label : id,
+            path: node ? node.file : id,
             level: 'High' as 'High' | 'Medium' | 'Low'
           };
         })
       });
     } else {
-      // Mock default list for demo datasets
-      try {
-        const response = await authenticatedFetch('/api/impact', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbolName })
-        });
-        const data = await response.json();
-        if (data.success) {
-          setImpactData({
-            target: data.target,
-            risk: data.risk,
-            stats: data.stats,
-            affectedList: data.affectedList
-          });
-        }
-      } catch (e) {
-        console.error(e);
-      }
+      setImpactData({
+        target: symbolName,
+        risk: 'Low',
+        stats: { files: 1, apis: 0, services: 0, screens: 0 },
+        affectedList: []
+      });
     }
     setImpactLoading(false);
   };
