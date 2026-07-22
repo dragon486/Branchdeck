@@ -40,7 +40,39 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: errMsg }, { status: fastapiRes.status });
       }
     } catch (e: any) {
-      console.warn('[Proxy Warning] Python FastAPI backend is offline. Utilizing client AST semantic search:', e);
+      console.warn('[Proxy Warning] Python FastAPI backend is offline. Trying native Gemini API...', e);
+      
+      const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      if (apiKey) {
+        try {
+          const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{
+                  text: `You are an expert Google Senior Software Architect analyzing repository logic. Answer the user developer query clearly and structurally in 4-5 key bullet points:\n\nUser Query: "${queryText}"`
+                }]
+              }]
+            })
+          });
+
+          if (geminiRes.ok) {
+            const geminiData = await geminiRes.json();
+            const answerText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (answerText) {
+              return NextResponse.json({
+                success: true,
+                answer: answerText,
+                provenance: 'database-llm'
+              });
+            }
+          }
+        } catch (geminiErr) {
+          console.error('Gemini API direct call error:', geminiErr);
+        }
+      }
+
       return NextResponse.json({ 
         success: true, 
         offline: true,

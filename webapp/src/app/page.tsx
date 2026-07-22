@@ -309,37 +309,9 @@ export default function Dashboard() {
         rawEdges = callEdges.filter(e => connectedNodeIds.has(e.from) && connectedNodeIds.has(e.to));
       }
     } 
-    // 3. Default: return all nodes and edges (or top connected entrypoints for large codebases)
-    else if (callNodes.length > 30) {
-      const connections: Record<string, number> = {};
-      callNodes.forEach(n => { connections[n.id] = 0; });
-      callEdges.forEach(e => {
-        if (connections[e.from] !== undefined) connections[e.from]++;
-        if (connections[e.to] !== undefined) connections[e.to]++;
-      });
-
-      const candidates = callNodes.filter(n => (connections[n.id] || 0) > 0);
-      rawNodes = candidates
-        .sort((a, b) => (connections[b.id] || 0) - (connections[a.id] || 0))
-        .slice(0, 30);
-
-      const filteredIds = new Set<string>(rawNodes.map(n => n.id));
-      rawEdges = callEdges.filter(e => filteredIds.has(e.from) && filteredIds.has(e.to));
-    }
-
-    // STRICT CORRECTNESS RULE: Ensure selected file/folder nodes are NEVER wiped out
-    let finalNodes = rawNodes;
-    if (rawEdges.length > 0 && !activeFile && !selectedFolder) {
-      const activeNodeIds = new Set<string>();
-      rawEdges.forEach(e => {
-        activeNodeIds.add(e.from);
-        activeNodeIds.add(e.to);
-      });
-      finalNodes = rawNodes.filter(n => activeNodeIds.has(n.id));
-    }
-
+    // 3. Default (Show Full Diagram): return all workspace nodes and edges
     return {
-      filteredNodes: finalNodes,
+      filteredNodes: rawNodes,
       filteredEdges: rawEdges
     };
   }, [hasData, callNodes, callEdges, selectedFolder, selectedFile, selectedNode]);
