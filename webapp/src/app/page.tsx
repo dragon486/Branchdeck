@@ -855,7 +855,7 @@ export default function Dashboard() {
     setSelectedFolder(null);
     const path = file.toLowerCase();
     
-    // 1. Load the corresponding Call Flow diagram based on file clicked (only for mock dataset)
+    // 1. Load the corresponding Call Flow diagram based on file clicked
     if (repoSource === 'mock-ecommerce' || repoSource === '') {
       if (path.includes('auth') || path.includes('login') || path.includes('jwt') || path.includes('session') || path.includes('middleware')) {
         handleLoadCallFlow('login');
@@ -864,15 +864,24 @@ export default function Dashboard() {
       } else {
         handleLoadCallFlow('checkout');
       }
+    } else {
+      // For real repositories, fetch the flow for this specific file
+      handleLoadCallFlow(file);
     }
 
     // Send command to open the clicked file in VS Code editor
     window.parent.postMessage({ command: 'openFile', file }, '*');
 
-    // 2. Identify which feature owns this file and show story
-    const parentFeat = features.find(f => f.files.includes(file));
-    if (parentFeat) {
-      handleLoadStory(parentFeat.id);
+    // 2. Load the story for the file
+    if (repoSource === 'mock-ecommerce' || repoSource === '') {
+      const parentFeat = features.find(f => f.files.includes(file));
+      if (parentFeat) {
+        handleLoadStory(parentFeat.id);
+        setActiveRightTab('story');
+      }
+    } else {
+      // Real repository story based on git history
+      handleLoadStory(file);
       setActiveRightTab('story');
     }
 
@@ -1146,14 +1155,20 @@ export default function Dashboard() {
               onSelectFolder={(folder) => {
                 setSelectedFolder(folder);
                 setSelectedFile(null);
-                if (folder && (repoSource === 'mock-ecommerce' || repoSource === '')) {
-                  const path = folder.toLowerCase();
-                  if (path.includes('auth') || path.includes('middleware')) {
-                    handleLoadCallFlow('login');
-                  } else if (path.includes('payment') || path.includes('billing')) {
-                    handleLoadCallFlow('payment');
+                if (folder) {
+                  if (repoSource === 'mock-ecommerce' || repoSource === '') {
+                    const path = folder.toLowerCase();
+                    if (path.includes('auth') || path.includes('middleware')) {
+                      handleLoadCallFlow('login');
+                    } else if (path.includes('payment') || path.includes('billing')) {
+                      handleLoadCallFlow('payment');
+                    } else {
+                      handleLoadCallFlow('checkout');
+                    }
                   } else {
-                    handleLoadCallFlow('checkout');
+                    handleLoadCallFlow(folder);
+                    handleLoadStory(folder);
+                    setActiveRightTab('story');
                   }
                 }
               }}
