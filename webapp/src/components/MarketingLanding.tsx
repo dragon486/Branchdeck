@@ -25,12 +25,15 @@ import FlowingMenu from './FlowingMenu';
    TYPES
 ═══════════════════════════════════════════════════ */
 interface MarketingLandingProps {
+  session?: any;
   repoUrl: string;
   setRepoUrl: (url: string) => void;
   analyzing: boolean;
   onAnalyze: (customRepo?: string) => void;
   onLoadDemo: () => void;
   onSignIn?: () => void;
+  onSignOut?: () => void;
+  onOpenRepoPicker?: () => void;
 }
 
 /* ═══════════════════════════════════════════════════
@@ -564,7 +567,7 @@ function RealDashboardPreview({ onLoadDemo }: { onLoadDemo: () => void }) {
    MAIN COMPONENT
 ═══════════════════════════════════════════════════ */
 export default function MarketingLanding({
-  repoUrl, setRepoUrl, analyzing, onAnalyze, onLoadDemo, onSignIn,
+  session, repoUrl, setRepoUrl, analyzing, onAnalyze, onLoadDemo, onSignIn, onSignOut, onOpenRepoPicker,
 }: MarketingLandingProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -621,13 +624,36 @@ export default function MarketingLanding({
             In Development
           </span>
 
-          {onSignIn && (
-            <button
-              onClick={onSignIn}
-              className={`hidden md:block text-[13px] font-semibold transition-colors px-4 py-2 rounded-full ${isDarkMode ? 'text-neutral-300 hover:text-white hover:bg-slate-900' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'}`}
-            >
-              Sign In
-            </button>
+          {session ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  if (onOpenRepoPicker) onOpenRepoPicker();
+                  else onAnalyze(repoUrl);
+                }}
+                className="text-[12px] font-bold bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-100 px-4 py-2 rounded-full transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Launch Dashboard</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              {onSignOut && (
+                <button
+                  onClick={onSignOut}
+                  className={`text-[12px] font-semibold transition-colors px-3 py-2 rounded-full ${isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'}`}
+                >
+                  Sign Out
+                </button>
+              )}
+            </div>
+          ) : (
+            onSignIn && (
+              <button
+                onClick={onSignIn}
+                className={`hidden md:block text-[13px] font-semibold transition-colors px-4 py-2 rounded-full ${isDarkMode ? 'text-neutral-300 hover:text-white hover:bg-slate-900' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'}`}
+              >
+                Sign In
+              </button>
+            )
           )}
 
           {/* Theme Toggle Switch */}

@@ -170,7 +170,7 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullsc
     });
 
     // 2. Find root nodes (inDegree === 0)
-    let queue: string[] = nodes.filter(n => inDegree[n.id] === 0).map(n => n.id);
+    const queue: string[] = nodes.filter(n => inDegree[n.id] === 0).map(n => n.id);
     if (queue.length === 0 && nodes.length > 0) {
       queue.push(nodes[0].id);
     }

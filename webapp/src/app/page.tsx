@@ -16,6 +16,7 @@ import ImpactPanel from '@/components/ImpactPanel';
 import StoryMode from '@/components/StoryMode';
 import MarketingLanding from '@/components/MarketingLanding';
 import AuthModal from '@/components/AuthModal';
+import RepoPickerModal from '@/components/RepoPickerModal';
 import InviteTeamModal, { useCollaboration, CollaborationBar } from '@/components/InviteTeamModal';
 import { 
   GitBranch, 
@@ -35,7 +36,8 @@ import {
   Menu,
   Layers,
   ArrowRight,
-  CheckCircle2
+  CheckCircle2,
+  Plus
 } from 'lucide-react';
 
 import { supabase } from '@/lib/supabase';
@@ -47,6 +49,7 @@ export default function Dashboard() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<'signin' | 'signup'>('signin');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [isRepoModalOpen, setIsRepoModalOpen] = useState(false);
 
   // App Router data states
   const [repoUrl, setRepoUrl] = useState('');
@@ -55,27 +58,12 @@ export default function Dashboard() {
   const [isVsCode, setIsVsCode] = useState(false);
 
   useEffect(() => {
-    // Check local storage for developer mock session bypass first
-    const localDevSession = typeof window !== 'undefined' ? localStorage.getItem('branchdeck_dev_session') : null;
-    if (localDevSession) {
-      try {
-        const parsed = JSON.parse(localDevSession);
-        setSession(parsed);
-        setAuthLoading(false);
-        return;
-      } catch (err) {}
-    }
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setAuthLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const localDev = typeof window !== 'undefined' ? localStorage.getItem('branchdeck_dev_session') : null;
-      if (localDev && !session) {
-        return;
-      }
       setSession(session);
       setAuthLoading(false);
     });
@@ -397,114 +385,27 @@ export default function Dashboard() {
       filteredNodes: finalNodes,
       filteredEdges: rawEdges
     };
-  }, [hasData, callNodes, callEdges, selectedFolder, selectedFile, selectedNode]);
+  }, [hasData, callNodes, callEdges, features, selectedFolder, selectedFile, selectedNode]);
 
-  // Listen to messages from the VS Code extension
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      const data = event.data;
-      if (data && data.source === 'branchdeck-extension') {
-        switch (data.command) {
-          case 'workspaceFiles':
-            if (data.value && data.value.length > 0) {
-              setIsScanning(true);
-              setIndexingProgress(0);
-              setAnalysisError(null);
-              authenticatedFetch('/api/analyze', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  workspacePath: data.workspacePath,
-                  files: data.value
-                })
-              })
-              .then(async res => {
-                if (!res.ok) {
-                  const errorText = await res.text();
-                  try {
-                    const errorJson = JSON.parse(errorText);
-                    throw new Error(errorJson.error || 'Server error during AST scan');
-                  } catch {
-                    throw new Error(`Server returned status ${res.status}: ${errorText.slice(0, 100)}`);
-                  }
-                }
-                return res.json();
-              })
-              .then(async resData => {
-                if (resData.success && resData.job_id) {
-                  const result = await pollJobStatus(resData.job_id, (prog) => {
-                    setIndexingProgress(prog);
-                  });
-                  return result;
-                } else if (resData.success) {
-                  return resData;
-                } else {
-                  throw new Error(resData.error || 'Analysis initiation failed');
-                }
-              })
-              .then(resData => {
-                if (resData.success) {
-                  setFeatures(resData.features);
-                  setCallNodes(resData.callGraph.nodes);
-                  setCallEdges(resData.callGraph.edges);
-                  setRepoSource('local-workspace');
-                  setHasData(true);
-                  setAnalysisError(null);
-                } else {
-                  throw new Error(resData.error || 'Analysis failed');
-                }
-              })
-              .catch(err => {
-                console.error('Failed to parse local workspace AST:', err);
-                setAnalysisError(err.message || 'Failed to complete codebase static analysis.');
-              })
-              .finally(() => {
-                setIsScanning(false);
-                setIndexingProgress(0);
-              });
-            } else {
-              setAnalysisError('Workspace scan returned 0 files.');
-            }
-            break;
-
-          case 'analyzeFunction':
-            const functionName = data.value;
-            handleLoadCallFlow(functionName);
-            handleLoadImpact(functionName);
-            setActiveRightTab('impact');
-            break;
-
-          case 'impactAnalysis':
-            const symbol = data.value;
-            handleLoadImpact(symbol);
-            setActiveRightTab('impact');
-            break;
-
-          case 'storyMode':
-            setActiveRightTab('story');
-            break;
-        }
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-
-    // Initial trigger if we already have a session
-    if (session) {
-      window.parent.postMessage({ command: 'scanWorkspace' }, '*');
-    }
-
-    return () => {
-      window.removeEventListener('message', handleMessage);
-    };
-  }, [session]);
-
-  // Trigger workspace scan automatically when session is restored/activated
-  useEffect(() => {
-    if (isVsCode && session && !hasData) {
-      window.parent.postMessage({ command: 'scanWorkspace' }, '*');
-    }
-  }, [isVsCode, session, hasData]);
+  // Dedicated clean Log Out handler
+  const handleLogOut = async () => {
+    setSession(null);
+    setHasData(false);
+    setFeatures([]);
+    setCallNodes([]);
+    setCallEdges([]);
+    setRepoSource('');
+    setRepoUrl('');
+    setSelectedFile(null);
+    setSelectedNode(null);
+    setSelectedFolder(null);
+    setStoryData(null);
+    setImpactData(null);
+    setWarningMsg(null);
+    setAnalysisError(null);
+    setIsRepoModalOpen(false);
+    await supabase.auth.signOut();
+  };
 
   // Submit and analyze repo action — gates on session
   const handleAnalyze = async (urlOverride?: string) => {
@@ -514,16 +415,25 @@ export default function Dashboard() {
       return;
     }
 
+    const targetUrl = (urlOverride !== undefined && urlOverride !== '') 
+      ? urlOverride 
+      : repoUrl;
+
+    // If no repository URL is specified, open the onboarding RepoPickerModal
+    if (!targetUrl || !targetUrl.trim()) {
+      setIsRepoModalOpen(true);
+      return;
+    }
+
     setAnalyzing(true);
     setIndexingProgress(0);
     setWarningMsg(null);
-    const targetUrl = urlOverride !== undefined ? urlOverride : repoUrl;
 
     try {
       const response = await authenticatedFetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: targetUrl })
+        body: JSON.stringify({ url: targetUrl.trim() })
       });
       const data = await response.json();
 
@@ -828,6 +738,117 @@ export default function Dashboard() {
     setImpactLoading(false);
   };
 
+  // Listen to messages from the VS Code extension
+  // NOTE: Placed AFTER handleLoadCallFlow and handleLoadImpact declarations to avoid TDZ access error
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const data = event.data;
+      if (data && data.source === 'branchdeck-extension') {
+        switch (data.command) {
+          case 'workspaceFiles':
+            if (data.value && data.value.length > 0) {
+              setIsScanning(true);
+              setIndexingProgress(0);
+              setAnalysisError(null);
+              authenticatedFetch('/api/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  workspacePath: data.workspacePath,
+                  files: data.value
+                })
+              })
+              .then(async res => {
+                if (!res.ok) {
+                  const errorText = await res.text();
+                  try {
+                    const errorJson = JSON.parse(errorText);
+                    throw new Error(errorJson.error || 'Server error during AST scan');
+                  } catch {
+                    throw new Error(`Server returned status ${res.status}: ${errorText.slice(0, 100)}`);
+                  }
+                }
+                return res.json();
+              })
+              .then(async resData => {
+                if (resData.success && resData.job_id) {
+                  const result = await pollJobStatus(resData.job_id, (prog) => {
+                    setIndexingProgress(prog);
+                  });
+                  return result;
+                } else if (resData.success) {
+                  return resData;
+                } else {
+                  throw new Error(resData.error || 'Analysis initiation failed');
+                }
+              })
+              .then(resData => {
+                if (resData.success) {
+                  setFeatures(resData.features);
+                  setCallNodes(resData.callGraph.nodes);
+                  setCallEdges(resData.callGraph.edges);
+                  setRepoSource('local-workspace');
+                  setHasData(true);
+                  setAnalysisError(null);
+                } else {
+                  throw new Error(resData.error || 'Analysis failed');
+                }
+              })
+              .catch(err => {
+                console.error('Failed to parse local workspace AST:', err);
+                setAnalysisError(err.message || 'Failed to complete codebase static analysis.');
+              })
+              .finally(() => {
+                setIsScanning(false);
+                setIndexingProgress(0);
+              });
+            } else {
+              setAnalysisError('Workspace scan returned 0 files.');
+            }
+            break;
+
+          case 'analyzeFunction': {
+            const functionName = data.value;
+            handleLoadCallFlow(functionName);
+            handleLoadImpact(functionName);
+            setActiveRightTab('impact');
+            break;
+          }
+
+          case 'impactAnalysis': {
+            const symbol = data.value;
+            handleLoadImpact(symbol);
+            setActiveRightTab('impact');
+            break;
+          }
+
+          case 'storyMode':
+            setActiveRightTab('story');
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    // Initial trigger if we already have a session
+    if (session) {
+      window.parent.postMessage({ command: 'scanWorkspace' }, '*');
+    }
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
+  // Trigger workspace scan automatically when session is restored/activated
+  useEffect(() => {
+    if (isVsCode && session && !hasData) {
+      window.parent.postMessage({ command: 'scanWorkspace' }, '*');
+    }
+  }, [isVsCode, session, hasData]);
+
   // Clicking a file in Features OR Folders tab
   const handleSelectFile = (file: string) => {
     setSelectedFile(file);
@@ -994,11 +1015,29 @@ export default function Dashboard() {
     return (
       <>
         <MarketingLanding 
+          session={session}
           repoUrl={repoUrl}
           setRepoUrl={setRepoUrl}
           analyzing={analyzing}
           onAnalyze={handleAnalyze}
           onSignIn={() => openAuth('signin')}
+          onSignOut={handleLogOut}
+          onOpenRepoPicker={() => setIsRepoModalOpen(true)}
+          onLoadDemo={() => setIsRepoModalOpen(true)}
+        />
+        <AuthModal
+          isOpen={isAuthOpen}
+          onClose={() => setIsAuthOpen(false)}
+          onSuccess={handleAuthSuccess}
+          initialMode={authInitialMode}
+        />
+        <RepoPickerModal
+          isOpen={isRepoModalOpen}
+          onClose={() => setIsRepoModalOpen(false)}
+          onAnalyze={(url) => {
+            setRepoUrl(url);
+            handleAnalyze(url);
+          }}
           onLoadDemo={() => {
             handleLoadCallFlow('login');
             setFeatures(ECOMMERCE_DEMO_FEATURES);
@@ -1007,12 +1046,7 @@ export default function Dashboard() {
             setRepoSource('mock-ecommerce');
             setHasData(true);
           }}
-        />
-        <AuthModal
-          isOpen={isAuthOpen}
-          onClose={() => setIsAuthOpen(false)}
-          onSuccess={handleAuthSuccess}
-          initialMode={authInitialMode}
+          analyzing={analyzing}
         />
       </>
     );
@@ -1053,16 +1087,19 @@ export default function Dashboard() {
         </form>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsRepoModalOpen(true)}
+            className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition-all shadow-sm cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Analyze Repo</span>
+          </button>
           <span className="text-[10px] font-bold uppercase px-2.5 py-1 bg-slate-100 border border-slate-200 text-slate-800 rounded-full">
             Active Workspace
           </span>
           <button 
-            onClick={() => {
-              localStorage.removeItem('branchdeck_dev_session');
-              setSession(null);
-              supabase.auth.signOut();
-            }}
-            className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 transition-colors shadow-sm"
+            onClick={handleLogOut}
+            className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 transition-colors shadow-sm cursor-pointer"
           >
             Log Out
           </button>
@@ -1278,6 +1315,23 @@ export default function Dashboard() {
         workspaceId={repoSource || 'default-workspace'}
         repoSource={repoSource}
         session={session}
+      />
+      <RepoPickerModal
+        isOpen={isRepoModalOpen}
+        onClose={() => setIsRepoModalOpen(false)}
+        onAnalyze={(url) => {
+          setRepoUrl(url);
+          handleAnalyze(url);
+        }}
+        onLoadDemo={() => {
+          handleLoadCallFlow('login');
+          setFeatures(ECOMMERCE_DEMO_FEATURES);
+          setCallNodes(ECOMMERCE_DEMO_CALLS.nodes);
+          setCallEdges(ECOMMERCE_DEMO_CALLS.edges);
+          setRepoSource('mock-ecommerce');
+          setHasData(true);
+        }}
+        analyzing={analyzing}
       />
     </main>
   );

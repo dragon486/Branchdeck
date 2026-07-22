@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowRight, Loader2, Eye, EyeOff, GitBranch } from 'lucide-react';
+import { X, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface AuthModalProps {
@@ -40,11 +40,14 @@ export default function AuthModal({ isOpen, onClose, onSuccess, initialMode = 's
     };
     if (isOpen) {
       document.addEventListener('keydown', handler);
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
       document.body.style.overflow = 'hidden';
     }
     return () => {
       document.removeEventListener('keydown', handler);
-      document.body.style.overflow = 'auto';
+      document.body.style.paddingRight = '';
+      document.body.style.overflow = '';
     };
   }, [isOpen, onClose]);
 
@@ -53,31 +56,43 @@ export default function AuthModal({ isOpen, onClose, onSuccess, initialMode = 's
     setError('');
     setSuccessMsg('');
 
-    if (!email.trim()) { setError('Please enter your email address.'); return; }
+    const cleanEmail = email.trim();
+    if (!cleanEmail) { setError('Please enter your email address.'); return; }
     if (!password || password.length < 6) { setError('Password must be at least 6 characters.'); return; }
 
     setLoading(true);
 
     try {
       if (mode === 'signin') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
         if (error) {
-          setError(error.message);
-        } else {
-          onSuccess();
+          if (error.message.toLowerCase().includes('email not confirmed')) {
+            setError('Email is not confirmed yet. Please check your inbox for the verification email.');
+          } else if (error.message.toLowerCase().includes('invalid login credentials')) {
+            setError('Invalid email or password. Please verify your credentials or create a new account.');
+          } else {
+            setError(error.message);
+          }
+        } else if (data?.session) {
+          onSuccess(data.session);
           onClose();
+        } else {
+          setError('Authentication failed to issue a session. Please try again.');
         }
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ email: cleanEmail, password });
         if (error) {
           setError(error.message);
+        } else if (data?.session) {
+          onSuccess(data.session);
+          onClose();
         } else {
-          setSuccessMsg('Account created! Check your email to verify, then sign in.');
+          setSuccessMsg('Account created successfully! If you did not receive a verification email, please check your spam folder or disable email verification in your Supabase Auth settings. Once verified, click Sign In to log in.');
           setMode('signin');
         }
       }
-    } catch {
-      setError('Something went wrong. Please try again.');
+    } catch (err: any) {
+      setError(err?.message || 'Authentication failed. Please check your network connection.');
     } finally {
       setLoading(false);
     }
@@ -98,7 +113,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, initialMode = 's
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[999] flex items-center justify-center p-6"
+          className="fixed inset-0 z-[999] flex items-center justify-center p-6 overflow-y-auto"
         >
           {/* Backdrop */}
           <motion.div
@@ -253,42 +268,6 @@ export default function AuthModal({ isOpen, onClose, onSuccess, initialMode = 's
                       : 'Already have an account? Sign in'}
                   </button>
                 </div>
-
-                {/* Developer bypass helper */}
-                <div className="relative flex items-center justify-center my-3">
-                  <div className="absolute inset-x-0 h-px bg-white/10" />
-                  <span className="relative px-3 bg-[#0c0f16] text-[10px] text-white/35 uppercase tracking-widest font-bold">Or Sandbox</span>
-                </div>
-
-                <motion.button
-                  type="button"
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    const devToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLWxvY2FsIiwiZW1haWwiOiJkZXZlbG9wZXJAYnJhbmNoZGVjay5jb20iLCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImV4cCI6MTgxNTc2NDA1N30.wjoT_OGJC--k54Lr6TZuWPgIooD_LN-QrDatcyW9PAA";
-                    const mockSession = {
-                      access_token: devToken,
-                      token_type: "bearer",
-                      expires_in: 31536000,
-                      refresh_token: "mock-refresh",
-                      user: {
-                        id: "user-local",
-                        email: "developer@branchdeck.com",
-                        app_metadata: {},
-                        user_metadata: {},
-                        aud: "authenticated",
-                        created_at: new Date().toISOString()
-                      }
-                    };
-                    localStorage.setItem('branchdeck_dev_session', JSON.stringify(mockSession));
-                    onSuccess(mockSession);
-                    onClose();
-                  }}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-[13px] py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/10 flex items-center justify-center gap-2"
-                >
-                  <GitBranch className="w-4 h-4 text-blue-300" />
-                  Bypass with Demo Developer
-                </motion.button>
               </div>
 
               {/* Footer */}

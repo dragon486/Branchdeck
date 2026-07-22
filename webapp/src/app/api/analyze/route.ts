@@ -58,7 +58,12 @@ export async function POST(request: Request) {
       });
     }
 
-    if (!url || url.includes('mock-ecommerce') || url === '') {
+    if (!url || url.trim() === '' || url === 'default') {
+      return NextResponse.json({ success: false, error: 'Repository URL is required.' }, { status: 400 });
+    }
+    const targetUrl = url.trim();
+
+    if (targetUrl === 'mock-ecommerce') {
       return NextResponse.json({
         success: true,
         source: 'mock-ecommerce',
@@ -67,7 +72,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const githubDetails = parseGitHubUrl(url);
+    const githubDetails = parseGitHubUrl(targetUrl);
     if (!githubDetails) {
       return NextResponse.json(
         { success: false, error: 'Invalid GitHub Repository URL structure.' },
@@ -95,14 +100,10 @@ export async function POST(request: Request) {
         }
       });
     } catch (e: any) {
-      // Return mock data with warning description if Github rate limited
       return NextResponse.json({
-        success: true,
-        source: 'mock-fallback',
-        warning: 'Failed to access Github repo (possibly rate-limited or private). Showing E-commerce platform demo instead.',
-        features: ECOMMERCE_DEMO_FEATURES,
-        callGraph: ECOMMERCE_DEMO_CALLS
-      });
+        success: false,
+        error: `Failed to access Github repo (possibly rate-limited or private). Error: ${e.message}`
+      }, { status: 400 });
     }
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

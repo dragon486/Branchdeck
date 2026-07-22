@@ -24,9 +24,10 @@
   --ease-out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
 }
 
-/* ── Smooth, momentum-based scrolling ──────────────────────── */
+/* ── Smooth, momentum-based scrolling with stable scrollbar gutter ── */
 html {
   scroll-behavior: smooth;
+  scrollbar-gutter: stable;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;

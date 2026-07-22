@@ -83,15 +83,6 @@ export default function AdminWaitlistDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Load saved token from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('branchdeck_admin_token');
-    if (saved === 'branchdeck-admin-passkey') {
-      setIsAuthenticated(true);
-      fetchWaitlist('branchdeck-admin-passkey');
-    }
-  }, []);
-
   const fetchWaitlist = async (token: string, silent = false) => {
     if (!silent) setIsLoading(true);
     else setIsRefreshing(true);
@@ -123,6 +114,16 @@ export default function AdminWaitlistDashboard() {
     }
   };
 
+  // Load saved token from localStorage on mount — placed after fetchWaitlist declaration
+  useEffect(() => {
+    const saved = localStorage.getItem('branchdeck_admin_token');
+    if (saved) {
+      setIsAuthenticated(true);
+      fetchWaitlist(saved);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleRefresh = () => {
     const token = localStorage.getItem('branchdeck_admin_token') || passcode;
     if (token) {
@@ -143,9 +144,13 @@ export default function AdminWaitlistDashboard() {
     localStorage.removeItem('branchdeck_admin_token');
   };
 
+  // Reset to page 1 whenever the search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   // Filter signups based on search query
   const filteredWaitlist = useMemo(() => {
-    setCurrentPage(1); // Reset page on filter change
     if (!searchQuery) return waitlist;
     const query = searchQuery.toLowerCase();
     return waitlist.filter(entry => 

@@ -50,7 +50,7 @@ export default function WaitlistModal({
 
         return () => {
             document.removeEventListener("keydown", handler);
-            document.body.style.overflow = "auto";
+            document.body.style.overflow = "";
         };
 
     }, [isOpen, onClose]);
