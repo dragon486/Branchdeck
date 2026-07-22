@@ -304,13 +304,25 @@ export function parseGitHubUrl(url: string): { owner: string; repo: string } | n
 // Recursive file tree fetcher from GitHub REST API
 export async function fetchGitHubRepoTree(owner: string, repo: string): Promise<string[]> {
   try {
-    const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
-    if (!repoRes.ok) throw new Error('Repository not found or private');
+    const headers: Record<string, string> = {};
+    if (process.env.GITHUB_TOKEN) {
+      headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
+    }
+
+    const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+    if (!repoRes.ok) {
+      if (repoRes.status === 403) throw new Error('GitHub API rate limit exceeded. Please try again later.');
+      if (repoRes.status === 404) throw new Error('Repository not found or private.');
+      throw new Error(`GitHub API error: ${repoRes.status} ${repoRes.statusText}`);
+    }
     const repoData = await repoRes.json();
     const defaultBranch = repoData.default_branch || 'main';
 
-    const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`);
-    if (!treeRes.ok) throw new Error('Failed to retrieve file tree');
+    const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`, { headers });
+    if (!treeRes.ok) {
+      if (treeRes.status === 403) throw new Error('GitHub API rate limit exceeded on tree fetch.');
+      throw new Error('Failed to retrieve file tree');
+    }
     const treeData = await treeRes.json();
 
     if (!treeData.tree) return [];
