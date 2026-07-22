@@ -285,14 +285,6 @@ def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str,
         db.query(CodeEdge).filter(CodeEdge.commit_sha == commit_sha, CodeEdge.repo_id == repo.id).delete(synchronize_session=False)
         db.commit()
         
-        dev_roster = [
-            {"name": "Sarah Chen", "role": "Frontend Lead", "avatar": "SC"},
-            {"name": "Alex River", "role": "API Lead", "avatar": "AR"},
-            {"name": "Dave Miller", "role": "Logistics Dev", "avatar": "DM"},
-            {"name": "Marcus Vance", "role": "Payment Specialist", "avatar": "MV"},
-            {"name": "Elena Rostova", "role": "Backend Staff", "avatar": "ER"}
-        ]
-        
         total_files = len(files)
         # First Pass: Parse files and save nodes + chunks
         for idx, file in enumerate(files):
@@ -579,14 +571,6 @@ async def get_job_status(job_id: str, db: Session = Depends(get_db), current_use
                 nodes = db.query(CodeNode).filter_by(repo_id=repo.id, commit_sha=latest_commit.sha).all()
                 edges = db.query(CodeEdge).filter_by(repo_id=repo.id, commit_sha=latest_commit.sha).all()
                 
-                dev_roster = [
-                    {"name": "Sarah Chen", "role": "Frontend Lead", "avatar": "SC"},
-                    {"name": "Alex River", "role": "API Lead", "avatar": "AR"},
-                    {"name": "Dave Miller", "role": "Logistics Dev", "avatar": "DM"},
-                    {"name": "Marcus Vance", "role": "Payment Specialist", "avatar": "MV"},
-                    {"name": "Elena Rostova", "role": "Backend Staff", "avatar": "ER"}
-                ]
-                
                 graph_nodes = []
                 for idx, n in enumerate(nodes):
                     graph_nodes.append({
@@ -594,7 +578,7 @@ async def get_job_status(job_id: str, db: Session = Depends(get_db), current_use
                         "label": n.symbol or n.file_path.split("/")[-1],
                         "file": n.file_path,
                         "type": n.kind,
-                        "developer": dev_roster[idx % len(dev_roster)]
+                        "note": f"Module: {n.file_path}"
                     })
                     
                 graph_edges = []
@@ -729,14 +713,6 @@ async def get_call_flow(payload: CallFlowPayload, db: Session = Depends(get_db),
         CodeNode.id.in_(visited_nodes),
         Repository.organization_id == current_user.organization_id
     ).all()
-    dev_roster = [
-        {"name": "Sarah Chen", "role": "Frontend Lead", "avatar": "SC"},
-        {"name": "Alex River", "role": "API Lead", "avatar": "AR"},
-        {"name": "Dave Miller", "role": "Logistics Dev", "avatar": "DM"},
-        {"name": "Marcus Vance", "role": "Payment Specialist", "avatar": "MV"},
-        {"name": "Elena Rostova", "role": "Backend Staff", "avatar": "ER"}
-    ]
-    
     nodes_res = []
     for idx, n in enumerate(db_nodes):
         nodes_res.append({
@@ -744,8 +720,7 @@ async def get_call_flow(payload: CallFlowPayload, db: Session = Depends(get_db),
             "label": n.symbol,
             "file": n.file_path,
             "type": n.kind,
-            "developer": dev_roster[idx % len(dev_roster)],
-            "note": f"Database resolved graph module: {n.symbol}"
+            "note": f"Module: {n.file_path}"
         })
         
     return {

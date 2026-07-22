@@ -342,7 +342,7 @@ export function generateCallGraphFromFiles(
   repoId: string = 'local-repo',
   commitSha: string = 'local-commit'
 ): { nodes: CallGraphNode[]; edges: CallGraphEdge[] } {
-  const nodes: CallGraphNode[] = files.map((file, idx) => {
+  const nodes: CallGraphNode[] = files.map((file) => {
     const filename = file.split('/').pop() || file;
     const cleanName = filename.replace(/\.[^/.]+$/, ""); // Strip file extension
     let type: 'ui' | 'api' | 'service' | 'db' | 'external' | 'worker' = 'service';
@@ -350,9 +350,9 @@ export function generateCallGraphFromFiles(
     const pathLower = file.toLowerCase();
     if (pathLower.includes('page') || pathLower.includes('layout') || pathLower.includes('view') || pathLower.endsWith('.css') || pathLower.includes('screen') || pathLower.includes('component') || pathLower.includes('components/')) {
       type = 'ui';
-    } else if (pathLower.includes('controller') || pathLower.includes('route') || pathLower.includes('api/')) {
+    } else if (pathLower.includes('controller') || pathLower.includes('route') || pathLower.includes('api/') || pathLower.includes('endpoint')) {
       type = 'api';
-    } else if (pathLower.includes('db/') || pathLower.includes('model') || pathLower.includes('entity') || pathLower.includes('repository') || pathLower.includes('schema') || pathLower.includes('db-') || pathLower.includes('database')) {
+    } else if (pathLower.includes('db/') || pathLower.includes('model') || pathLower.includes('entity') || pathLower.includes('repository') || pathLower.includes('schema') || pathLower.includes('db-') || pathLower.includes('database') || pathLower.includes('sql')) {
       type = 'db';
     } else if (pathLower.includes('cron') || pathLower.includes('worker') || pathLower.includes('job') || pathLower.includes('task')) {
       type = 'worker';
@@ -360,32 +360,23 @@ export function generateCallGraphFromFiles(
       type = 'external';
     }
 
-    const devRoster = [
-      { name: 'Sarah Chen', role: 'Frontend Lead', avatar: 'SC' },
-      { name: 'Alex River', role: 'API Lead', avatar: 'AR' },
-      { name: 'Dave Miller', role: 'Logistics Dev', avatar: 'DM' },
-      { name: 'Marcus Vance', role: 'Payment Specialist', avatar: 'MV' },
-      { name: 'Elena Rostova', role: 'Backend Staff', avatar: 'ER' }
-    ];
-    const developer = devRoster[idx % devRoster.length];
-
     return {
       id: `${repoId}:${commitSha}:${file}`,
       label: cleanName,
       file: file,
       type,
-      developer,
-      note: `Provides core ${type} functions and logic exports for ${cleanName}.`
+      note: `Module: ${file}`
     };
   });
 
   const edges: CallGraphEdge[] = [];
 
+  // Construct real structural relationships based on module paths and directory imports
   nodes.forEach(sourceNode => {
     const sourceFile = sourceNode.file;
     const sourceDir = sourceFile.substring(0, Math.max(0, sourceFile.lastIndexOf('/')));
     const sourceFileName = sourceFile.split('/').pop() || '';
-    const sourceModuleName = sourceFile.split('/').filter(p => p !== 'src' && p !== 'app').shift() || '';
+    const sourceCleanName = sourceFileName.replace(/\.[^/.]+$/, "").toLowerCase();
 
     nodes.forEach(targetNode => {
       if (sourceNode.id === targetNode.id) return;
@@ -393,80 +384,50 @@ export function generateCallGraphFromFiles(
       const targetFile = targetNode.file;
       const targetDir = targetFile.substring(0, Math.max(0, targetFile.lastIndexOf('/')));
       const targetFileName = targetFile.split('/').pop() || '';
-      const targetModuleName = targetFile.split('/').filter(p => p !== 'src' && p !== 'app').shift() || '';
+      const targetCleanName = targetFileName.replace(/\.[^/.]+$/, "").toLowerCase();
 
       let shouldConnect = false;
-      let label = 'calls';
+      let label = 'imports';
 
-      // 1. Controllers/API routes call Services in the same folder or sharing a prefix
-      if (sourceNode.type === 'api' && targetNode.type === 'service') {
-        if (sourceDir === targetDir || (sourceModuleName && targetFileName.toLowerCase().includes(sourceModuleName.toLowerCase()))) {
+      // 1. UI pages / components import API routes, components, or services
+      if (sourceNode.type === 'ui' && (targetNode.type === 'api' || targetNode.type === 'service')) {
+        if (sourceDir === targetDir || targetFile.includes('api') || targetFile.includes('lib') || targetFile.includes('services')) {
+          shouldConnect = true;
+          label = 'uses';
+        }
+      }
+
+      // 2. API endpoints delegate to services or models
+      if (sourceNode.type === 'api' && (targetNode.type === 'service' || targetNode.type === 'db')) {
+        if (sourceDir === targetDir || targetFile.includes('services') || targetFile.includes('db') || targetFile.includes('lib')) {
           shouldConnect = true;
           label = 'delegates to';
         }
       }
 
-      // 2. Services query Repositories/Database tables
-      if (sourceNode.type === 'service' && targetNode.type === 'db') {
-        if (sourceDir === targetDir || (sourceModuleName && targetFileName.toLowerCase().includes(sourceModuleName.toLowerCase()))) {
+      // 3. Services query DB models or call external adapters
+      if (sourceNode.type === 'service' && (targetNode.type === 'db' || targetNode.type === 'external')) {
+        if (sourceDir === targetDir || targetFile.includes('db') || targetFile.includes('model') || targetFile.includes('adapter')) {
           shouldConnect = true;
-          label = 'queries';
+          label = targetNode.type === 'db' ? 'queries' : 'uses adapter';
         }
       }
 
-      // 3. UI pages render or submit requests to APIs
-      if (sourceNode.type === 'ui' && targetNode.type === 'api') {
-        if (sourceDir === targetDir || (targetModuleName && sourceFileName.toLowerCase().includes(targetModuleName.toLowerCase()))) {
-          shouldConnect = true;
-          label = 'submits to';
+      // 4. Files sharing parent folder directory
+      if (sourceDir !== '' && sourceDir === targetDir) {
+        // Connect pages/components to sibling helpers/styles
+        if (sourceFileName.endsWith('.tsx') || sourceFileName.endsWith('.jsx')) {
+          if (targetFileName.endsWith('.css') || targetCleanName.includes(sourceCleanName)) {
+            shouldConnect = true;
+            label = 'styles/imports';
+          }
         }
       }
 
-      // 4. Same-folder helpers and sub-adapter connections
-      if (sourceDir === targetDir && sourceDir !== 'src' && sourceDir !== '') {
-        if (sourceFileName.includes('service') && targetFileName.includes('adapter')) {
-          shouldConnect = true;
-          label = 'uses adapter';
-        }
-        if (sourceFileName.includes('service') && targetFileName.includes('strategy')) {
-          shouldConnect = true;
-          label = 'authenticates via';
-        }
-        if (sourceFileName.includes('controller') && targetFileName.includes('dto')) {
-          shouldConnect = true;
-          label = 'validates with';
-        }
-      }
-
-      // 5. Cross-module orchestration (checkout -> payments, orders -> inventory, etc.)
-      if (sourceModuleName !== targetModuleName) {
-        const sMod = sourceModuleName.toLowerCase();
-        const tMod = targetModuleName.toLowerCase();
-
-        if (sMod.includes('checkout') && tMod.includes('payment')) {
-          shouldConnect = true;
-          label = 'processes charge';
-        }
-        if (sMod.includes('checkout') && tMod.includes('cart')) {
-          shouldConnect = true;
-          label = 'resolves cart items';
-        }
-        if (sMod.includes('order') && tMod.includes('inventory')) {
-          shouldConnect = true;
-          label = 'reserves stock';
-        }
-        if (sMod.includes('order') && tMod.includes('email')) {
-          shouldConnect = true;
-          label = 'dispatches invoice';
-        }
-        if (sMod.includes('order') && tMod.includes('analytics')) {
-          shouldConnect = true;
-          label = 'reports conversion';
-        }
-        if (sMod.includes('auth') && tMod.includes('db')) {
-          shouldConnect = true;
-          label = 'verifies session';
-        }
+      // 5. Explicit path or filename inclusion
+      if (targetCleanName.length > 3 && sourceFile.toLowerCase().includes(targetCleanName)) {
+        shouldConnect = true;
+        label = 'imports';
       }
 
       if (shouldConnect) {
@@ -482,22 +443,6 @@ export function generateCallGraphFromFiles(
       }
     });
   });
-
-  // Fallback to create a connected chain if graph is sparse (e.g. disconnected setup)
-  if (edges.length < Math.min(nodes.length, 4) && nodes.length > 1) {
-    for (let i = 0; i < nodes.length - 1; i++) {
-      const from = nodes[i].id;
-      const to = nodes[i + 1].id;
-      if (!edges.some(e => e.from === from && e.to === to)) {
-        edges.push({
-          from,
-          to,
-          label: 'depends on',
-          animated: true
-        });
-      }
-    }
-  }
 
   return { nodes, edges };
 }

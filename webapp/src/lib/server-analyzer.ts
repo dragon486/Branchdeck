@@ -39,17 +39,18 @@ export function generateCallGraphFromAST(workspacePath: string, files: string[])
   const commitSha = 'local-commit';
 
   // Create code graph nodes representing files
-  files.forEach((file, idx) => {
-    const filename = file.split('/').pop() || file;
+  files.forEach((file) => {
+    const normalizedFile = file.replace(/\\/g, '/').replace(/^\.\//, '');
+    const filename = normalizedFile.split('/').pop() || normalizedFile;
     const cleanName = filename.replace(/\.[^/.]+$/, "");
     let type: 'ui' | 'api' | 'service' | 'db' | 'external' | 'worker' = 'service';
-    const pathLower = file.toLowerCase();
+    const pathLower = normalizedFile.toLowerCase();
 
     if (pathLower.includes('page') || pathLower.includes('layout') || pathLower.includes('view') || pathLower.endsWith('.css') || pathLower.includes('screen') || pathLower.includes('component') || pathLower.includes('components/')) {
       type = 'ui';
-    } else if (pathLower.includes('controller') || pathLower.includes('route') || pathLower.includes('api/')) {
+    } else if (pathLower.includes('controller') || pathLower.includes('route') || pathLower.includes('api/') || pathLower.includes('endpoint')) {
       type = 'api';
-    } else if (pathLower.includes('db/') || pathLower.includes('model') || pathLower.includes('entity') || pathLower.includes('repository') || pathLower.includes('schema') || pathLower.includes('db-') || pathLower.includes('database')) {
+    } else if (pathLower.includes('db/') || pathLower.includes('model') || pathLower.includes('entity') || pathLower.includes('repository') || pathLower.includes('schema') || pathLower.includes('db-') || pathLower.includes('database') || pathLower.includes('sql')) {
       type = 'db';
     } else if (pathLower.includes('cron') || pathLower.includes('worker') || pathLower.includes('job') || pathLower.includes('task')) {
       type = 'worker';
@@ -57,82 +58,107 @@ export function generateCallGraphFromAST(workspacePath: string, files: string[])
       type = 'external';
     }
 
-    const devRoster = [
-      { name: 'Sarah Chen', role: 'Frontend Lead', avatar: 'SC' },
-      { name: 'Alex River', role: 'API Lead', avatar: 'AR' },
-      { name: 'Dave Miller', role: 'Logistics Dev', avatar: 'DM' },
-      { name: 'Marcus Vance', role: 'Payment Specialist', avatar: 'MV' },
-      { name: 'Elena Rostova', role: 'Backend Staff', avatar: 'ER' }
-    ];
-    const developer = devRoster[idx % devRoster.length];
-
-    const nodeId = `${repoId}:${commitSha}:${file}`;
-    fileToNodeId.set(file.replace(/\\/g, '/'), nodeId);
+    const nodeId = `${repoId}:${commitSha}:${normalizedFile}`;
+    fileToNodeId.set(normalizedFile, nodeId);
 
     nodes.push({
       id: nodeId,
       label: cleanName,
-      file,
+      file: normalizedFile,
       type,
-      developer,
-      note: `Parsed AST module: ${cleanName}.`
+      note: `Module: ${normalizedFile}`
     });
   });
 
   // Map imports and call expressions using compiler-resolved targets
   project.getSourceFiles().forEach(sourceFile => {
-    const sourceRelativePath = path.relative(cleanWorkspace, sourceFile.getFilePath()).replace(/\\/g, '/');
-    const sourceNodeId = fileToNodeId.get(sourceRelativePath);
+    const sourceRelativePath = path.relative(cleanWorkspace, sourceFile.getFilePath()).replace(/\\/g, '/').replace(/^\.\//, '');
+    let sourceNodeId = fileToNodeId.get(sourceRelativePath);
+    
+    if (!sourceNodeId) {
+      // Search by ending match if relative path resolution differs slightly
+      for (const [fPath, nId] of fileToNodeId.entries()) {
+        if (fPath.endsWith(sourceRelativePath) || sourceRelativePath.endsWith(fPath)) {
+          sourceNodeId = nId;
+          break;
+        }
+      }
+    }
     if (!sourceNodeId) return;
 
     // Scan all import declarations in the file
     sourceFile.getImportDeclarations().forEach(imp => {
       try {
-        // Use ts-morph native compiler resolution to resolve alias paths and index imports
+        let targetNodeId: string | undefined;
+
+        // 1. Try ts-morph native resolution first
         const targetSourceFile = imp.getModuleSpecifierSourceFile();
         if (targetSourceFile) {
-          const targetRelativePath = path.relative(cleanWorkspace, targetSourceFile.getFilePath()).replace(/\\/g, '/');
-          const targetNodeId = fileToNodeId.get(targetRelativePath);
-          
-          if (targetNodeId && sourceNodeId !== targetNodeId) {
-            // Draw import relationship edge
-            const exists = edges.some(e => e.from === sourceNodeId && e.to === targetNodeId);
-            if (!exists) {
-              edges.push({
-                from: sourceNodeId,
-                to: targetNodeId,
-                label: 'imports',
-                animated: true
-              });
+          const targetRel = path.relative(cleanWorkspace, targetSourceFile.getFilePath()).replace(/\\/g, '/').replace(/^\.\//, '');
+          targetNodeId = fileToNodeId.get(targetRel);
+          if (!targetNodeId) {
+            for (const [fPath, nId] of fileToNodeId.entries()) {
+              if (fPath.endsWith(targetRel) || targetRel.endsWith(fPath)) {
+                targetNodeId = nId;
+                break;
+              }
             }
+          }
+        }
 
-            // Trace named imports to verify actual function call invocations
-            const importedNames = new Set<string>();
-            imp.getNamedImports().forEach(named => {
-              importedNames.add(named.getName());
+        // 2. Fallback resolution via module specifier string matching
+        if (!targetNodeId) {
+          let specifier = imp.getModuleSpecifierValue().replace(/\\/g, '/');
+          if (specifier.startsWith('@/')) {
+            specifier = specifier.substring(2);
+          }
+          specifier = specifier.replace(/^(\.\.|\.)\//, '');
+
+          for (const [fPath, nId] of fileToNodeId.entries()) {
+            const fNoExt = fPath.replace(/\.[^/.]+$/, "");
+            if (fPath.includes(specifier) || fNoExt.endsWith(specifier) || specifier.endsWith(fNoExt)) {
+              targetNodeId = nId;
+              break;
+            }
+          }
+        }
+
+        if (targetNodeId && sourceNodeId !== targetNodeId) {
+          // Draw import relationship edge
+          const exists = edges.some(e => e.from === sourceNodeId && e.to === targetNodeId);
+          if (!exists) {
+            edges.push({
+              from: sourceNodeId,
+              to: targetNodeId,
+              label: 'imports',
+              animated: true
             });
-            const defaultImport = imp.getDefaultImport();
-            if (defaultImport) {
-              importedNames.add(defaultImport.getText());
-            }
+          }
 
-            if (importedNames.size > 0) {
-              sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression).forEach(callExpr => {
-                const expr = callExpr.getExpression();
-                const exprText = expr.getText();
-                
-                // If it's a direct call (e.g. 'login()') or property access call (e.g. 'auth.login()')
-                for (const imported of importedNames) {
-                  if (exprText === imported || exprText.startsWith(imported + '.')) {
-                    // Update edge label to show actual function call connection
-                    const edgeIndex = edges.findIndex(e => e.from === sourceNodeId && e.to === targetNodeId);
-                    if (edgeIndex !== -1) {
-                      edges[edgeIndex].label = `calls ${exprText.split('.').pop()}()`;
-                    }
+          // Trace named imports to verify actual function call invocations
+          const importedNames = new Set<string>();
+          imp.getNamedImports().forEach(named => {
+            importedNames.add(named.getName());
+          });
+          const defaultImport = imp.getDefaultImport();
+          if (defaultImport) {
+            importedNames.add(defaultImport.getText());
+          }
+
+          if (importedNames.size > 0) {
+            sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression).forEach(callExpr => {
+              const expr = callExpr.getExpression();
+              const exprText = expr.getText();
+              
+              for (const imported of importedNames) {
+                if (exprText === imported || exprText.startsWith(imported + '.')) {
+                  const edgeIndex = edges.findIndex(e => e.from === sourceNodeId && e.to === targetNodeId);
+                  if (edgeIndex !== -1) {
+                    edges[edgeIndex].label = `calls ${exprText.split('.').pop()}()`;
                   }
                 }
-              });
-            }
+              }
+            });
           }
         }
       } catch (e) {
@@ -140,8 +166,6 @@ export function generateCallGraphFromAST(workspacePath: string, files: string[])
       }
     });
   });
-
-
 
   return { nodes, edges };
 }

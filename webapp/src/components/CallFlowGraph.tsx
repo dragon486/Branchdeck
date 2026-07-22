@@ -38,17 +38,6 @@ interface LiveCollaborator {
   action: 'editing' | 'viewing';
 }
 
-const LIVE_PRESENCE: Record<string, LiveCollaborator[]> = {
-  checkout_api: [
-    { name: 'Alex River', avatar: 'AR', color: 'bg-sky-500', action: 'editing' }
-  ],
-  inventory_service: [
-    { name: 'Dave Miller', avatar: 'DM', color: 'bg-amber-500', action: 'viewing' }
-  ],
-  payment_service: [
-    { name: 'Marcus Vance', avatar: 'MV', color: 'bg-emerald-500', action: 'editing' }
-  ]
-};
 
 // Custom Node component to render cards in light theme with vertical handles, avatars, and notes
 function CustomCallNode({ data }: { data: CallGraphNode & { isTarget?: boolean; activeFileSelected?: boolean; liveUsers?: LiveCollaborator[] } }) {
@@ -264,9 +253,7 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullsc
 
       // Determine real live users currently viewing/editing this node
       let nodeLiveUsers: LiveCollaborator[] = [];
-      if (repoSource === 'mock-ecommerce' || repoSource === '') {
-        nodeLiveUsers = LIVE_PRESENCE[node.id] || [];
-      } else if (members) {
+      if (members) {
         nodeLiveUsers = members
           .filter(m => {
             if (m.currentFile) {

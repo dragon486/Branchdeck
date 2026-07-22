@@ -27,5 +27,7 @@ __pycache__/
 
 # Editor and OS files
 .vscode/
-.DS_Store
-*.pem
+# Databases
+*.db
+**/*.db
+

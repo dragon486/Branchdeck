@@ -235,123 +235,82 @@ export default function Dashboard() {
     // Use selectedNode's file path as a fallback for selectedFile to ensure diagram focuses on clicked nodes
     const activeFile = selectedFile || (selectedNode ? selectedNode.file : null);
 
-    // 1. If single file selected, show file + immediate callers & callees (Focus/Trace Mode)
+    // Helper: Normalize file/folder paths for comparison
+    const norm = (p: string) => p.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, '');
+
+    // 1. If single file selected, show file + complete working flow reachability (incoming callers & outgoing callees)
     if (activeFile) {
-      const clickedFilename = activeFile.split('/').pop() || '';
-      let targetNode = callNodes.find(n => n.file.includes(clickedFilename));
-      
-      // If file has no node, find any node belonging to the same feature to show the feature context
-      if (!targetNode && features.length > 0) {
-        const parentFeature = features.find(f => f.files.includes(activeFile));
-        if (parentFeature) {
-          // 1. Try exact path match first
-          targetNode = callNodes.find(n => parentFeature.files.includes(n.file));
-          // 2. Fall back to exact filename basename matching
-          if (!targetNode) {
-            targetNode = callNodes.find(n => parentFeature.files.some(f => {
-              const fName = f.split('/').pop() || '';
-              const nName = n.file.split('/').pop() || '';
-              return fName !== '' && fName === nName;
-            }));
-          }
-        }
+      const normActive = norm(activeFile);
+      const clickedFilename = normActive.split('/').pop() || normActive;
+
+      // 1. Exact path match first
+      let targetNode = callNodes.find(n => norm(n.file) === normActive);
+      // 2. Ending path match
+      if (!targetNode) {
+        targetNode = callNodes.find(n => norm(n.file).endsWith(normActive) || normActive.endsWith(norm(n.file)));
+      }
+      // 3. Basename filename match
+      if (!targetNode) {
+        targetNode = callNodes.find(n => (n.file.split('/').pop() || '') === clickedFilename);
       }
 
       if (targetNode) {
-        let connectedEdges = callEdges.filter(e => e.from === targetNode.id || e.to === targetNode.id);
-        
-        // --- EXTRA FOCUS CONNECTIVITY FALLBACK ---
-        // If the selected file has 0 connected edges in the parsed graph, let's dynamically
-        // construct a connection to its closest sibling folder file so it never renders as a single card!
-        if (connectedEdges.length === 0 && callNodes.length > 1) {
-          const nodeDir = targetNode!.file.substring(0, Math.max(0, targetNode!.file.lastIndexOf('/')));
-          
-          // 1. Find a sibling file in the exact same folder
-          let sibling = callNodes.find(n => n.id !== targetNode!.id && n.file.substring(0, Math.max(0, n.file.lastIndexOf('/'))) === nodeDir);
-          
-          // 2. Fall back to any path-overlap sibling
-          if (!sibling) {
-            const segments = targetNode!.file.split('/');
-            sibling = callNodes.find(n => n.id !== targetNode!.id && segments.some(seg => seg.length > 2 && n.file.includes(seg)));
-          }
-          
-          // 3. Fall back to first other node
-          if (!sibling) {
-            sibling = callNodes.find(n => n.id !== targetNode!.id);
-          }
+        // Multi-hop BFS reachability (up to 3 hops) from targetNode
+        const connectedNodeIds = new Set<string>([targetNode.id]);
+        const queue: { id: string; depth: number }[] = [{ id: targetNode.id, depth: 0 }];
 
-          if (sibling) {
-            connectedEdges = [{
-              from: targetNode!.id,
-              to: sibling.id,
-              label: 'imports',
-              animated: true
-            }];
-          }
+        while (queue.length > 0) {
+          const { id: currId, depth } = queue.shift()!;
+          if (depth >= 3) continue;
+
+          // Outgoing edges
+          callEdges.forEach(e => {
+            if (e.from === currId && !connectedNodeIds.has(e.to)) {
+              connectedNodeIds.add(e.to);
+              queue.push({ id: e.to, depth: depth + 1 });
+            }
+          });
+
+          // Incoming edges
+          callEdges.forEach(e => {
+            if (e.to === currId && !connectedNodeIds.has(e.from)) {
+              connectedNodeIds.add(e.from);
+              queue.push({ id: e.from, depth: depth + 1 });
+            }
+          });
         }
 
-        const connectedNodeIds = new Set<string>([targetNode.id]);
-        connectedEdges.forEach(e => {
-          connectedNodeIds.add(e.from);
-          connectedNodeIds.add(e.to);
+        rawNodes = callNodes.filter(n => connectedNodeIds.has(n.id));
+        rawEdges = callEdges.filter(e => connectedNodeIds.has(e.from) && connectedNodeIds.has(e.to));
+      }
+    } 
+    // 2. If folder selected, show files in folder + connected architecture callers & callees
+    else if (selectedFolder) {
+      const normFolder = norm(selectedFolder);
+
+      // Match files inside folder or subfolders
+      const insideNodes = callNodes.filter(n => {
+        const normFile = norm(n.file);
+        return normFile.startsWith(`${normFolder}/`) || normFile.includes(`/${normFolder}/`) || normFile === normFolder;
+      });
+
+      if (insideNodes.length > 0) {
+        const connectedNodeIds = new Set<string>(insideNodes.map(n => n.id));
+
+        // 1-hop reachability to include connected external architecture modules
+        insideNodes.forEach(insideNode => {
+          callEdges.forEach(e => {
+            if (e.from === insideNode.id) connectedNodeIds.add(e.to);
+            if (e.to === insideNode.id) connectedNodeIds.add(e.from);
+          });
         });
 
         rawNodes = callNodes.filter(n => connectedNodeIds.has(n.id));
-        rawEdges = connectedEdges;
+        rawEdges = callEdges.filter(e => connectedNodeIds.has(e.from) && connectedNodeIds.has(e.to));
       }
     } 
-    // 2. If folder selected, show files/subfolders in folder + immediate callers & callees
-    else if (selectedFolder) {
-      const folderPath = selectedFolder.endsWith('/') ? selectedFolder : `${selectedFolder}/`;
-      let insideNodes = callNodes.filter(n => n.file.startsWith(folderPath));
-      
-      // If folder has no nodes, find feature that owns files in this folder to show feature nodes instead of full diagram
-      if (insideNodes.length === 0 && features.length > 0) {
-        const matchingFeature = features.find(f => f.files.some(file => file.startsWith(folderPath)));
-        if (matchingFeature) {
-          // 1. Try exact path match first
-          insideNodes = callNodes.filter(n => matchingFeature.files.includes(n.file));
-          // 2. Fall back to exact filename basename matching
-          if (insideNodes.length === 0) {
-            insideNodes = callNodes.filter(n => matchingFeature.files.some(f => {
-              const fName = f.split('/').pop() || '';
-              const nName = n.file.split('/').pop() || '';
-              return fName !== '' && fName === nName;
-            }));
-          }
-        }
-      }
-      
-      if (insideNodes.length > 0) {
-        const insideIds = new Set(insideNodes.map(n => n.id));
-        const exteriorIds = new Set<string>();
-        
-        rawEdges = callEdges.filter(e => {
-          const isFromInside = insideIds.has(e.from);
-          const isToInside = insideIds.has(e.to);
-          
-          if (isFromInside || isToInside) {
-            if (!isFromInside) exteriorIds.add(e.from);
-            if (!isToInside) exteriorIds.add(e.to);
-            return true;
-          }
-          return false;
-        });
-
-        const exteriorNodes = callNodes.filter(n => exteriorIds.has(n.id)).map(n => ({
-          ...n,
-          label: `[Ext] ${n.label}`,
-          note: `External connection outside of ${selectedFolder}/`
-        }));
-
-        rawNodes = [...insideNodes, ...exteriorNodes];
-      }
-    } 
-    // 3. Default: return all nodes and edges.
-    // If the codebase is large (> 15 files), display only primary architecture entrypoints
-    // (pages, routes, API controllers, and modules at folder depth <= 3) to prevent cluttered layouts.
-    else if (callNodes.length > 15) {
-      // Calculate connectivity score (degree) for each node
+    // 3. Default: return all nodes and edges (or top connected entrypoints for large codebases)
+    else if (callNodes.length > 30) {
       const connections: Record<string, number> = {};
       callNodes.forEach(n => { connections[n.id] = 0; });
       callEdges.forEach(e => {
@@ -359,20 +318,18 @@ export default function Dashboard() {
         if (connections[e.to] !== undefined) connections[e.to]++;
       });
 
-      // Filter to files that have actual relations and sort by degree
-      const candidates = callNodes.filter(n => connections[n.id] > 0);
+      const candidates = callNodes.filter(n => (connections[n.id] || 0) > 0);
       rawNodes = candidates
         .sort((a, b) => (connections[b.id] || 0) - (connections[a.id] || 0))
-        .slice(0, 15);
+        .slice(0, 30);
 
       const filteredIds = new Set<string>(rawNodes.map(n => n.id));
       rawEdges = callEdges.filter(e => filteredIds.has(e.from) && filteredIds.has(e.to));
     }
 
-    // STRICT CORRECTNESS RULE: Remove isolated nodes (nodes with 0 incoming or outgoing edges)
-    // from the Call Flow Diagram so it only displays actual, connected code paths.
+    // STRICT CORRECTNESS RULE: Ensure selected file/folder nodes are NEVER wiped out
     let finalNodes = rawNodes;
-    if (rawEdges.length > 0) {
+    if (rawEdges.length > 0 && !activeFile && !selectedFolder) {
       const activeNodeIds = new Set<string>();
       rawEdges.forEach(e => {
         activeNodeIds.add(e.from);
@@ -385,7 +342,7 @@ export default function Dashboard() {
       filteredNodes: finalNodes,
       filteredEdges: rawEdges
     };
-  }, [hasData, callNodes, callEdges, features, selectedFolder, selectedFile, selectedNode]);
+  }, [hasData, callNodes, callEdges, selectedFolder, selectedFile, selectedNode]);
 
   // Dedicated clean Log Out handler
   const handleLogOut = async () => {
@@ -853,41 +810,24 @@ export default function Dashboard() {
   const handleSelectFile = (file: string) => {
     setSelectedFile(file);
     setSelectedFolder(null);
-    const path = file.toLowerCase();
-    
-    // 1. Load the corresponding Call Flow diagram based on file clicked
-    if (repoSource === 'mock-ecommerce' || repoSource === '') {
-      if (path.includes('auth') || path.includes('login') || path.includes('jwt') || path.includes('session') || path.includes('middleware')) {
-        handleLoadCallFlow('login');
-      } else if (path.includes('payment') || path.includes('stripe') || path.includes('paypal') || path.includes('webhook') || path.includes('billing')) {
-        handleLoadCallFlow('payment');
-      } else {
-        handleLoadCallFlow('checkout');
-      }
-    } else {
-      // For real repositories, fetch the flow for this specific file
-      handleLoadCallFlow(file);
+
+    // Send command to open the clicked file in VS Code editor if embedded
+    if (typeof window !== 'undefined' && window.parent) {
+      window.parent.postMessage({ command: 'openFile', file }, '*');
     }
 
-    // Send command to open the clicked file in VS Code editor
-    window.parent.postMessage({ command: 'openFile', file }, '*');
+    // Load story for the selected file
+    handleLoadStory(file);
+    setActiveRightTab('story');
 
-    // 2. Load the story for the file
-    if (repoSource === 'mock-ecommerce' || repoSource === '') {
-      const parentFeat = features.find(f => f.files.includes(file));
-      if (parentFeat) {
-        handleLoadStory(parentFeat.id);
-        setActiveRightTab('story');
-      }
-    } else {
-      // Real repository story based on git history
-      handleLoadStory(file);
-      setActiveRightTab('story');
-    }
+    // Locate the matching node in the graph layout
+    const normFile = file.replace(/\\/g, '/').replace(/^\.\//, '');
+    const filename = normFile.split('/').pop() || '';
+    const matchingNode = callNodes.find(n => {
+      const nNorm = n.file.replace(/\\/g, '/').replace(/^\.\//, '');
+      return nNorm === normFile || nNorm.endsWith(normFile) || normFile.endsWith(nNorm) || (nNorm.split('/').pop() || '') === filename;
+    });
 
-    // 3. Try to locate the matching node in the graph layout
-    const filename = file.split('/').pop() || '';
-    const matchingNode = callNodes.find(n => n.file.includes(filename));
     if (matchingNode) {
       setSelectedNode(matchingNode);
     } else {
