@@ -1,14 +1,6 @@
 import type { Metadata } from "next";
-import { Outfit } from "next/font/google";
 import { Analytics } from '@vercel/analytics/react';
 import "./globals.css";
-
-const outfit = Outfit({
-  subsets: ["latin"],
-  variable: "--font-outfit",
-  weight: ["300", "400", "500", "600", "700", "800", "900"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "BranchDeck — AI Codebase Understanding & Visualization Tool",
@@ -61,8 +53,8 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en" className={`h-full antialiased ${outfit.variable}`}>
-      <body className={`min-h-full flex flex-col font-sans ${outfit.className}`}>
+    <html lang="en" className="h-full antialiased">
+      <body className="min-h-full flex flex-col font-sans">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

@@ -1,7 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 /* ── Premium Spacing System (8px scale) ────────────────────── */
 :root {
+  --font-outfit: 'Outfit', sans-serif;
   --space-1: 8px;
   --space-2: 16px;
   --space-3: 24px;
@@ -37,6 +39,7 @@ html {
 body {
   overflow-x: hidden;
   will-change: scroll-position;
+  font-family: var(--font-outfit), sans-serif;
 }
 
 /* ── Noise texture overlay (subtle grain) ──────────────────── */
