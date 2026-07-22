@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
+import { checkRateLimit } from '@/lib/rate-limiter';
 
 export async function POST(request: Request) {
   try {
+    // Enforce 15 queries per minute rate limit per user/IP
+    const rateCheck = checkRateLimit(request, 'query', { limit: 15, windowMs: 60 * 1000 });
+    if (!rateCheck.allowed && rateCheck.response) {
+      return rateCheck.response;
+    }
+
     const body = await request.json();
     const { queryText, commitSha } = body;
     const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();

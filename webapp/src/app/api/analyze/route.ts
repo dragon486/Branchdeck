@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { checkRateLimit } from '@/lib/rate-limiter';
 import { 
   ECOMMERCE_DEMO_FEATURES, 
   ECOMMERCE_DEMO_CALLS, 
@@ -11,6 +12,12 @@ import { generateCallGraphFromAST } from '@/lib/server-analyzer';
 
 export async function POST(request: Request) {
   try {
+    // Enforce 10 codebase analysis requests per minute rate limit per user/IP
+    const rateCheck = checkRateLimit(request, 'analyze', { limit: 10, windowMs: 60 * 1000 });
+    if (!rateCheck.allowed && rateCheck.response) {
+      return rateCheck.response;
+    }
+
     const body = await request.json();
     const { url, workspacePath, files: requestFiles } = body;
     const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
