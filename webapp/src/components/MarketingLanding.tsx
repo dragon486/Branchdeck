@@ -576,7 +576,8 @@ export default function MarketingLanding({
   const [activeFeature, setActiveFeature] = useState(0);
   const [vscodeActiveTab, setVscodeActiveTab] = useState(0);
   const [faqOpenIdx, setFaqOpenIdx] = useState<number | null>(null);
-  const { scrollY } = useScroll();
+  const { scrollY, scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
   const typedWord = useTypingAnimation(TYPING_WORDS);
   const marqueeTexts = useMemo(() => ['Branchdeck ✦', 'Visual Call Flow ✦', 'Refactor Risk Analysis ✦'], []);
 
@@ -1736,8 +1737,8 @@ export default function MarketingLanding({
 
 
   return (
-    <div className={`min-h-screen selection:bg-neutral-900 selection:text-white relative transition-colors duration-300 ${isDarkMode ? 'bg-[#080A12] text-white' : 'bg-white text-neutral-900'}`}>
-      <ScrollProgress />
+    <div className={`min-h-screen selection:bg-blue-600 selection:text-white relative transition-colors duration-300 ${isDarkMode ? 'bg-[#070913] text-white' : 'bg-white text-slate-900'}`}>
+      <motion.div style={{ scaleX }} className="fixed top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-500 origin-left z-[100] pointer-events-none" />
       {NavBar()}
       <main>
         <Hero 

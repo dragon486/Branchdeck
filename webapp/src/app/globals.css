@@ -1,9 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,slnt,wdth,wght,ROND@8..144,-10..0,25..150,400..700,0..100&family=Google+Sans+Code:ital,wght@0,300..700;1,300..700&family=Google+Symbols:opsz,wght,FILL,GRAD,ROND@40..48,300,0..1,0,50&display=swap');
 @import "tailwindcss";
 
-/* ── Premium Spacing System (8px scale) ────────────────────── */
+/* ── Premium Spacing & Google Typography System ── */
 :root {
-  --font-outfit: 'Outfit', sans-serif;
+  --font-google-sans: 'Google Sans Flex', 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-google-code: 'Google Sans Code', 'Fira Code', monospace;
   --space-1: 8px;
   --space-2: 16px;
   --space-3: 24px;
@@ -18,11 +19,9 @@
   --space-24: 192px;
   --space-28: 220px;
 
-  /* easeOutExpo */
+  /* Google signature ease curves */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  /* easeInOutQuart */
   --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
-  /* easeOutCubic */
   --ease-out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
 }
 
@@ -35,11 +34,12 @@ html {
   text-rendering: optimizeLegibility;
 }
 
-/* ── GPU Acceleration layer hint ───────────────────────────── */
+/* ── GPU Acceleration layer hint ── */
 body {
   overflow-x: hidden;
   will-change: scroll-position;
-  font-family: var(--font-outfit), sans-serif;
+  font-family: var(--font-google-sans);
+  letter-spacing: -0.012em;
 }
 
 /* ── Noise texture overlay (subtle grain) ──────────────────── */
