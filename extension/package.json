@@ -18,6 +18,14 @@
     "Education",
     "Other"
   ],
+  "keywords": [
+    "codebase map",
+    "call flow",
+    "impact analysis",
+    "architecture",
+    "dependency graph",
+    "code walkthrough"
+  ],
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {

@@ -278,25 +278,49 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullsc
     });
   }, [nodes, edges, selectedFile, members, validNodeIds]);
 
-  // 3. Format valid edges without animation lag
+  // 3. Format valid, deduplicated edges with smoothstep routing
   const computedEdges = useMemo(() => {
-    return edges
-      .filter(edge => validNodeIds.has(edge.from) && validNodeIds.has(edge.to))
-      .map((edge, index) => {
-        const isActivePath = selectedFile ? (edge.from.includes(selectedFile) || edge.to.includes(selectedFile)) : index === 0;
-        return {
-          id: `edge-${edge.from}-${edge.to}-${index}`,
-          source: edge.from,
-          target: edge.to,
-          label: edge.label,
-          animated: isActivePath, // Only animate active focus edges to prevent rendering lag
-          style: { stroke: isActivePath ? '#0284c7' : '#475569', strokeWidth: isActivePath ? 2.5 : 1.5 },
-          labelStyle: { fill: '#334155', fontSize: 9, fontWeight: 600, fontFamily: 'monospace' },
-          labelBgPadding: [5, 3] as [number, number],
-          labelBgBorderRadius: 4,
-          labelBgStyle: { fill: '#ffffff', color: '#0f172a', stroke: '#cbd5e1', strokeWidth: 0.5 }
-        };
-      });
+    const validEdges = edges.filter(edge => validNodeIds.has(edge.from) && validNodeIds.has(edge.to));
+    
+    // Deduplicate parallel edges connecting the same source and target
+    const edgeMap = new Map<string, { from: string; to: string; labels: string[] }>();
+    validEdges.forEach(edge => {
+      const key = `${edge.from}->${edge.to}`;
+      if (!edgeMap.has(key)) {
+        edgeMap.set(key, { from: edge.from, to: edge.to, labels: [] });
+      }
+      if (edge.label && !edgeMap.get(key)!.labels.includes(edge.label)) {
+        edgeMap.get(key)!.labels.push(edge.label);
+      }
+    });
+
+    const uniqueEdges = Array.from(edgeMap.values());
+
+    return uniqueEdges.map((edge, index) => {
+      const isSourceActive = selectedFile ? edge.from.includes(selectedFile) : false;
+      const isTargetActive = selectedFile ? edge.to.includes(selectedFile) : false;
+      const isActivePath = selectedFile ? (isSourceActive || isTargetActive) : index === 0;
+
+      const combinedLabel = edge.labels.length > 0 ? edge.labels.slice(0, 2).join(' / ') : undefined;
+
+      return {
+        id: `edge-${edge.from}-${edge.to}`,
+        source: edge.from,
+        target: edge.to,
+        type: 'smoothstep',
+        label: combinedLabel,
+        animated: isActivePath,
+        style: {
+          stroke: isActivePath ? '#0284c7' : '#94a3b8',
+          strokeWidth: isActivePath ? 2.5 : 1.2,
+          opacity: selectedFile ? (isActivePath ? 1 : 0.25) : 0.75
+        },
+        labelStyle: { fill: isActivePath ? '#0f172a' : '#475569', fontSize: 9, fontWeight: 600, fontFamily: 'monospace' },
+        labelBgPadding: [5, 3] as [number, number],
+        labelBgBorderRadius: 4,
+        labelBgStyle: { fill: '#ffffff', color: '#0f172a', stroke: isActivePath ? '#0284c7' : '#cbd5e1', strokeWidth: isActivePath ? 1 : 0.5 }
+      };
+    });
   }, [edges, validNodeIds, selectedFile]);
 
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(computedNodes);
