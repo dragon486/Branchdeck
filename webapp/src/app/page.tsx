@@ -9,7 +9,8 @@ import {
   generateFeaturesFromFiles,
   generateCallGraphFromFiles,
   ECOMMERCE_DEMO_FEATURES,
-  ECOMMERCE_DEMO_CALLS
+  ECOMMERCE_DEMO_CALLS,
+  normalizePath
 } from '@/lib/analyzer';
 import ProjectMap from '@/components/ProjectMap';
 import CallFlowGraph from '@/components/CallFlowGraph';
@@ -387,7 +388,12 @@ export default function Dashboard() {
         });
         
         if (result.success) {
-          setFeatures(result.features);
+          const cleanFeatures = result.features.map((feat: any) => ({
+            ...feat,
+            files: Array.from(new Set(feat.files.map(normalizePath).filter(Boolean)))
+          }));
+
+          setFeatures(cleanFeatures);
           setCallNodes(result.callGraph.nodes);
           setCallEdges(result.callGraph.edges);
           setRepoSource(result.source || data.source);
@@ -397,15 +403,20 @@ export default function Dashboard() {
           setHasData(true);
           
           // Auto trigger first story
-          if (result.features && result.features.length > 0) {
-            handleLoadStory(result.features[0].id);
+          if (cleanFeatures.length > 0) {
+            handleLoadStory(cleanFeatures[0].id);
           }
         } else {
           alert(result.error || 'Failed to analyze repository.');
         }
       } else if (data.success) {
         // Mock fallback returned immediately
-        setFeatures(data.features);
+        const cleanFeatures = data.features.map((feat: any) => ({
+          ...feat,
+          files: Array.from(new Set(feat.files.map(normalizePath).filter(Boolean)))
+        }));
+
+        setFeatures(cleanFeatures);
         setCallNodes(data.callGraph.nodes);
         setCallEdges(data.callGraph.edges);
         setRepoSource(data.source);
@@ -805,28 +816,38 @@ export default function Dashboard() {
                 const targetNodes = (resData.callGraph && resData.callGraph.nodes && resData.callGraph.nodes.length > 0) ? resData.callGraph.nodes : localNodes;
                 const targetEdges = (resData.callGraph && resData.callGraph.edges && resData.callGraph.edges.length > 0) ? resData.callGraph.edges : localEdges;
 
-                setFeatures(targetFeatures);
+                const cleanFeatures = targetFeatures.map((feat: any) => ({
+                  ...feat,
+                  files: Array.from(new Set(feat.files.map(normalizePath).filter(Boolean)))
+                }));
+
+                setFeatures(cleanFeatures);
                 setCallNodes(targetNodes);
                 setCallEdges(targetEdges);
                 setRepoSource('local-workspace');
                 setHasData(true);
                 setAnalysisError(null);
 
-                if (targetFeatures.length > 0) {
-                  handleLoadStory(targetFeatures[0].id);
+                if (cleanFeatures.length > 0) {
+                  handleLoadStory(cleanFeatures[0].id);
                 }
               })
               .catch(err => {
                 console.warn('Backend AST scan warning, using local AST fallback:', err);
-                setFeatures(localFeatures);
+                const cleanLocalFeatures = localFeatures.map((feat: any) => ({
+                  ...feat,
+                  files: Array.from(new Set(feat.files.map(normalizePath).filter(Boolean)))
+                }));
+
+                setFeatures(cleanLocalFeatures);
                 setCallNodes(localNodes);
                 setCallEdges(localEdges);
                 setRepoSource('local-workspace');
                 setHasData(true);
                 setAnalysisError(null);
 
-                if (localFeatures.length > 0) {
-                  handleLoadStory(localFeatures[0].id);
+                if (cleanLocalFeatures.length > 0) {
+                  handleLoadStory(cleanLocalFeatures[0].id);
                 }
               })
               .finally(() => {
