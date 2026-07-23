@@ -1500,9 +1500,9 @@ export default function MarketingLanding({
             <motion.button
               whileHover={{ scale: 1.02, boxShadow: '0 8px 30px rgba(0,0,0,0.1)' }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => onSignIn ? onSignIn() : setIsModalOpen(true)}
               className={`btn-shimmer text-[13px] font-semibold px-7 py-3.5 rounded-full transition-all shadow-sm ${isDarkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-slate-950 hover:bg-slate-850 text-white'}`}>
-              Join the Beta
+              Get Started
             </motion.button>
           </div>
         </FadeIn>
@@ -1612,7 +1612,7 @@ export default function MarketingLanding({
           </p>
         </FadeIn>
         <FadeIn delay={0.25} className="flex items-center justify-center gap-4 flex-wrap">
-          <MagneticBtn onClick={() => setIsModalOpen(true)}
+          <MagneticBtn onClick={() => onSignIn ? onSignIn() : setIsModalOpen(true)}
             className={`btn-shimmer text-[15px] font-semibold px-10 py-4 rounded-full flex items-center gap-2 transition-all shadow-xl group ${isDarkMode ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/20' : 'bg-slate-950 hover:bg-slate-850 text-white shadow-slate-950/20'}`}>
             Get Started Free
             <motion.div animate={{ x: [0, 4, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}>
