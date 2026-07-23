@@ -862,10 +862,10 @@ export default function Dashboard() {
 
   // Trigger workspace scan automatically when session is restored/activated
   useEffect(() => {
-    if (isVsCode && session && !hasData) {
+    if (isVsCode && !hasData) {
       window.parent.postMessage({ command: 'scanWorkspace' }, '*');
     }
-  }, [isVsCode, session, hasData]);
+  }, [isVsCode, hasData]);
 
   // Clicking a file in Features OR Folders tab
   const handleSelectFile = (file: string) => {
@@ -920,43 +920,7 @@ export default function Dashboard() {
 
   if (!hasData) {
     if (isVsCode) {
-      // 1. Auth Gate: Show if user has no session inside the VS Code panel yet
-      if (!session && !authLoading) {
-        return (
-          <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center font-sans p-6 text-white select-none relative overflow-hidden">
-            <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-            <div className="relative text-center max-w-sm space-y-6 z-10">
-              <div className="w-16 h-16 mx-auto bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 shadow-[0_0_50px_rgba(255,255,255,0.06)] overflow-hidden">
-                <img src="/logo.png" alt="Branchdeck Logo" className="w-12 h-12 object-contain rounded-xl" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-[19px] font-extrabold tracking-tight">Branchdeck</h2>
-                <p className="text-xs text-neutral-400 max-w-xs mx-auto leading-relaxed">
-                  Understand and navigate your codebase in real-time. Sign in to your account to activate your editor workspace panel.
-                </p>
-              </div>
-              <button
-                onClick={() => openAuth('signin')}
-                className="w-full bg-white hover:bg-neutral-100 text-neutral-950 text-xs font-bold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
-              >
-                <img src="/logo.png" alt="Branchdeck" className="w-4 h-4 rounded-sm" />
-                <span>Sign In to Branchdeck</span>
-              </button>
-              <div className="text-[10px] text-neutral-500">
-                Don't have an account? <button onClick={() => openAuth('signup')} className="text-white hover:underline font-bold">Sign up</button>
-              </div>
-            </div>
-            <AuthModal
-              isOpen={isAuthOpen}
-              onClose={() => setIsAuthOpen(false)}
-              onSuccess={handleAuthSuccess}
-              initialMode={authInitialMode}
-            />
-          </div>
-        );
-      }
-
-      // 2. Error View: Show if workspace scanning/analysis fails
+      // 1. Error View: Show if workspace scanning/analysis fails
       if (analysisError) {
         return (
           <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center font-sans p-6 text-white select-none relative overflow-hidden">

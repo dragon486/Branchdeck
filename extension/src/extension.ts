@@ -166,25 +166,22 @@ class BranchdeckPanel {
   }
 
   private async _update() {
-    // Show loading state first
-    this._panel.webview.html = this._getHtmlForWebview(null, true);
-    
     try {
       const port = await this._findBranchdeckPort();
-      this._panel.webview.html = this._getHtmlForWebview(port, false);
+      this._panel.webview.html = this._getHtmlForWebview(port);
     } catch (e) {
-      this._panel.webview.html = this._getHtmlForWebview(null, false);
+      this._panel.webview.html = this._getHtmlForWebview(null);
     }
   }
 
-  private _findBranchdeckPort(): Promise<number> {
+  private _findBranchdeckPort(): Promise<number | null> {
     const ports = [3000, 3001, 3002, 3003];
     const hosts = ['127.0.0.1', 'localhost'];
 
     return new Promise((resolve) => {
       let resolved = false;
 
-      const finish = (port: number) => {
+      const finish = (port: number | null) => {
         if (!resolved) {
           resolved = true;
           clearTimeout(timer);
@@ -192,10 +189,10 @@ class BranchdeckPanel {
         }
       };
 
-      // Fallback: default to 3000 after 2500ms
+      // Fast fallback to null after 400ms (loads production Vercel webapp)
       const timer = setTimeout(() => {
-        finish(3000);
-      }, 2500);
+        finish(null);
+      }, 400);
 
       for (const p of ports) {
         for (const h of hosts) {
