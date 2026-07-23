@@ -41,7 +41,7 @@ import {
   Plus
 } from 'lucide-react';
 
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 export default function Dashboard() {
   // Authentication states
@@ -59,6 +59,12 @@ export default function Dashboard() {
   const [isVsCode, setIsVsCode] = useState(false);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setSession(null);
+      setAuthLoading(false);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setAuthLoading(false);
@@ -87,7 +93,14 @@ export default function Dashboard() {
 
   // Helper for requests
   const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
-    const activeSession = session || (await supabase.auth.getSession()).data.session;
+    let activeSession = session;
+    if (!activeSession && isSupabaseConfigured) {
+      try {
+        activeSession = (await supabase.auth.getSession()).data.session;
+      } catch (e) {
+        console.warn('Failed to retrieve supabase session:', e);
+      }
+    }
     const token = activeSession?.access_token;
     
     const headers = {
