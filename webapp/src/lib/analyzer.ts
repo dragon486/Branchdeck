@@ -291,7 +291,8 @@ export function filterHighValueCodeFiles(files: string[], maxFiles: number = 180
 }
 
 // Enterprise-grade feature group generator supporting massive repositories and monorepos
-export function generateFeaturesFromFiles(files: string[]): FeatureNode[] {
+export function generateFeaturesFromFiles(rawFiles: string[]): FeatureNode[] {
+  const files = Array.from(new Set(rawFiles.map(normalizePath).filter(Boolean)));
   const codeFiles = filterHighValueCodeFiles(files, 500);
 
   // Check for Monorepo directory patterns (e.g., packages/*, apps/*, services/*, studio/*, realtime/*)

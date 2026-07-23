@@ -307,7 +307,7 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullsc
         id: `edge-${edge.from}-${edge.to}`,
         source: edge.from,
         target: edge.to,
-        type: 'smoothstep',
+        type: 'default',
         label: combinedLabel,
         animated: isActivePath,
         style: {
