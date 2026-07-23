@@ -63,6 +63,7 @@ export function activate(context: vscode.ExtensionContext) {
 class BranchdeckPanel {
   public static currentPanel: BranchdeckPanel | undefined;
   private readonly _panel: vscode.WebviewPanel;
+  private readonly _extensionUri: vscode.Uri;
   private _disposables: vscode.Disposable[] = [];
 
   public static createOrShow(extensionUri: vscode.Uri) {
@@ -86,11 +87,15 @@ class BranchdeckPanel {
       }
     );
 
-    BranchdeckPanel.currentPanel = new BranchdeckPanel(panel);
+    const logoUri = vscode.Uri.file(path.join(extensionUri.fsPath, 'media', 'icon.png'));
+    panel.iconPath = logoUri;
+
+    BranchdeckPanel.currentPanel = new BranchdeckPanel(panel, extensionUri);
   }
 
-  private constructor(panel: vscode.WebviewPanel) {
+  private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
     this._panel = panel;
+    this._extensionUri = extensionUri;
 
     // Set html source content
     this._update();
@@ -173,69 +178,60 @@ class BranchdeckPanel {
   }
 
   private _findBranchdeckPort(): Promise<number> {
-    const targets: Array<{ host: string; port: number }> = [];
-    [3000, 3001, 3002, 3003].forEach(p => {
-      targets.push({ host: '127.0.0.1', port: p });
-      targets.push({ host: 'localhost', port: p });
-    });
+    const ports = [3000, 3001, 3002, 3003];
+    const hosts = ['127.0.0.1', 'localhost'];
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       let resolved = false;
 
-      // Global safety timeout: reject after 1500ms no matter what
-      const globalTimeout = setTimeout(() => {
+      const finish = (port: number) => {
         if (!resolved) {
           resolved = true;
-          reject(new Error('Port scan timed out'));
+          clearTimeout(timer);
+          resolve(port);
         }
-      }, 1500);
+      };
 
-      targets.forEach(target => {
-        try {
-          const payload = JSON.stringify({ featureId: 'test' });
-          const req = http.request({
-            hostname: target.host,
-            port: target.port,
-            path: '/api/story',
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(payload)
-            },
-            timeout: 800
-          }, (res) => {
-            if (res.statusCode === 401) {
-              if (!resolved) {
-                resolved = true;
-                clearTimeout(globalTimeout);
-                resolve(target.port);
+      // Fallback: default to 3000 after 2500ms
+      const timer = setTimeout(() => {
+        finish(3000);
+      }, 2500);
+
+      for (const p of ports) {
+        for (const h of hosts) {
+          try {
+            const req = http.get({
+              hostname: h,
+              port: p,
+              path: '/',
+              timeout: 1500
+            }, (res) => {
+              if (res.statusCode !== undefined) {
+                finish(p);
               }
-            }
-            res.resume(); // consume response stream to release memory
-          });
+              res.resume();
+            });
 
-          req.on('error', () => {});
-          req.on('timeout', () => req.destroy());
-          req.write(payload);
-          req.end();
-        } catch (err) {
-          // Ignore synchronous errors
+            req.on('error', () => {});
+            req.on('timeout', () => req.destroy());
+          } catch (err) {
+            // Ignore synchronous errors
+          }
         }
-      });
+      }
     });
   }
 
   private _getHtmlForWebview(port: number | null, isLoading: boolean) {
     const nonce = crypto.randomBytes(16).toString('base64');
+    const logoUri = this._panel.webview.asWebviewUri(vscode.Uri.file(path.join(this._extensionUri.fsPath, 'media', 'icon.png')));
     
     let bodyContent = '';
     if (isLoading) {
       bodyContent = `
   <div id="loader">
     <div class="logo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-      </svg>
+      <img src="${logoUri}" alt="Branchdeck Logo" style="width: 48px; height: 48px; object-fit: contain; border-radius: 10px;" />
     </div>
     <div class="spinner"></div>
     <div class="loader-title">Branchdeck</div>
@@ -247,15 +243,17 @@ class BranchdeckPanel {
       bodyContent = `
   <div id="loader">
     <div class="logo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-      </svg>
+      <img src="${logoUri}" alt="Branchdeck Logo" style="width: 52px; height: 52px; object-fit: contain; border-radius: 12px;" />
     </div>
     <div class="error-box visible">
       <div class="error-title">Server not running</div>
       <div class="error-msg">Start the Branchdeck webapp, then reopen this panel.</div>
       <div class="error-cmd">npm run dev</div>
       <div class="error-msg" style="margin-top:4px">Run inside the <strong style="color:rgba(255,255,255,0.6)">webapp/</strong> folder</div>
+      <a href="https://branchdeck.vercel.app" target="_blank" style="margin-top:10px; display:inline-flex; align-items:center; gap:6px; color:#3279F9; text-decoration:none; font-size:12px; font-weight:600; padding:6px 12px; border:1px solid rgba(50,121,249,0.3); border-radius:8px; background:rgba(50,121,249,0.08);">
+        <img src="${logoUri}" alt="Branchdeck" style="width:16px; height:16px; border-radius:4px; object-fit:contain;" />
+        <span>Open Branchdeck Webapp</span>
+      </a>
     </div>
   </div>`;
     }
@@ -265,7 +263,7 @@ class BranchdeckPanel {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src http://localhost:3000 http://localhost:3001 http://localhost:3002 http://localhost:3003; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${this._panel.webview.cspSource} http: https: data:; frame-src http://localhost:3000 http://localhost:3001 http://localhost:3002 http://localhost:3003; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
   <title>Branchdeck</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -275,8 +273,7 @@ class BranchdeckPanel {
       align-items: center; justify-content: center; gap: 16px; color: #fff;
       background: #0a0a0f; z-index: 100;
     }
-    .logo { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
-    .logo svg { width: 100%; height: 100%; }
+    .logo { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; }
     .spinner {
       width: 28px; height: 28px; border: 2px solid rgba(255,255,255,0.12);
       border-top-color: #fff; border-radius: 50%;

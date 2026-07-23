@@ -614,7 +614,9 @@ export default function MarketingLanding({
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           className="flex items-center gap-2.5 cursor-pointer select-none group"
         >
-          <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white transition-transform group-hover:scale-105 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-950'}`}>{LOGO_SVG}</div>
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105">
+            <img src="/logo.png" alt="Branchdeck Logo" className="w-7 h-7 object-contain rounded-lg" />
+          </div>
           <span className={`text-[14px] font-bold tracking-tight transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Branchdeck</span>
         </div>
         <nav className="hidden md:flex items-center gap-8">

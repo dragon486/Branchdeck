@@ -249,27 +249,99 @@ export const ECOMMERCE_DEMO_CALLS: { nodes: CallGraphNode[]; edges: CallGraphEdg
   ]
 };
 
-// Generates simulated features for any parsed repository list of files
-export function generateFeaturesFromFiles(files: string[]): FeatureNode[] {
-  const features: Record<string, { name: string; desc: string; files: string[]; color: string }> = {
-    core: { name: 'Core Engine', desc: 'Base components, main server, and routing entry points.', color: '#334155', files: [] },
-    data: { name: 'Data Layer', desc: 'Database connections, schema models, and migrations.', color: '#0f172a', files: [] },
-    utils: { name: 'Utilities & Helpers', desc: 'Common helper utilities, helpers, constants, and tools.', color: '#06b6d4', files: [] },
-    ui: { name: 'User Interface', desc: 'Visual client pages, layouts, and styles.', color: '#10b981', files: [] },
-    api: { name: 'API Endpoints', desc: 'Controllers, route handlers, and request models.', color: '#f59e0b', files: [] }
+// Helper: Filter out non-code assets and rank high-value architecture files for large scale repos
+export function filterHighValueCodeFiles(files: string[], maxFiles: number = 180): string[] {
+  const IGNORED_EXTS = new Set([
+    '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp', '.woff', '.woff2', '.ttf', '.eot',
+    '.mp4', '.pdf', '.zip', '.tar', '.gz', '.lock', '.json', '.md', '.txt', '.csv', '.map',
+    '.min.js', '.min.css', '.d.ts', '.po', '.pot', '.mo', '.yml', '.yaml', '.toml'
+  ]);
+
+  const IGNORED_DIRS = [
+    'node_modules/', 'vendor/', 'third_party/', '.git/', 'dist/', 'build/', '.next/', '.out/',
+    '__tests__/', 'test/', 'tests/', 'fixtures/', 'spec/', 'coverage/', 'docs/', '.github/'
+  ];
+
+  const codeFiles = files.filter(f => {
+    const fLower = f.toLowerCase();
+    if (IGNORED_DIRS.some(dir => fLower.includes(dir))) return false;
+    const extMatch = fLower.match(/\.[^/.]+$/);
+    if (extMatch && IGNORED_EXTS.has(extMatch[0])) return false;
+    return true;
+  });
+
+  if (codeFiles.length <= maxFiles) return codeFiles;
+
+  // Rank files by architectural importance for massive repositories (e.g. Supabase, Monorepos)
+  const scoreFile = (file: string): number => {
+    const fLower = file.toLowerCase();
+    let score = 0;
+    if (fLower.includes('controller') || fLower.includes('route') || fLower.includes('api/')) score += 100;
+    if (fLower.includes('service') || fLower.includes('handler') || fLower.includes('adapter')) score += 90;
+    if (fLower.includes('model') || fLower.includes('schema') || fLower.includes('entity') || fLower.includes('db/')) score += 85;
+    if (fLower.includes('worker') || fLower.includes('cron') || fLower.includes('job')) score += 80;
+    if (fLower.includes('app/') || fLower.includes('pages/') || fLower.includes('page.') || fLower.includes('main.')) score += 70;
+    if (fLower.includes('components/')) score += 40;
+    if (fLower.includes('utils/') || fLower.includes('helpers/')) score += 20;
+    return score;
   };
 
-  files.forEach(file => {
-    if (file.includes('db/') || file.includes('model') || file.includes('schema') || file.includes('entity')) {
+  const ranked = [...codeFiles].sort((a, b) => scoreFile(b) - scoreFile(a));
+  return ranked.slice(0, maxFiles);
+}
+
+// Enterprise-grade feature group generator supporting massive repositories and monorepos
+export function generateFeaturesFromFiles(files: string[]): FeatureNode[] {
+  const codeFiles = filterHighValueCodeFiles(files, 500);
+
+  // Check for Monorepo directory patterns (e.g., packages/*, apps/*, services/*, studio/*, realtime/*)
+  const packageMap: Record<string, string[]> = {};
+  codeFiles.forEach(file => {
+    const parts = file.split('/');
+    if (parts.length > 2 && (parts[0] === 'packages' || parts[0] === 'apps' || parts[0] === 'services' || parts[0] === 'modules')) {
+      const pkgKey = `${parts[0]}/${parts[1]}`;
+      if (!packageMap[pkgKey]) packageMap[pkgKey] = [];
+      packageMap[pkgKey].push(file);
+    }
+  });
+
+  const monorepoKeys = Object.keys(packageMap);
+  if (monorepoKeys.length >= 2) {
+    const colors = ['#0f172a', '#0284c7', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b'];
+    return monorepoKeys.map((pkg, idx) => {
+      const pkgFiles = packageMap[pkg];
+      const cleanTitle = pkg.split('/')[1].replace(/[-_]/g, ' ').toUpperCase();
+      return {
+        id: `pkg-${pkg.replace('/', '-')}`,
+        name: cleanTitle,
+        description: `Monorepo package grouping ${pkgFiles.length} domain modules.`,
+        files: pkgFiles.slice(0, 35),
+        color: colors[idx % colors.length]
+      };
+    });
+  }
+
+  // Categorize by architectural domains
+  const features: Record<string, { name: string; desc: string; files: string[]; color: string }> = {
+    api: { name: 'API & Controllers', desc: 'Controllers, route handlers, and REST/GraphQL endpoints.', color: '#f59e0b', files: [] },
+    services: { name: 'Business Logic & Services', desc: 'Core domain services, managers, and adapters.', color: '#0284c7', files: [] },
+    data: { name: 'Data Layer & Schemas', desc: 'Database connections, ORM models, and migrations.', color: '#0f172a', files: [] },
+    ui: { name: 'User Interface', desc: 'Client components, pages, and layout views.', color: '#10b981', files: [] },
+    utils: { name: 'Utilities & System', desc: 'Common helpers, config, and background workers.', color: '#06b6d4', files: [] }
+  };
+
+  codeFiles.forEach(file => {
+    const fLower = file.toLowerCase();
+    if (fLower.includes('db/') || fLower.includes('model') || fLower.includes('schema') || fLower.includes('entity') || fLower.includes('repository')) {
       features.data.files.push(file);
-    } else if (file.includes('util') || file.includes('helper') || file.includes('config')) {
-      features.utils.files.push(file);
-    } else if (file.includes('app/') || file.includes('pages/') || file.includes('components/') || file.includes('view') || file.endsWith('.css')) {
-      features.ui.files.push(file);
-    } else if (file.includes('api/') || file.includes('controller') || file.includes('route')) {
+    } else if (fLower.includes('controller') || fLower.includes('route') || fLower.includes('api/') || fLower.includes('endpoint')) {
       features.api.files.push(file);
+    } else if (fLower.includes('service') || fLower.includes('handler') || fLower.includes('adapter') || fLower.includes('manager')) {
+      features.services.files.push(file);
+    } else if (fLower.includes('app/') || fLower.includes('pages/') || fLower.includes('component') || fLower.includes('view') || fLower.endsWith('.css')) {
+      features.ui.files.push(file);
     } else {
-      features.core.files.push(file);
+      features.utils.files.push(file);
     }
   });
 
@@ -279,7 +351,7 @@ export function generateFeaturesFromFiles(files: string[]): FeatureNode[] {
       id,
       name: data.name,
       description: data.desc,
-      files: data.files,
+      files: data.files.slice(0, 35),
       color: data.color
     }));
 }
@@ -354,23 +426,27 @@ export async function fetchGitHubRepoTree(owner: string, repo: string): Promise<
   }
 }
 
-// Builds a realistic, highly-connected dependency and call graph from any workspace file tree
+// Scalable O(N) dependency and call graph generator capable of handling massive repositories (e.g. Supabase, Next.js, Monorepos)
 export function generateCallGraphFromFiles(
   files: string[],
   repoId: string = 'local-repo',
   commitSha: string = 'local-commit'
 ): { nodes: CallGraphNode[]; edges: CallGraphEdge[] } {
-  const nodes: CallGraphNode[] = files.map((file) => {
+  // 1. High-value file culling
+  const targetFiles = filterHighValueCodeFiles(files, 150);
+
+  // 2. Build Nodes
+  const nodes: CallGraphNode[] = targetFiles.map((file) => {
     const filename = file.split('/').pop() || file;
-    const cleanName = filename.replace(/\.[^/.]+$/, ""); // Strip file extension
+    const cleanName = filename.replace(/\.[^/.]+$/, "");
     let type: 'ui' | 'api' | 'service' | 'db' | 'external' | 'worker' = 'service';
 
     const pathLower = file.toLowerCase();
-    if (pathLower.includes('page') || pathLower.includes('layout') || pathLower.includes('view') || pathLower.endsWith('.css') || pathLower.includes('screen') || pathLower.includes('component') || pathLower.includes('components/')) {
+    if (pathLower.includes('page') || pathLower.includes('layout') || pathLower.includes('view') || pathLower.endsWith('.css') || pathLower.includes('screen') || pathLower.includes('component')) {
       type = 'ui';
     } else if (pathLower.includes('controller') || pathLower.includes('route') || pathLower.includes('api/') || pathLower.includes('endpoint')) {
       type = 'api';
-    } else if (pathLower.includes('db/') || pathLower.includes('model') || pathLower.includes('entity') || pathLower.includes('repository') || pathLower.includes('schema') || pathLower.includes('db-') || pathLower.includes('database') || pathLower.includes('sql')) {
+    } else if (pathLower.includes('db/') || pathLower.includes('model') || pathLower.includes('entity') || pathLower.includes('repository') || pathLower.includes('schema') || pathLower.includes('sql')) {
       type = 'db';
     } else if (pathLower.includes('cron') || pathLower.includes('worker') || pathLower.includes('job') || pathLower.includes('task')) {
       type = 'worker';
@@ -387,79 +463,80 @@ export function generateCallGraphFromFiles(
     };
   });
 
+  // 3. Fast O(N) Hash-Indexed Edge Construction
+  const dirMap = new Map<string, CallGraphNode[]>();
+  const typeMap = new Map<string, CallGraphNode[]>();
+  const nameMap = new Map<string, CallGraphNode>();
+
+  nodes.forEach(node => {
+    const dir = node.file.substring(0, Math.max(0, node.file.lastIndexOf('/')));
+    if (!dirMap.has(dir)) dirMap.set(dir, []);
+    dirMap.get(dir)!.push(node);
+
+    if (!typeMap.has(node.type)) typeMap.set(node.type, []);
+    typeMap.get(node.type)!.push(node);
+
+    nameMap.set(node.label.toLowerCase(), node);
+  });
+
   const edges: CallGraphEdge[] = [];
+  const edgeSet = new Set<string>();
 
-  // Construct real structural relationships based on module paths and directory imports
+  const addEdge = (fromId: string, toId: string, label: string) => {
+    if (fromId === toId) return;
+    const key = `${fromId}->${toId}`;
+    if (!edgeSet.has(key) && edges.length < 200) {
+      edgeSet.add(key);
+      edges.push({
+        from: fromId,
+        to: toId,
+        label,
+        animated: false
+      });
+    }
+  };
+
+  // Connect logical architecture layers using indexed bucketing
   nodes.forEach(sourceNode => {
-    const sourceFile = sourceNode.file;
-    const sourceDir = sourceFile.substring(0, Math.max(0, sourceFile.lastIndexOf('/')));
-    const sourceFileName = sourceFile.split('/').pop() || '';
-    const sourceCleanName = sourceFileName.replace(/\.[^/.]+$/, "").toLowerCase();
+    const dir = sourceNode.file.substring(0, Math.max(0, sourceNode.file.lastIndexOf('/')));
 
-    nodes.forEach(targetNode => {
-      if (sourceNode.id === targetNode.id) return;
-
-      const targetFile = targetNode.file;
-      const targetDir = targetFile.substring(0, Math.max(0, targetFile.lastIndexOf('/')));
-      const targetFileName = targetFile.split('/').pop() || '';
-      const targetCleanName = targetFileName.replace(/\.[^/.]+$/, "").toLowerCase();
-
-      let shouldConnect = false;
-      let label = 'imports';
-
-      // 1. UI pages / components import API routes, components, or services
-      if (sourceNode.type === 'ui' && (targetNode.type === 'api' || targetNode.type === 'service')) {
-        if (sourceDir === targetDir || targetFile.includes('api') || targetFile.includes('lib') || targetFile.includes('services')) {
-          shouldConnect = true;
-          label = 'uses';
-        }
-      }
-
-      // 2. API endpoints delegate to services or models
-      if (sourceNode.type === 'api' && (targetNode.type === 'service' || targetNode.type === 'db')) {
-        if (sourceDir === targetDir || targetFile.includes('services') || targetFile.includes('db') || targetFile.includes('lib')) {
-          shouldConnect = true;
-          label = 'delegates to';
-        }
-      }
-
-      // 3. Services query DB models or call external adapters
-      if (sourceNode.type === 'service' && (targetNode.type === 'db' || targetNode.type === 'external')) {
-        if (sourceDir === targetDir || targetFile.includes('db') || targetFile.includes('model') || targetFile.includes('adapter')) {
-          shouldConnect = true;
-          label = targetNode.type === 'db' ? 'queries' : 'uses adapter';
-        }
-      }
-
-      // 4. Files sharing parent folder directory
-      if (sourceDir !== '' && sourceDir === targetDir) {
-        // Connect pages/components to sibling helpers/styles
-        if (sourceFileName.endsWith('.tsx') || sourceFileName.endsWith('.jsx')) {
-          if (targetFileName.endsWith('.css') || targetCleanName.includes(sourceCleanName)) {
-            shouldConnect = true;
-            label = 'styles/imports';
-          }
-        }
-      }
-
-      // 5. Explicit path or filename inclusion
-      if (targetCleanName.length > 3 && sourceFile.toLowerCase().includes(targetCleanName)) {
-        shouldConnect = true;
-        label = 'imports';
-      }
-
-      if (shouldConnect) {
-        const exists = edges.some(e => e.from === sourceNode.id && e.to === targetNode.id);
-        if (!exists) {
-          edges.push({
-            from: sourceNode.id,
-            to: targetNode.id,
-            label,
-            animated: true
-          });
+    // 1. Connect sibling files sharing parent folder
+    const siblings = dirMap.get(dir) || [];
+    siblings.forEach(targetNode => {
+      if (sourceNode.id !== targetNode.id) {
+        if (sourceNode.type === 'ui' && (targetNode.type === 'service' || targetNode.type === 'api')) {
+          addEdge(sourceNode.id, targetNode.id, 'uses');
+        } else if (sourceNode.type === 'api' && (targetNode.type === 'service' || targetNode.type === 'db')) {
+          addEdge(sourceNode.id, targetNode.id, 'delegates to');
+        } else if (sourceNode.type === 'service' && (targetNode.type === 'db' || targetNode.type === 'external')) {
+          addEdge(sourceNode.id, targetNode.id, targetNode.type === 'db' ? 'queries' : 'uses adapter');
         }
       }
     });
+
+    // 2. Connect UI to API controllers
+    if (sourceNode.type === 'ui') {
+      const apis = typeMap.get('api') || [];
+      apis.slice(0, 2).forEach(apiNode => {
+        addEdge(sourceNode.id, apiNode.id, 'fetches');
+      });
+    }
+
+    // 3. Connect API to Services
+    if (sourceNode.type === 'api') {
+      const services = typeMap.get('service') || [];
+      services.slice(0, 2).forEach(serviceNode => {
+        addEdge(sourceNode.id, serviceNode.id, 'invokes');
+      });
+    }
+
+    // 4. Connect Services to DB
+    if (sourceNode.type === 'service') {
+      const dbs = typeMap.get('db') || [];
+      dbs.slice(0, 2).forEach(dbNode => {
+        addEdge(sourceNode.id, dbNode.id, 'queries');
+      });
+    }
   });
 
   return { nodes, edges };

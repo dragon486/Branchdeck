@@ -27,7 +27,7 @@ __pycache__/
 
 # Editor and OS files
 .vscode/
-# Databases
-*.db
-**/*.db
+# Extensions
+*.vsix
+**/*.vsix
 

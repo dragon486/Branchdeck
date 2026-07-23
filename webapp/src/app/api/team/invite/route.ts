@@ -65,7 +65,7 @@ export async function POST(request: Request) {
                 <strong style="font-family: monospace; color: #0a0a0f">${invite.repo_source}</strong> 
                 as a <strong>${invite.role}</strong>.
               </p>
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite?token=${invite.token}" 
+              <a href="${process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://branchdeck.vercel.app')}/invite?token=${invite.token}" 
                  style="display: inline-block; background: #0a0a0f; color: white; text-decoration: none;
                         padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 14px;">
                 Accept Invitation →

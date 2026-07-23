@@ -770,10 +770,8 @@ document.addEventListener('DOMContentLoaded', () => {
       submitBtn.disabled = true;
       submitBtn.textContent = 'Requesting...';
 
-      // Resolve Web App base URL for local development vs production domains
-      const baseUrl = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-        ? 'http://localhost:3000'
-        : '';
+      // Resolve Web App base URL for local development vs production Vercel deployment
+      const baseUrl = window.location.origin;
 
       try {
         const res = await fetch(`${baseUrl}/api/waitlist`, {

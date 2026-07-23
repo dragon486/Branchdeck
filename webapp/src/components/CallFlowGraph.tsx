@@ -139,12 +139,15 @@ const nodeTypes = {
 };
 
 function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullscreen, members, repoSource }: CallFlowGraphProps) {
-  const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>([]);
-  const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { fitView } = useReactFlow();
 
-  useEffect(() => {
-    // 1. Build adjacency list of incoming and outgoing edges
+  // 1. Build memoized node set for fast validation
+  const validNodeIds = useMemo(() => new Set(nodes.map(n => n.id)), [nodes]);
+
+  // 2. Compute non-overlapping layout positions
+  const computedNodes = useMemo(() => {
+    if (nodes.length === 0) return [];
+
     const adj: Record<string, string[]> = {};
     const inDegree: Record<string, number> = {};
     
@@ -154,28 +157,28 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullsc
     });
     
     edges.forEach(e => {
-      if (adj[e.from]) adj[e.from].push(e.to);
-      if (inDegree[e.to] !== undefined) inDegree[e.to]++;
+      if (adj[e.from] && validNodeIds.has(e.to)) {
+        adj[e.from].push(e.to);
+      }
+      if (inDegree[e.to] !== undefined && validNodeIds.has(e.from)) {
+        inDegree[e.to]++;
+      }
     });
 
-    // 2. Find root nodes (inDegree === 0)
+    // Root nodes
     const queue: string[] = nodes.filter(n => inDegree[n.id] === 0).map(n => n.id);
     if (queue.length === 0 && nodes.length > 0) {
       queue.push(nodes[0].id);
     }
 
-    // 3. Determine levels using BFS
     const levels: Record<string, number> = {};
-    queue.forEach(id => {
-      levels[id] = 0;
-    });
+    queue.forEach(id => { levels[id] = 0; });
 
     const visited = new Set<string>(queue);
     let qIndex = 0;
     while (qIndex < queue.length) {
       const current = queue[qIndex++];
-      const currentLevel = levels[current];
-      
+      const currentLevel = levels[current] || 0;
       const neighbors = adj[current] || [];
       neighbors.forEach(neighbor => {
         if (!visited.has(neighbor)) {
@@ -188,27 +191,20 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullsc
       });
     }
 
-    // Default any remaining unvisited nodes
     nodes.forEach(n => {
-      if (levels[n.id] === undefined) {
-        levels[n.id] = 0;
-      }
+      if (levels[n.id] === undefined) levels[n.id] = 0;
     });
 
-    // Group node IDs by level
     const nodesByLevel: Record<number, string[]> = {};
     nodes.forEach(n => {
       const lvl = levels[n.id];
-      if (!nodesByLevel[lvl]) {
-        nodesByLevel[lvl] = [];
-      }
+      if (!nodesByLevel[lvl]) nodesByLevel[lvl] = [];
       nodesByLevel[lvl].push(n.id);
     });
 
-    // 4. Calculate coordinates
     const computedPositions: Record<string, { x: number; y: number }> = {};
     const levelHeight = 220;
-    const nodeWidth = 260;
+    const nodeWidth = 300;
 
     Object.entries(nodesByLevel).forEach(([levelStr, nodeIds]) => {
       const level = parseInt(levelStr, 10);
@@ -223,14 +219,12 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullsc
       });
     });
 
-    // 5. Format Nodes
-    const formattedNodes: Node[] = nodes.map((node, index) => {
+    return nodes.map((node, index) => {
       const pos = computedPositions[node.id] || { 
-        x: (index % 2 === 0 ? -130 : 130), 
+        x: (index % 2 === 0 ? -150 : 150), 
         y: index * 240 
       };
 
-      // Determine active status: matching file or sharing parent directory
       let isCurrentFileActive = false;
       if (selectedFile) {
         const clickedFilename = selectedFile.split('/').pop() || '';
@@ -251,7 +245,6 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullsc
         }
       }
 
-      // Determine real live users currently viewing/editing this node
       let nodeLiveUsers: LiveCollaborator[] = [];
       if (members) {
         nodeLiveUsers = members
@@ -283,34 +276,46 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullsc
         }
       };
     });
+  }, [nodes, edges, selectedFile, members, validNodeIds]);
 
-    // 6. Format Edges
-    const formattedEdges: Edge[] = edges.map((edge, index) => ({
-      id: `edge-${index}`,
-      source: edge.from,
-      target: edge.to,
-      label: edge.label,
-      animated: true,
-      style: { stroke: '#0f172a', strokeWidth: 2 },
-      labelStyle: { fill: '#475569', fontSize: 10, fontWeight: 600, fontFamily: 'monospace' },
-      labelBgPadding: [6, 4],
-      labelBgBorderRadius: 4,
-      labelBgStyle: { fill: '#ffffff', color: '#0f172a', stroke: '#cbd5e1', strokeWidth: 0.5 }
-    }));
+  // 3. Format valid edges without animation lag
+  const computedEdges = useMemo(() => {
+    return edges
+      .filter(edge => validNodeIds.has(edge.from) && validNodeIds.has(edge.to))
+      .map((edge, index) => {
+        const isActivePath = selectedFile ? (edge.from.includes(selectedFile) || edge.to.includes(selectedFile)) : index === 0;
+        return {
+          id: `edge-${edge.from}-${edge.to}-${index}`,
+          source: edge.from,
+          target: edge.to,
+          label: edge.label,
+          animated: isActivePath, // Only animate active focus edges to prevent rendering lag
+          style: { stroke: isActivePath ? '#0284c7' : '#475569', strokeWidth: isActivePath ? 2.5 : 1.5 },
+          labelStyle: { fill: '#334155', fontSize: 9, fontWeight: 600, fontFamily: 'monospace' },
+          labelBgPadding: [5, 3] as [number, number],
+          labelBgBorderRadius: 4,
+          labelBgStyle: { fill: '#ffffff', color: '#0f172a', stroke: '#cbd5e1', strokeWidth: 0.5 }
+        };
+      });
+  }, [edges, validNodeIds, selectedFile]);
 
-    setFlowNodes(formattedNodes);
-    setFlowEdges(formattedEdges);
-  }, [nodes, edges, selectedFile, members, repoSource, setFlowNodes, setFlowEdges]);
+  const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(computedNodes);
+  const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>(computedEdges);
 
-  // Fit view whenever nodes are updated or fullscreen mode changes
   useEffect(() => {
-    if (flowNodes.length > 0) {
+    setFlowNodes(computedNodes);
+    setFlowEdges(computedEdges);
+  }, [computedNodes, computedEdges, setFlowNodes, setFlowEdges]);
+
+  // Fast single-pass camera adjustment
+  useEffect(() => {
+    if (computedNodes.length > 0) {
       const timer = setTimeout(() => {
-        fitView({ padding: 0.15, duration: 400 });
-      }, 250); // wait for layout/fullscreen toggle animations to settle
+        fitView({ padding: 0.2, duration: 0 });
+      }, 100);
       return () => clearTimeout(timer);
     }
-  }, [flowNodes, fitView, isFullscreen]);
+  }, [computedNodes.length, fitView, isFullscreen]);
 
   return (
     <ReactFlow
@@ -322,9 +327,12 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullsc
       onNodeClick={(_, node) => onSelectNode(node.data as unknown as CallGraphNode)}
       minZoom={0.2}
       maxZoom={1.5}
+      onlyRenderVisibleElements={true}
+      nodesDraggable={true}
+      nodesConnectable={false}
       className="w-full h-full"
     >
-      <Background color="rgba(0, 0, 0, 0.18)" gap={16} size={1.2} />
+      <Background color="rgba(0, 0, 0, 0.12)" gap={18} size={1} />
       <Controls showInteractive={false} />
     </ReactFlow>
   );

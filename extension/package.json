@@ -2,8 +2,9 @@
   "name": "branchdeck-vscode",
   "displayName": "Branchdeck",
   "description": "Understand large codebases in hours. AI Project Maps, Visual Call Flows, Impact Analysis, and Story Mode.",
-  "version": "0.1.0",
+  "version": "0.1.5",
   "publisher": "branchdeck",
+  "icon": "media/icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,6 +21,24 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "branchdeck-sidebar",
+          "title": "Branchdeck",
+          "icon": "media/icon.png"
+        }
+      ]
+    },
+    "views": {
+      "branchdeck-sidebar": [
+        {
+          "id": "branchdeck.openMap",
+          "name": "Branchdeck",
+          "type": "webview"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "branchdeck.showProjectMap",
