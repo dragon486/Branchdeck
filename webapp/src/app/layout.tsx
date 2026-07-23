@@ -3,6 +3,7 @@ import { Analytics } from '@vercel/analytics/react';
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://branchdeck.vercel.app'),
   title: "BranchDeck — AI Codebase Understanding & Visualization Tool",
   description: "AI-powered codebase intelligence that transforms complex software into interactive maps, call flows, and human-readable documentation. Optimize developer onboarding, legacy code navigation, and dependency graphing.",
   keywords: [
@@ -18,19 +19,19 @@ export const metadata: Metadata = {
     "code documentation automation"
   ],
   alternates: {
-    canonical: "https://branchdeck.com"
+    canonical: "https://branchdeck.vercel.app"
   },
   icons: {
     icon: '/logo.png',
-    shortcut: '/logo.png',
+    shortcut: '/favicon.ico',
     apple: '/logo.png',
   },
   openGraph: {
     title: "BranchDeck — AI Codebase Understanding & Visualization Tool",
     description: "AI-powered codebase intelligence for modern engineering teams. Understand architecture, trace dependencies, and onboard developers faster.",
-    url: "https://branchdeck.com",
+    url: "https://branchdeck.vercel.app",
     type: "website",
-    images: [{ url: '/logo.png' }]
+    images: [{ url: '/logo.png', width: 1024, height: 1024, alt: 'Branchdeck Logo' }]
   },
   twitter: {
     card: "summary_large_image",
