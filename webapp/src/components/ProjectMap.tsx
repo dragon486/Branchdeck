@@ -264,21 +264,26 @@ export default function ProjectMap({
 
                   {isOpen && (
                     <div className="pl-6 pr-3 pb-3 pt-1 border-t border-slate-100 bg-slate-50/30 space-y-1">
-                      {feat.files.map(file => (
-                        <button
-                          key={file}
-                          onClick={() => onSelectFile(file)}
-                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-left font-mono transition-all ${
-                            selectedFile === file
-                              ? 'bg-slate-100 text-slate-950 border-l-2 border-slate-900 pl-3 font-semibold'
-                              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
-                          }`}
-                        >
-                          <FileText className="w-3.5 h-3.5 opacity-70" />
-                          <span className="truncate">{file.split('/').pop()}</span>
-                          <span className="text-[9px] text-slate-400 ml-auto truncate max-w-[100px]">{file.substring(0, file.lastIndexOf('/'))}</span>
-                        </button>
-                      ))}
+                      {feat.files.map(file => {
+                        const parts = file.split('/');
+                        const displayName = parts.length > 1 ? `${parts[parts.length - 2]}/${parts[parts.length - 1]}` : file;
+                        return (
+                          <button
+                            key={file}
+                            onClick={() => onSelectFile(file)}
+                            title={file}
+                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-left font-mono transition-all ${
+                              selectedFile === file
+                                ? 'bg-slate-100 text-slate-950 border-l-2 border-slate-900 pl-3 font-semibold'
+                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
+                            }`}
+                          >
+                            <FileText className="w-3.5 h-3.5 opacity-70" />
+                            <span className="truncate">{displayName}</span>
+                            <span className="text-[9px] text-slate-450 ml-auto truncate max-w-[90px]">{file.substring(0, file.lastIndexOf('/'))}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
