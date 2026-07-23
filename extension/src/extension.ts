@@ -222,48 +222,28 @@ class BranchdeckPanel {
     });
   }
 
-  private _getHtmlForWebview(port: number | null, isLoading: boolean) {
+  private _getHtmlForWebview(port: number | null, _isLoading?: boolean) {
     const nonce = crypto.randomBytes(16).toString('base64');
     const logoUri = this._panel.webview.asWebviewUri(vscode.Uri.file(path.join(this._extensionUri.fsPath, 'media', 'icon.png')));
-    
-    let bodyContent = '';
-    if (isLoading) {
-      bodyContent = `
+    const targetUrl = port ? `http://127.0.0.1:${port}?ide=vscode` : `https://branchdeck.vercel.app?ide=vscode`;
+
+    let bodyContent = `
   <div id="loader">
     <div class="logo">
       <img src="${logoUri}" alt="Branchdeck Logo" style="width: 48px; height: 48px; object-fit: contain; border-radius: 10px;" />
     </div>
     <div class="spinner"></div>
     <div class="loader-title">Branchdeck</div>
-    <div class="loader-sub">Pinging local workspace server...</div>
-  </div>`;
-    } else if (port) {
-      bodyContent = `<iframe id="webapp-frame" src="http://localhost:${port}?ide=vscode" style="display: block;"></iframe>`;
-    } else {
-      bodyContent = `
-  <div id="loader">
-    <div class="logo">
-      <img src="${logoUri}" alt="Branchdeck Logo" style="width: 52px; height: 52px; object-fit: contain; border-radius: 12px;" />
-    </div>
-    <div class="error-box visible">
-      <div class="error-title">Server not running</div>
-      <div class="error-msg">Start the Branchdeck webapp, then reopen this panel.</div>
-      <div class="error-cmd">npm run dev</div>
-      <div class="error-msg" style="margin-top:4px">Run inside the <strong style="color:rgba(255,255,255,0.6)">webapp/</strong> folder</div>
-      <a href="https://branchdeck.vercel.app" target="_blank" style="margin-top:10px; display:inline-flex; align-items:center; gap:6px; color:#3279F9; text-decoration:none; font-size:12px; font-weight:600; padding:6px 12px; border:1px solid rgba(50,121,249,0.3); border-radius:8px; background:rgba(50,121,249,0.08);">
-        <img src="${logoUri}" alt="Branchdeck" style="width:16px; height:16px; border-radius:4px; object-fit:contain;" />
-        <span>Open Branchdeck Webapp</span>
-      </a>
-    </div>
-  </div>`;
-    }
+    <div class="loader-sub">Pinging workspace server...</div>
+  </div>
+  <iframe id="webapp-frame" src="${targetUrl}" style="width: 100%; height: 100%; border: none; display: block;" onload="document.getElementById('loader').style.display='none';"></iframe>`;
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${this._panel.webview.cspSource} http: https: data:; frame-src http://localhost:3000 http://localhost:3001 http://localhost:3002 http://localhost:3003; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${this._panel.webview.cspSource} http: https: data:; frame-src http://localhost:* http://127.0.0.1:* https://branchdeck.vercel.app https://*.vercel.app; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
   <title>Branchdeck</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -272,6 +252,7 @@ class BranchdeckPanel {
       position: fixed; inset: 0; display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: 16px; color: #fff;
       background: #0a0a0f; z-index: 100;
+      transition: opacity 0.3s ease;
     }
     .logo { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; }
     .spinner {
@@ -282,20 +263,7 @@ class BranchdeckPanel {
     @keyframes spin { to { transform: rotate(360deg); } }
     .loader-title { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.9); letter-spacing: 0.02em; }
     .loader-sub { font-size: 11px; color: rgba(255,255,255,0.35); }
-    .error-box {
-      display: none; flex-direction: column; align-items: center; gap: 12px;
-      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px; padding: 28px 32px; max-width: 320px; text-align: center;
-    }
-    .error-box.visible { display: flex; }
-    .error-title { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.85); }
-    .error-msg { font-size: 11px; color: rgba(255,255,255,0.35); line-height: 1.6; }
-    .error-cmd {
-      font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px;
-      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
-      padding: 6px 12px; border-radius: 8px; color: rgba(255,255,255,0.7);
-    }
-    iframe { width: 100%; height: 100%; border: none; display: none; }
+    iframe { width: 100%; height: 100%; border: none; display: block; }
   </style>
 </head>
 <body>
@@ -305,6 +273,17 @@ class BranchdeckPanel {
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const iframe = document.getElementById('webapp-frame');
+    const loader = document.getElementById('loader');
+
+    // Auto-hide loader after iframe loads or timeout safety fallback
+    if (iframe) {
+      iframe.addEventListener('load', () => {
+        if (loader) loader.style.display = 'none';
+      });
+      setTimeout(() => {
+        if (loader) loader.style.display = 'none';
+      }, 3500);
+    }
 
     // Forward messages between extension host and webapp iframe
     window.addEventListener('message', event => {
@@ -313,10 +292,9 @@ class BranchdeckPanel {
         const isFromExtension = message.source === 'branchdeck-extension'
           || !event.origin
           || event.origin === 'null'
-          || (!event.origin.includes('localhost:3000')
-            && !event.origin.includes('localhost:3001')
-            && !event.origin.includes('localhost:3002')
-            && !event.origin.includes('localhost:3003'));
+          || (!event.origin.includes('127.0.0.1')
+            && !event.origin.includes('localhost')
+            && !event.origin.includes('vercel.app'));
 
         if (isFromExtension) {
           if (iframe && iframe.contentWindow) {
