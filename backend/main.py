@@ -232,7 +232,7 @@ ECOMMERCE_DEMO_CALLS = {
 }
 
 def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str, org_id: str):
-    from database import SessionLocal, IndexingJob, Repository, Commit, CodeNode, CodeEdge, FileCache
+    from database import SessionLocal, IndexingJob, Repository, Commit, CodeNode, CodeEdge, FileCache, normalize_path
     from parser import parse_file
     from secure_file_handler import validate_repository_path, check_file_permission
     from services.chunker import chunk_code
@@ -286,11 +286,18 @@ def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str,
         db.commit()
         
         total_files = len(files)
+        seen_paths = set()
+        
         # First Pass: Parse files and save nodes + chunks
-        for idx, file in enumerate(files):
+        for idx, raw_file in enumerate(files):
+            file = normalize_path(raw_file)
+            if not file or file in seen_paths:
+                continue
+            seen_paths.add(file)
+
             filename = file.split("/")[-1]
             clean_name = filename.split(".")[0]
-            full_path = validated_files[file]
+            full_path = validated_files.get(raw_file) or validated_files.get(file)
             
             node_type = "service"
             path_lower = file.lower()
@@ -307,7 +314,7 @@ def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str,
                 
             content = ""
             try:
-                if check_file_permission(full_path):
+                if full_path and check_file_permission(full_path):
                     with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
                         content = f.read()
             except ValueError as e:
@@ -338,7 +345,7 @@ def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str,
                 kind=node_type,
                 content_hash=file_hash
             )
-            db.add(db_node)
+            db.merge(db_node)
             
             # Chunk and embed
             file_chunks = chunk_code(file, content)

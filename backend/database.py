@@ -6,9 +6,20 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-from sqlalchemy import create_engine, Column, String, ForeignKey, DateTime, JSON, Text, select, text, Float, Integer, Index
+from sqlalchemy import create_engine, Column, String, ForeignKey, DateTime, JSON, Text, select, text, Float, Integer, Index, UniqueConstraint
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from sqlalchemy.types import TypeDecorator, NullType
+
+def normalize_path(path: str) -> str:
+    if not path:
+        return ""
+    normalized = path.replace("\\", "/").strip()
+    while normalized.startswith("./") or normalized.startswith("/"):
+        if normalized.startswith("./"):
+            normalized = normalized[2:]
+        elif normalized.startswith("/"):
+            normalized = normalized[1:]
+    return normalized
 
 # SafeVector handles pgvector on PostgreSQL and falls back to JSON on SQLite
 class SafeVector(TypeDecorator):
@@ -85,6 +96,7 @@ class CodeNode(Base):
 
     __table_args__ = (
         Index("idx_nodes_repo_commit", "repo_id", "commit_sha"),
+        UniqueConstraint("repo_id", "commit_sha", "file_path", name="uix_nodes_repo_commit_file"),
     )
 
 class CodeEdge(Base):

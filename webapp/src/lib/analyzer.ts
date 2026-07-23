@@ -426,12 +426,25 @@ export async function fetchGitHubRepoTree(owner: string, repo: string): Promise<
   }
 }
 
+export function normalizePath(path: string): string {
+  if (!path) return '';
+  let normalized = path.replace(/\\/g, '/').trim();
+  while (normalized.startsWith('./') || normalized.startsWith('/')) {
+    if (normalized.startsWith('./')) normalized = normalized.substring(2);
+    else if (normalized.startsWith('/')) normalized = normalized.substring(1);
+  }
+  return normalized;
+}
+
 // Scalable O(N) dependency and call graph generator capable of handling massive repositories (e.g. Supabase, Next.js, Monorepos)
 export function generateCallGraphFromFiles(
-  files: string[],
+  rawFiles: string[],
   repoId: string = 'local-repo',
   commitSha: string = 'local-commit'
 ): { nodes: CallGraphNode[]; edges: CallGraphEdge[] } {
+  // Deduplicate and normalize input file paths
+  const files = Array.from(new Set(rawFiles.map(normalizePath).filter(Boolean)));
+  
   // 1. High-value file culling
   const targetFiles = filterHighValueCodeFiles(files, 150);
 
