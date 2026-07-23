@@ -63,8 +63,7 @@ export function activate(context: vscode.ExtensionContext) {
 class BranchdeckPanel {
   public static currentPanel: BranchdeckPanel | undefined;
   private readonly _panel: vscode.WebviewPanel;
-  private readonly _extensionUri: vscode.Uri;
-  private _disposables: vscode.Disposable[] = [];
+  private readonly _disposables: vscode.Disposable[] = [];
 
   public static createOrShow(extensionUri: vscode.Uri) {
     const column = vscode.window.activeTextEditor
@@ -93,9 +92,8 @@ class BranchdeckPanel {
     BranchdeckPanel.currentPanel = new BranchdeckPanel(panel, extensionUri);
   }
 
-  private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+  private constructor(panel: vscode.WebviewPanel, _extensionUri: vscode.Uri) {
     this._panel = panel;
-    this._extensionUri = extensionUri;
 
     // Set html source content
     this._update();
@@ -219,68 +217,30 @@ class BranchdeckPanel {
     });
   }
 
-  private _getHtmlForWebview(port: number | null, _isLoading?: boolean) {
+  private _getHtmlForWebview(port: number | null) {
     const nonce = crypto.randomBytes(16).toString('base64');
-    const logoUri = this._panel.webview.asWebviewUri(vscode.Uri.file(path.join(this._extensionUri.fsPath, 'media', 'icon.png')));
     const targetUrl = port ? `http://127.0.0.1:${port}?ide=vscode` : `https://branchdeck.vercel.app?ide=vscode`;
-
-    let bodyContent = `
-  <div id="loader">
-    <div class="logo">
-      <img src="${logoUri}" alt="Branchdeck Logo" style="width: 48px; height: 48px; object-fit: contain; border-radius: 10px;" />
-    </div>
-    <div class="spinner"></div>
-    <div class="loader-title">Branchdeck</div>
-    <div class="loader-sub">Pinging workspace server...</div>
-  </div>
-  <iframe id="webapp-frame" src="${targetUrl}" style="width: 100%; height: 100%; border: none; display: block;" onload="document.getElementById('loader').style.display='none';"></iframe>`;
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${this._panel.webview.cspSource} http: https: data:; frame-src http://localhost:* http://127.0.0.1:* https://branchdeck.vercel.app https://*.vercel.app; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
+  <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
   <title>Branchdeck</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    #loader {
-      position: fixed; inset: 0; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 16px; color: #fff;
-      background: #0a0a0f; z-index: 100;
-      transition: opacity 0.3s ease;
-    }
-    .logo { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; }
-    .spinner {
-      width: 28px; height: 28px; border: 2px solid rgba(255,255,255,0.12);
-      border-top-color: #fff; border-radius: 50%;
-      animation: spin 0.75s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .loader-title { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.9); letter-spacing: 0.02em; }
-    .loader-sub { font-size: 11px; color: rgba(255,255,255,0.35); }
-    iframe { width: 100%; height: 100%; border: none; display: block; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #090d16; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    iframe { width: 100%; height: 100%; border: none; display: block; background: #090d16; }
   </style>
 </head>
 <body>
 
-  ${bodyContent}
+  <iframe id="webapp-frame" src="${targetUrl}"></iframe>
 
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const iframe = document.getElementById('webapp-frame');
-    const loader = document.getElementById('loader');
-
-    // Auto-hide loader after iframe loads or timeout safety fallback
-    if (iframe) {
-      iframe.addEventListener('load', () => {
-        if (loader) loader.style.display = 'none';
-      });
-      setTimeout(() => {
-        if (loader) loader.style.display = 'none';
-      }, 3500);
-    }
 
     // Forward messages between extension host and webapp iframe
     window.addEventListener('message', event => {
