@@ -314,7 +314,7 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullsc
           stroke: isActivePath ? '#0284c7' : '#94a3b8',
           strokeWidth: isActivePath ? 2.5 : 1.2,
           opacity: selectedFile ? (isActivePath ? 1 : 0.25) : 0.75,
-          strokeDasharray: isActivePath ? undefined : '3,3'
+          strokeDasharray: '4,4'
         },
         labelStyle: { fill: isActivePath ? '#0f172a' : '#475569', fontSize: 9, fontWeight: 600, fontFamily: 'monospace' },
         labelBgPadding: [5, 3] as [number, number],

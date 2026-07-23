@@ -527,30 +527,6 @@ export function generateCallGraphFromFiles(
         }
       }
     });
-
-    // 2. Connect UI to API controllers
-    if (sourceNode.type === 'ui') {
-      const apis = typeMap.get('api') || [];
-      apis.slice(0, 2).forEach(apiNode => {
-        addEdge(sourceNode.id, apiNode.id, 'fetches');
-      });
-    }
-
-    // 3. Connect API to Services
-    if (sourceNode.type === 'api') {
-      const services = typeMap.get('service') || [];
-      services.slice(0, 2).forEach(serviceNode => {
-        addEdge(sourceNode.id, serviceNode.id, 'invokes');
-      });
-    }
-
-    // 4. Connect Services to DB
-    if (sourceNode.type === 'service') {
-      const dbs = typeMap.get('db') || [];
-      dbs.slice(0, 2).forEach(dbNode => {
-        addEdge(sourceNode.id, dbNode.id, 'queries');
-      });
-    }
   });
 
   return { nodes, edges };

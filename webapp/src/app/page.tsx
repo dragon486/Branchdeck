@@ -388,9 +388,9 @@ export default function Dashboard() {
         });
         
         if (result.success) {
-          const cleanFeatures = result.features.map((feat: any) => ({
+          const cleanFeatures = (result.features || []).map((feat: any) => ({
             ...feat,
-            files: Array.from(new Set(feat.files.map(normalizePath).filter(Boolean)))
+            files: Array.from(new Set((feat.files || []).map(normalizePath).filter(Boolean)))
           }));
 
           setFeatures(cleanFeatures);
@@ -411,9 +411,9 @@ export default function Dashboard() {
         }
       } else if (data.success) {
         // Mock fallback returned immediately
-        const cleanFeatures = data.features.map((feat: any) => ({
+        const cleanFeatures = (data.features || []).map((feat: any) => ({
           ...feat,
-          files: Array.from(new Set(feat.files.map(normalizePath).filter(Boolean)))
+          files: Array.from(new Set((feat.files || []).map(normalizePath).filter(Boolean)))
         }));
 
         setFeatures(cleanFeatures);
@@ -816,9 +816,9 @@ export default function Dashboard() {
                 const targetNodes = (resData.callGraph && resData.callGraph.nodes && resData.callGraph.nodes.length > 0) ? resData.callGraph.nodes : localNodes;
                 const targetEdges = (resData.callGraph && resData.callGraph.edges && resData.callGraph.edges.length > 0) ? resData.callGraph.edges : localEdges;
 
-                const cleanFeatures = targetFeatures.map((feat: any) => ({
+                const cleanFeatures = (targetFeatures || []).map((feat: any) => ({
                   ...feat,
-                  files: Array.from(new Set(feat.files.map(normalizePath).filter(Boolean)))
+                  files: Array.from(new Set((feat.files || []).map(normalizePath).filter(Boolean)))
                 }));
 
                 setFeatures(cleanFeatures);
@@ -834,9 +834,9 @@ export default function Dashboard() {
               })
               .catch(err => {
                 console.warn('Backend AST scan warning, using local AST fallback:', err);
-                const cleanLocalFeatures = localFeatures.map((feat: any) => ({
+                const cleanLocalFeatures = (localFeatures || []).map((feat: any) => ({
                   ...feat,
-                  files: Array.from(new Set(feat.files.map(normalizePath).filter(Boolean)))
+                  files: Array.from(new Set((feat.files || []).map(normalizePath).filter(Boolean)))
                 }));
 
                 setFeatures(cleanLocalFeatures);
