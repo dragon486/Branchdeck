@@ -1,4 +1,0 @@
-{
-  "buildCommand": "if [ -d \"webapp\" ]; then cd webapp && npm run build; else npm run build; fi",
-  "installCommand": "if [ -d \"webapp\" ]; then cd webapp && npm install; else npm install; fi"
-}
