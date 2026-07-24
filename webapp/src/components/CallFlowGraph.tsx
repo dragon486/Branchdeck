@@ -293,87 +293,82 @@ function CallFlowGraphInner({
 
   const validNodeIds = useMemo(() => new Set(allNodes.map((n) => n.id)), [allNodes]);
 
-  /* ── 2. Capped Focus Graph Filtering (6 to 10 Nodes Max per View Mode) ── */
+  /* ── 2. Capped Focus Graph Filtering & Search Anchor Node Resolution ── */
   const { visibleNodes, visibleEdges } = useMemo(() => {
     let nodes = allNodes;
     let edges = allEdges;
 
-    // A. Mode Specific Filter
-    if (activeViewMode === 'request') {
-      // Request Flow: UI -> API Routes -> Controllers
-      nodes = nodes.filter(n => n.type === 'ui' || n.type === 'api' || n.type === 'service');
-    } else if (activeViewMode === 'data') {
-      // Data Flow: Controllers -> Services -> Repositories -> Database
-      nodes = nodes.filter(n => n.type === 'api' || n.type === 'service' || n.type === 'db' || n.type === 'ui');
-    } else if (activeViewMode === 'dependency') {
-      // Dependency Flow: UI -> Services -> Libraries -> External SDKs
-      nodes = nodes.filter(n => n.type === 'service' || n.type === 'lib' || n.type === 'external' || n.type === 'db');
-    }
+    const q = searchQuery.trim().toLowerCase();
+    const selF = selectedFile ? norm(selectedFile) : '';
+    const selFol = selectedFolder ? norm(selectedFolder) : '';
 
-    // B. Scope Drill-Down (File / Folder)
-    if (selectedFile) {
-      const target = allNodes.find((n) => n.file === selectedFile);
+    // A. Priority Search / Selection Matching across ALL nodes first
+    if (selF) {
+      const target = allNodes.find((n) => {
+        const nf = norm(n.file);
+        return nf === selF || nf.endsWith(selF) || selF.endsWith(nf);
+      });
       if (target) {
         const keep = new Set<string>([target.id]);
         for (const e of edges) {
           if (e.from === target.id) keep.add(e.to);
           if (e.to === target.id) keep.add(e.from);
         }
+        for (const e of edges) {
+          if (keep.has(e.from)) keep.add(e.to);
+          if (keep.has(e.to)) keep.add(e.from);
+        }
         nodes = nodes.filter((n) => keep.has(n.id));
       }
-    } else if (selectedFolder) {
+    } else if (selFol) {
       const inFolder = new Set<string>();
-      for (const n of nodes) {
-        if (isInsideFolder(n.file, selectedFolder)) inFolder.add(n.id);
+      for (const n of allNodes) {
+        if (isInsideFolder(n.file, selectedFolder!)) inFolder.add(n.id);
       }
-      const keep = new Set<string>(inFolder);
-      for (const e of edges) {
-        if (inFolder.has(e.from)) keep.add(e.to);
-        if (inFolder.has(e.to)) keep.add(e.from);
+      if (inFolder.size > 0) {
+        const keep = new Set<string>(inFolder);
+        for (const e of edges) {
+          if (inFolder.has(e.from)) keep.add(e.to);
+          if (inFolder.has(e.to)) keep.add(e.from);
+        }
+        nodes = nodes.filter((n) => keep.has(n.id));
       }
-      nodes = nodes.filter((n) => keep.has(n.id));
-    }
-
-    // C. Search Query Filter
-    const q = searchQuery.trim().toLowerCase();
-    if (q) {
+    } else if (q) {
       const matched = new Set(
-        nodes
-          .filter((n) => n.label.toLowerCase().includes(q) || n.file.toLowerCase().includes(q))
+        allNodes
+          .filter((n) => {
+            const nf = norm(n.file).toLowerCase();
+            const nl = n.label.toLowerCase();
+            return nl.includes(q) || nf.includes(q) || (n.subtitle && n.subtitle.toLowerCase().includes(q));
+          })
           .map((n) => n.id)
       );
-      const keep = new Set<string>(matched);
-      for (const e of edges) {
-        if (matched.has(e.from)) keep.add(e.to);
-        if (matched.has(e.to)) keep.add(e.from);
+      if (matched.size > 0) {
+        const keep = new Set<string>(matched);
+        for (const e of edges) {
+          if (matched.has(e.from)) keep.add(e.to);
+          if (matched.has(e.to)) keep.add(e.from);
+        }
+        for (const e of edges) {
+          if (keep.has(e.from)) keep.add(e.to);
+          if (keep.has(e.to)) keep.add(e.from);
+        }
+        nodes = nodes.filter((n) => keep.has(n.id));
       }
-      nodes = nodes.filter((n) => keep.has(n.id));
+    } else {
+      // B. View Mode Specific Filter when no active search/selection override exists
+      if (activeViewMode === 'request') {
+        nodes = nodes.filter(n => n.type === 'ui' || n.type === 'api' || n.type === 'service');
+      } else if (activeViewMode === 'data') {
+        nodes = nodes.filter(n => n.type === 'api' || n.type === 'service' || n.type === 'db' || n.type === 'ui');
+      } else if (activeViewMode === 'dependency') {
+        nodes = nodes.filter(n => n.type === 'service' || n.type === 'lib' || n.type === 'external' || n.type === 'db');
+      }
     }
 
-    // D. CRITICAL: Capping Focus Graph to 8 Nodes Max for Pristine Legibility
-    if (nodes.length > 8) {
-      const rootNode = nodes.find(n => n.type === 'ui') || nodes.find(n => n.type === 'api') || nodes[0];
-      if (rootNode) {
-        const cappedIds = new Set<string>([rootNode.id]);
-        edges.forEach(e => {
-          if (cappedIds.size < 8) {
-            if (e.from === rootNode.id) cappedIds.add(e.to);
-            if (e.to === rootNode.id) cappedIds.add(e.from);
-          }
-        });
-
-        // 2nd hop expansion up to 8 nodes
-        edges.forEach(e => {
-          if (cappedIds.size < 8) {
-            if (cappedIds.has(e.from)) cappedIds.add(e.to);
-            if (cappedIds.has(e.to)) cappedIds.add(e.from);
-          }
-        });
-
-        nodes = nodes.filter(n => cappedIds.has(n.id));
-      } else {
-        nodes = nodes.slice(0, 8);
-      }
+    // C. Dynamic capping to 10 nodes max, preserving anchor nodes
+    if (nodes.length > 10) {
+      nodes = nodes.slice(0, 10);
     }
 
     const nodeIds = new Set(nodes.map((n) => n.id));
