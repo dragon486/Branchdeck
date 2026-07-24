@@ -17,6 +17,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { CallGraphNode, CallGraphEdge } from '@/lib/analyzer';
 import { Layers, MessageSquare, Maximize2, Minimize2, RefreshCw, Search, ArrowRight, ShieldAlert, GitBranch, Database, HardDrive, Server } from 'lucide-react';
+import PillNav from './PillNav';
 
 /* ──────────────────────────────────────────────────────────────────── */
 /*  TYPES & UTILS                                                       */
@@ -619,25 +620,20 @@ function CallFlowGraphInner({
           </div>
         </div>
 
-        {/* Center Section: Segmented View Mode Switcher */}
-        <div className="bg-slate-100/90 p-1 rounded-xl flex items-center gap-0.5 border border-slate-200/70">
-          {[
-            { id: 'request', label: 'Request' },
-            { id: 'data', label: 'Data Flow' },
-            { id: 'dependency', label: 'Dependency' },
-          ].map((mode) => (
-            <button
-              key={mode.id}
-              onClick={() => setActiveViewMode(mode.id as any)}
-              className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-lg transition-all ${
-                activeViewMode === mode.id
-                  ? 'bg-white text-slate-950 shadow-xs border border-slate-200/80 font-black'
-                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              {mode.label}
-            </button>
-          ))}
+        {/* Center Section: React Bits Animated PillNav Switcher */}
+        <div className="flex items-center justify-center">
+          <PillNav
+            activeId={activeViewMode}
+            items={[
+              { id: 'request', label: 'Request Flow', onClick: () => setActiveViewMode('request') },
+              { id: 'data', label: 'Data Flow', onClick: () => setActiveViewMode('data') },
+              { id: 'dependency', label: 'Dependency Flow', onClick: () => setActiveViewMode('dependency') },
+            ]}
+            baseColor="#0f172a"
+            pillColor="#ffffff"
+            hoveredPillTextColor="#ffffff"
+            pillTextColor="#0f172a"
+          />
         </div>
 
         {/* Right Section: Search + Center Camera + Fullscreen */}
