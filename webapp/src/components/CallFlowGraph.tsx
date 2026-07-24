@@ -293,82 +293,87 @@ function CallFlowGraphInner({
 
   const validNodeIds = useMemo(() => new Set(allNodes.map((n) => n.id)), [allNodes]);
 
-  /* ── 2. Capped Focus Graph Filtering & Search Anchor Node Resolution ── */
+  /* ── 2. Capped Focus Graph Filtering (6 to 10 Nodes Max per View Mode) ── */
   const { visibleNodes, visibleEdges } = useMemo(() => {
     let nodes = allNodes;
     let edges = allEdges;
 
-    const q = searchQuery.trim().toLowerCase();
-    const selF = selectedFile ? norm(selectedFile) : '';
-    const selFol = selectedFolder ? norm(selectedFolder) : '';
+    // A. Mode Specific Filter
+    if (activeViewMode === 'request') {
+      // Request Flow: UI -> API Routes -> Controllers
+      nodes = nodes.filter(n => n.type === 'ui' || n.type === 'api' || n.type === 'service');
+    } else if (activeViewMode === 'data') {
+      // Data Flow: Controllers -> Services -> Repositories -> Database
+      nodes = nodes.filter(n => n.type === 'api' || n.type === 'service' || n.type === 'db' || n.type === 'ui');
+    } else if (activeViewMode === 'dependency') {
+      // Dependency Flow: UI -> Services -> Libraries -> External SDKs
+      nodes = nodes.filter(n => n.type === 'service' || n.type === 'lib' || n.type === 'external' || n.type === 'db');
+    }
 
-    // A. Priority Search / Selection Matching across ALL nodes first
-    if (selF) {
-      const target = allNodes.find((n) => {
-        const nf = norm(n.file);
-        return nf === selF || nf.endsWith(selF) || selF.endsWith(nf);
-      });
+    // B. Scope Drill-Down (File / Folder)
+    if (selectedFile) {
+      const target = allNodes.find((n) => n.file === selectedFile);
       if (target) {
         const keep = new Set<string>([target.id]);
         for (const e of edges) {
           if (e.from === target.id) keep.add(e.to);
           if (e.to === target.id) keep.add(e.from);
         }
-        for (const e of edges) {
-          if (keep.has(e.from)) keep.add(e.to);
-          if (keep.has(e.to)) keep.add(e.from);
-        }
         nodes = nodes.filter((n) => keep.has(n.id));
       }
-    } else if (selFol) {
+    } else if (selectedFolder) {
       const inFolder = new Set<string>();
-      for (const n of allNodes) {
-        if (isInsideFolder(n.file, selectedFolder!)) inFolder.add(n.id);
+      for (const n of nodes) {
+        if (isInsideFolder(n.file, selectedFolder)) inFolder.add(n.id);
       }
-      if (inFolder.size > 0) {
-        const keep = new Set<string>(inFolder);
-        for (const e of edges) {
-          if (inFolder.has(e.from)) keep.add(e.to);
-          if (inFolder.has(e.to)) keep.add(e.from);
-        }
-        nodes = nodes.filter((n) => keep.has(n.id));
+      const keep = new Set<string>(inFolder);
+      for (const e of edges) {
+        if (inFolder.has(e.from)) keep.add(e.to);
+        if (inFolder.has(e.to)) keep.add(e.from);
       }
-    } else if (q) {
-      const matched = new Set(
-        allNodes
-          .filter((n) => {
-            const nf = norm(n.file).toLowerCase();
-            const nl = n.label.toLowerCase();
-            return nl.includes(q) || nf.includes(q) || (n.subtitle && n.subtitle.toLowerCase().includes(q));
-          })
-          .map((n) => n.id)
-      );
-      if (matched.size > 0) {
-        const keep = new Set<string>(matched);
-        for (const e of edges) {
-          if (matched.has(e.from)) keep.add(e.to);
-          if (matched.has(e.to)) keep.add(e.from);
-        }
-        for (const e of edges) {
-          if (keep.has(e.from)) keep.add(e.to);
-          if (keep.has(e.to)) keep.add(e.from);
-        }
-        nodes = nodes.filter((n) => keep.has(n.id));
-      }
-    } else {
-      // B. View Mode Specific Filter when no active search/selection override exists
-      if (activeViewMode === 'request') {
-        nodes = nodes.filter(n => n.type === 'ui' || n.type === 'api' || n.type === 'service');
-      } else if (activeViewMode === 'data') {
-        nodes = nodes.filter(n => n.type === 'api' || n.type === 'service' || n.type === 'db' || n.type === 'ui');
-      } else if (activeViewMode === 'dependency') {
-        nodes = nodes.filter(n => n.type === 'service' || n.type === 'lib' || n.type === 'external' || n.type === 'db');
-      }
+      nodes = nodes.filter((n) => keep.has(n.id));
     }
 
-    // C. Dynamic capping to 10 nodes max, preserving anchor nodes
-    if (nodes.length > 10) {
-      nodes = nodes.slice(0, 10);
+    // C. Search Query Filter
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      const matched = new Set(
+        nodes
+          .filter((n) => n.label.toLowerCase().includes(q) || n.file.toLowerCase().includes(q))
+          .map((n) => n.id)
+      );
+      const keep = new Set<string>(matched);
+      for (const e of edges) {
+        if (matched.has(e.from)) keep.add(e.to);
+        if (matched.has(e.to)) keep.add(e.from);
+      }
+      nodes = nodes.filter((n) => keep.has(n.id));
+    }
+
+    // D. CRITICAL: Capping Focus Graph to 8 Nodes Max for Pristine Legibility
+    if (nodes.length > 8) {
+      const rootNode = nodes.find(n => n.type === 'ui') || nodes.find(n => n.type === 'api') || nodes[0];
+      if (rootNode) {
+        const cappedIds = new Set<string>([rootNode.id]);
+        edges.forEach(e => {
+          if (cappedIds.size < 8) {
+            if (e.from === rootNode.id) cappedIds.add(e.to);
+            if (e.to === rootNode.id) cappedIds.add(e.from);
+          }
+        });
+
+        // 2nd hop expansion up to 8 nodes
+        edges.forEach(e => {
+          if (cappedIds.size < 8) {
+            if (cappedIds.has(e.from)) cappedIds.add(e.to);
+            if (cappedIds.has(e.to)) cappedIds.add(e.from);
+          }
+        });
+
+        nodes = nodes.filter(n => cappedIds.has(n.id));
+      } else {
+        nodes = nodes.slice(0, 8);
+      }
     }
 
     const nodeIds = new Set(nodes.map((n) => n.id));
@@ -598,61 +603,54 @@ function CallFlowGraphInner({
 
   return (
     <div className="w-full h-full flex-1 min-h-0 relative font-sans select-none flex flex-col">
-      {/* ── Top Header Control Toolbar ── */}
-      <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none gap-2 flex-wrap">
-
-        {/* Left Badge: Data Flow Diagram Title & Scope */}
-        <div className="bg-white/95 backdrop-blur border border-slate-200 px-3.5 py-1.5 rounded-xl shadow-sm flex items-center gap-2.5 pointer-events-auto">
-          <Layers className="w-4 h-4 text-slate-950" />
+      {/* ── Single Unified Glass Floating Bar ── */}
+      <div className="absolute top-3 left-3 right-3 z-20 pointer-events-auto flex items-center justify-between gap-3 bg-white/95 backdrop-blur-md border border-slate-200/90 p-2 rounded-2xl shadow-sm">
+        
+        {/* Left Section: Title & Scope Badge */}
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-xl bg-slate-950 text-white flex items-center justify-center shadow-xs shrink-0">
+            <Layers className="w-3.5 h-3.5" />
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-black text-slate-950 tracking-tight">Codebase Focus Graph</span>
-            <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-200">
+            <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
               {selectedFeature ? `Feature: ${selectedFeature}` : selectedFile ? `File: ${selectedFile.split('/').pop()}` : 'Authentication Flow'}
             </span>
           </div>
-
-          <button
-            onClick={handleFullViewReset}
-            className="ml-1 bg-slate-950 hover:bg-slate-800 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 shadow-xs"
-            title="Reset position and fit view to all graph nodes"
-          >
-            <RefreshCw className="w-3 h-3" />
-            <span>Center Camera</span>
-          </button>
         </div>
 
-        {/* Right Controls: 4 View Mode Tabs + Search + Fullscreen */}
-        <div className="flex items-center gap-2 pointer-events-auto flex-wrap justify-end">
+        {/* Center Section: Segmented View Mode Switcher */}
+        <div className="bg-slate-100/90 p-1 rounded-xl flex items-center gap-0.5 border border-slate-200/70">
+          {[
+            { id: 'request', label: 'Request' },
+            { id: 'data', label: 'Data Flow' },
+            { id: 'dependency', label: 'Dependency' },
+          ].map((mode) => (
+            <button
+              key={mode.id}
+              onClick={() => setActiveViewMode(mode.id as any)}
+              className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-lg transition-all ${
+                activeViewMode === mode.id
+                  ? 'bg-white text-slate-950 shadow-xs border border-slate-200/80 font-black'
+                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'
+              }`}
+            >
+              {mode.label}
+            </button>
+          ))}
+        </div>
 
-          {/* 4 Architectural View Mode Tabs */}
-          <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-xl p-1 shadow-sm flex items-center gap-0.5">
-            {[
-              { id: 'request', label: 'Request Flow' },
-              { id: 'data', label: 'Data Flow' },
-              { id: 'dependency', label: 'Dependency Flow' },
-            ].map((mode) => (
-              <button
-                key={mode.id}
-                onClick={() => setActiveViewMode(mode.id as any)}
-                className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-lg transition-all ${activeViewMode === mode.id
-                    ? 'bg-slate-950 text-white shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-                  }`}
-              >
-                {mode.label}
-              </button>
-            ))}
-          </div>
-
+        {/* Right Section: Search + Center Camera + Fullscreen */}
+        <div className="flex items-center gap-2">
           {/* Search Box */}
-          <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-xl p-1 shadow-sm flex items-center gap-1">
-            <Search className="w-3.5 h-3.5 text-slate-400 ml-1.5" />
+          <div className="bg-slate-100/90 border border-slate-200/80 rounded-xl px-2.5 py-1 flex items-center gap-1.5 focus-within:bg-white focus-within:border-slate-300 transition-all">
+            <Search className="w-3.5 h-3.5 text-slate-400" />
             <input
               type="text"
-              placeholder="Search focus graph..."
+              placeholder="Search graph..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="text-xs bg-transparent border-none outline-none w-32 placeholder:text-slate-400 font-medium text-slate-800"
+              className="text-xs bg-transparent border-none outline-none w-28 placeholder:text-slate-400 font-medium text-slate-800"
             />
             {searchQuery && (
               <button
@@ -664,14 +662,24 @@ function CallFlowGraphInner({
             )}
           </div>
 
+          {/* Center Camera Button */}
+          <button
+            onClick={handleFullViewReset}
+            className="bg-slate-100 hover:bg-slate-200/80 text-slate-800 text-[10px] font-bold px-2.5 py-1.5 rounded-xl border border-slate-200/80 transition-all flex items-center gap-1.5 shadow-2xs"
+            title="Reset position and fit view to all graph nodes"
+          >
+            <RefreshCw className="w-3 h-3 text-slate-700" />
+            <span>Center Camera</span>
+          </button>
+
+          {/* Fullscreen Mode Button */}
           {onToggleFullscreen && (
             <button
               onClick={onToggleFullscreen}
-              className="bg-white/95 backdrop-blur border border-slate-200 hover:border-slate-300 p-1.5 px-2.5 rounded-xl shadow-sm hover:bg-slate-50 text-slate-700 transition-all flex items-center gap-1.5 text-xs font-bold"
+              className="bg-slate-100 hover:bg-slate-200/80 text-slate-800 p-1.5 rounded-xl border border-slate-200/80 transition-all flex items-center justify-center shadow-2xs"
               title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Mode'}
             >
               {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">{isFullscreen ? 'Exit' : 'Fullscreen'}</span>
             </button>
           )}
         </div>
