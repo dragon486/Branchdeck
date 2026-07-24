@@ -251,8 +251,25 @@ export const ECOMMERCE_DEMO_CALLS: { nodes: CallGraphNode[]; edges: CallGraphEdg
 
 export const SOURCE_EXTENSIONS = new Set([
   '.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.java', '.cpp', '.c', '.cc', '.h', '.hpp',
-  '.cs', '.rs', '.rb', '.php', '.kt', '.swift', '.css', '.scss', '.sass', '.vue', '.svelte'
+  '.cs', '.rs', '.rb', '.php', '.kt', '.swift'
 ]);
+
+export function getDescriptiveNodeLabel(filePath: string): string {
+  if (!filePath) return 'Module';
+  const parts = filePath.replace(/\\/g, '/').split('/').filter(Boolean);
+  const filename = parts[parts.length - 1] || filePath;
+  const cleanName = filename.replace(/\.[^/.]+$/, '');
+  
+  const GENERIC_NAMES = new Set(['route', 'page', 'index', 'layout', 'main', 'app', 'view', 'controller', 'service']);
+  if (GENERIC_NAMES.has(cleanName.toLowerCase())) {
+    if (parts.length >= 3) {
+      return `${parts[parts.length - 3]}/${parts[parts.length - 2]}`;
+    } else if (parts.length >= 2) {
+      return `${parts[parts.length - 2]}/${cleanName}`;
+    }
+  }
+  return cleanName;
+}
 
 export function isSourceFile(file: string): boolean {
   if (!file) return false;
@@ -262,9 +279,9 @@ export function isSourceFile(file: string): boolean {
   // Exclude dotfiles (e.g. .gitignore, .env, .eslintrc)
   if (filename.startsWith('.')) return false;
   
-  // Exclude static HTML, verification files, config, lock, doc files
+  // Exclude static HTML, verification files, config, lock, doc files, styling sheets
   const lowerName = filename.toLowerCase();
-  if (lowerName.endsWith('.html') || lowerName.endsWith('.htm')) return false;
+  if (lowerName.endsWith('.html') || lowerName.endsWith('.htm') || lowerName.endsWith('.css') || lowerName.endsWith('.scss') || lowerName.endsWith('.sass') || lowerName.endsWith('.less')) return false;
   if (lowerName.endsWith('.json') || lowerName.endsWith('.md') || lowerName.endsWith('.txt') || lowerName.endsWith('.lock') || lowerName.endsWith('.yml') || lowerName.endsWith('.yaml') || lowerName.endsWith('.toml')) return false;
   
   // Extract extension
