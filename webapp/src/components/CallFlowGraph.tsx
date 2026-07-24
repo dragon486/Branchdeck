@@ -602,7 +602,7 @@ function CallFlowGraphInner({
   const isEmpty = flowNodes.length === 0;
 
   return (
-    <div className="w-full h-full flex-1 min-h-0 relative font-sans select-none flex flex-col" style={{ height: '100%', minHeight: '500px' }}>
+    <div className="w-full h-full flex-1 min-h-0 relative font-sans select-none flex flex-col">
       {/* ── Top Header Control Toolbar ── */}
       <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none gap-2 flex-wrap">
 
@@ -754,8 +754,7 @@ function CallFlowGraphInner({
         onlyRenderVisibleElements={false}
         nodesDraggable={true}
         nodesConnectable={false}
-        className="w-full h-full min-h-[500px] flex-1 bg-[#f8fafc]"
-        style={{ height: '100%', minHeight: '500px' }}
+        className="w-full h-full min-h-0 flex-1 bg-[#f8fafc]"
         fitView
         fitViewOptions={{ padding: 0.15, duration: 400 }}
       >

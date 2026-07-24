@@ -1125,7 +1125,7 @@ export default function Dashboard() {
       />
 
       {/* 3. Workspace Layout */}
-      <div className="w-full flex-1 flex flex-row gap-4 p-4 pb-6 overflow-hidden relative h-[calc(100vh-135px)]">
+      <div className="w-full flex-1 min-h-0 flex flex-row gap-3 p-3 pb-3 overflow-hidden relative">
         
         {/* Left pane: Project Map */}
         <div className={`h-full flex flex-col bg-white border border-slate-200/80 rounded-xl shadow-sm transition-all duration-300 overflow-hidden flex-shrink-0 ${
@@ -1181,8 +1181,8 @@ export default function Dashboard() {
         </div>
 
         {/* Central Workspace: Call Flow Graph */}
-        <div className="flex-1 h-full flex flex-col gap-4 overflow-hidden relative min-w-0 min-h-0">
-          <div className="flex-1 h-full flex flex-col min-h-0 relative">
+        <div className="flex-1 h-full min-h-0 flex flex-col gap-3 overflow-hidden relative">
+          <div className="flex-1 h-full min-h-0 flex flex-col relative">
              <CallFlowGraph 
               nodes={filteredNodes} 
               edges={filteredEdges} 
