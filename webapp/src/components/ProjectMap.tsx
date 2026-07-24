@@ -20,6 +20,15 @@ interface FolderTreeNode {
   children: Record<string, FolderTreeNode>;
 }
 
+function formatPathForDisplay(filePath: string, maxSegments: number = 3): string {
+  if (!filePath) return '';
+  const parts = filePath.replace(/\\/g, '/').split('/').filter(Boolean);
+  if (parts.length <= maxSegments) {
+    return parts.join('/');
+  }
+  return `.../${parts.slice(-maxSegments).join('/')}`;
+}
+
 export default function ProjectMap({
   features,
   onSelectFile,
@@ -265,8 +274,7 @@ export default function ProjectMap({
                   {isOpen && (
                     <div className="pl-6 pr-3 pb-3 pt-1 border-t border-slate-100 bg-slate-50/30 space-y-1">
                       {feat.files.map(file => {
-                        const parts = file.split('/');
-                        const displayName = parts.length > 1 ? `${parts[parts.length - 2]}/${parts[parts.length - 1]}` : file;
+                        const formattedPath = formatPathForDisplay(file, 3);
                         return (
                           <button
                             key={file}
@@ -278,9 +286,8 @@ export default function ProjectMap({
                                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
                             }`}
                           >
-                            <FileText className="w-3.5 h-3.5 opacity-70" />
-                            <span className="truncate">{displayName}</span>
-                            <span className="text-[9px] text-slate-450 ml-auto truncate max-w-[90px]">{file.substring(0, file.lastIndexOf('/'))}</span>
+                            <FileText className="w-3.5 h-3.5 opacity-70 shrink-0" />
+                            <span className="truncate" title={file}>{formattedPath}</span>
                           </button>
                         );
                       })}

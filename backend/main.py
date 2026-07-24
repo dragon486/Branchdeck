@@ -231,6 +231,31 @@ ECOMMERCE_DEMO_CALLS = {
     ]
 }
 
+SOURCE_EXTENSIONS = {
+    ".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".java", ".cpp", ".c", ".cc", ".h", ".hpp",
+    ".cs", ".rs", ".rb", ".php", ".kt", ".swift", ".css", ".scss", ".sass", ".vue", ".svelte"
+}
+
+def is_source_file(file_path: str) -> bool:
+    if not file_path:
+        return False
+    normalized = file_path.replace("\\", "/").strip()
+    filename = normalized.split("/")[-1]
+    
+    # Exclude dotfiles (.gitignore, .env, .eslintrc)
+    if filename.startswith("."):
+        return False
+        
+    lower_name = filename.lower()
+    if lower_name.endswith((".html", ".htm", ".json", ".md", ".txt", ".lock", ".yml", ".yaml", ".toml", ".csv", ".map")):
+        return False
+        
+    parts = lower_name.rsplit(".", 1)
+    if len(parts) < 2:
+        return False
+    ext = f".{parts[1]}"
+    return ext in SOURCE_EXTENSIONS
+
 def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str, org_id: str):
     from database import SessionLocal, IndexingJob, Repository, Commit, CodeNode, CodeEdge, FileCache, normalize_path
     from parser import parse_file
@@ -264,6 +289,10 @@ def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str,
                 db.commit()
                 return
                 
+        # Filter files to only source code files for AST graph indexing
+        filtered_source_files = [f for f in files if is_source_file(f)]
+        indexed_files = filtered_source_files if filtered_source_files else files
+
         # 2. Setup repository scoped to organization
         repo = db.query(Repository).filter_by(organization_id=org_id, name=repo_name).first()
         if not repo:
@@ -285,11 +314,11 @@ def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str,
         db.query(CodeEdge).filter(CodeEdge.commit_sha == commit_sha, CodeEdge.repo_id == repo.id).delete(synchronize_session=False)
         db.commit()
         
-        total_files = len(files)
+        total_files = len(indexed_files)
         seen_paths = set()
         
         # First Pass: Parse files and save nodes + chunks
-        for idx, raw_file in enumerate(files):
+        for idx, raw_file in enumerate(indexed_files):
             file = normalize_path(raw_file)
             if not file or file in seen_paths:
                 continue
@@ -364,12 +393,12 @@ def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str,
             
         # Build declarations map
         decl_to_node = {}
-        for idx, file in enumerate(files):
+        for idx, file in enumerate(indexed_files):
             source_node_id = f"{repo.id}:{commit_sha}:{file}"
             content = ""
-            full_path = validated_files[file]
+            full_path = validated_files.get(file) or (validated_files[file] if file in validated_files else None)
             try:
-                if check_file_permission(full_path):
+                if full_path and check_file_permission(full_path):
                     with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
                         content = f.read()
             except Exception:
@@ -386,11 +415,11 @@ def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str,
             db.commit()
             
         # Create edges
-        for idx, file in enumerate(files):
-            full_path = validated_files[file]
+        for idx, file in enumerate(indexed_files):
+            full_path = validated_files.get(file) or (validated_files[file] if file in validated_files else None)
             content = ""
             try:
-                if check_file_permission(full_path):
+                if full_path and check_file_permission(full_path):
                     with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
                         content = f.read()
             except Exception:
@@ -413,7 +442,7 @@ def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str,
                     clean_imp = clean_imp[2:]
                     
                 matched_file = None
-                for f in files:
+                for f in indexed_files:
                     if clean_imp in f:
                         matched_file = f
                         break

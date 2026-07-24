@@ -23,6 +23,7 @@ interface CallFlowGraphProps {
   edges: CallGraphEdge[];
   onSelectNode: (node: CallGraphNode) => void;
   selectedFile: string | null;
+  selectedFolder?: string | null;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
   members?: any[];
@@ -138,7 +139,7 @@ const nodeTypes = {
   customCall: CustomCallNode
 };
 
-function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullscreen, members, repoSource }: CallFlowGraphProps) {
+function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selectedFolder, isFullscreen, members, repoSource }: CallFlowGraphProps) {
   const { fitView } = useReactFlow();
 
   // 1. Build memoized node set for fast validation
@@ -264,19 +265,30 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullsc
           }));
       }
 
+      const norm = (p: string) => p.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, '');
+      const isInsideFolder = (file: string, folder: string) => {
+        const normFile = norm(file);
+        const normFolder = norm(folder);
+        return normFile.startsWith(`${normFolder}/`) || normFile.includes(`/${normFolder}/`) || normFile === normFolder;
+      };
+
+      const isNodeActive = selectedFile 
+        ? node.file === selectedFile 
+        : (selectedFolder ? isInsideFolder(node.file, selectedFolder) : false);
+
       return {
         id: node.id,
         type: 'customCall',
         position: pos,
         data: {
           ...node,
-          isTarget: selectedFile ? node.file === selectedFile : index === 0,
+          isTarget: isNodeActive,
           activeFileSelected: isCurrentFileActive,
           liveUsers: nodeLiveUsers
         }
       };
     });
-  }, [nodes, edges, selectedFile, members, validNodeIds]);
+  }, [nodes, edges, selectedFile, selectedFolder, members, validNodeIds]);
 
   // 3. Format valid, deduplicated edges with smoothstep routing
   const computedEdges = useMemo(() => {
@@ -296,10 +308,23 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullsc
 
     const uniqueEdges = Array.from(edgeMap.values());
 
+    const norm = (p: string) => p.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, '');
+    const isInsideFolder = (file: string, folder: string) => {
+      const normFile = norm(file);
+      const normFolder = norm(folder);
+      return normFile.startsWith(`${normFolder}/`) || normFile.includes(`/${normFolder}/`) || normFile === normFolder;
+    };
+
     return uniqueEdges.map((edge, index) => {
-      const isSourceActive = selectedFile ? edge.from.includes(selectedFile) : false;
-      const isTargetActive = selectedFile ? edge.to.includes(selectedFile) : false;
-      const isActivePath = selectedFile ? (isSourceActive || isTargetActive) : index === 0;
+      const isSourceActive = selectedFile 
+        ? edge.from.includes(selectedFile) 
+        : (selectedFolder ? isInsideFolder(edge.from, selectedFolder) : false);
+        
+      const isTargetActive = selectedFile 
+        ? edge.to.includes(selectedFile) 
+        : (selectedFolder ? isInsideFolder(edge.to, selectedFolder) : false);
+
+      const isActivePath = (selectedFile || selectedFolder) ? (isSourceActive || isTargetActive) : false;
 
       const combinedLabel = edge.labels.length > 0 ? edge.labels.slice(0, 2).join(' / ') : undefined;
 
@@ -313,7 +338,7 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullsc
         style: {
           stroke: isActivePath ? '#0284c7' : '#94a3b8',
           strokeWidth: isActivePath ? 2.5 : 1.2,
-          opacity: selectedFile ? (isActivePath ? 1 : 0.25) : 0.75,
+          opacity: (selectedFile || selectedFolder) ? (isActivePath ? 1 : 0.25) : 0.75,
           strokeDasharray: '4,4'
         },
         labelStyle: { fill: isActivePath ? '#0f172a' : '#475569', fontSize: 9, fontWeight: 600, fontFamily: 'monospace' },
@@ -322,7 +347,7 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, isFullsc
         labelBgStyle: { fill: '#ffffff', color: '#0f172a', stroke: isActivePath ? '#0284c7' : '#cbd5e1', strokeWidth: isActivePath ? 1 : 0.5 }
       };
     });
-  }, [edges, validNodeIds, selectedFile]);
+  }, [edges, validNodeIds, selectedFile, selectedFolder]);
 
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(computedNodes);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>(computedEdges);

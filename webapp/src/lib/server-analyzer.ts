@@ -1,7 +1,7 @@
 import { Project, SyntaxKind } from 'ts-morph';
 import * as path from 'path';
 import * as fs from 'fs';
-import { CallGraphNode, CallGraphEdge, generateCallGraphFromFiles } from './analyzer';
+import { CallGraphNode, CallGraphEdge, generateCallGraphFromFiles, isSourceFile } from './analyzer';
 
 // Builds a true AST-parsed static call and dependency graph from local files
 export function generateCallGraphFromAST(workspacePath: string, files: string[]): { nodes: CallGraphNode[]; edges: CallGraphEdge[] } {
@@ -17,6 +17,7 @@ export function generateCallGraphFromAST(workspacePath: string, files: string[])
   
   // Filter for TS/JS source files and build absolute paths
   const absoluteFiles = files
+    .filter(isSourceFile)
     .filter(f => f.endsWith('.ts') || f.endsWith('.tsx') || f.endsWith('.js') || f.endsWith('.jsx'))
     .map(f => path.join(cleanWorkspace, f).replace(/\\/g, '/'));
   
@@ -39,7 +40,7 @@ export function generateCallGraphFromAST(workspacePath: string, files: string[])
   const commitSha = 'local-commit';
 
   // Create code graph nodes representing files
-  files.forEach((file) => {
+  files.filter(isSourceFile).forEach((file) => {
     const normalizedFile = file.replace(/\\/g, '/').replace(/^\.\//, '');
     const filename = normalizedFile.split('/').pop() || normalizedFile;
     const cleanName = filename.replace(/\.[^/.]+$/, "");

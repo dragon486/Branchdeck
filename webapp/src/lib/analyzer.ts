@@ -249,14 +249,33 @@ export const ECOMMERCE_DEMO_CALLS: { nodes: CallGraphNode[]; edges: CallGraphEdg
   ]
 };
 
+export const SOURCE_EXTENSIONS = new Set([
+  '.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.java', '.cpp', '.c', '.cc', '.h', '.hpp',
+  '.cs', '.rs', '.rb', '.php', '.kt', '.swift', '.css', '.scss', '.sass', '.vue', '.svelte'
+]);
+
+export function isSourceFile(file: string): boolean {
+  if (!file) return false;
+  const normalized = file.replace(/\\/g, '/');
+  const filename = normalized.split('/').pop() || '';
+  
+  // Exclude dotfiles (e.g. .gitignore, .env, .eslintrc)
+  if (filename.startsWith('.')) return false;
+  
+  // Exclude static HTML, verification files, config, lock, doc files
+  const lowerName = filename.toLowerCase();
+  if (lowerName.endsWith('.html') || lowerName.endsWith('.htm')) return false;
+  if (lowerName.endsWith('.json') || lowerName.endsWith('.md') || lowerName.endsWith('.txt') || lowerName.endsWith('.lock') || lowerName.endsWith('.yml') || lowerName.endsWith('.yaml') || lowerName.endsWith('.toml')) return false;
+  
+  // Extract extension
+  const extMatch = lowerName.match(/\.[^/.]+$/);
+  if (!extMatch) return false;
+  
+  return SOURCE_EXTENSIONS.has(extMatch[0]);
+}
+
 // Helper: Filter out non-code assets and rank high-value architecture files for large scale repos
 export function filterHighValueCodeFiles(files: string[], maxFiles: number = 180): string[] {
-  const IGNORED_EXTS = new Set([
-    '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp', '.woff', '.woff2', '.ttf', '.eot',
-    '.mp4', '.pdf', '.zip', '.tar', '.gz', '.lock', '.json', '.md', '.txt', '.csv', '.map',
-    '.min.js', '.min.css', '.d.ts', '.po', '.pot', '.mo', '.yml', '.yaml', '.toml'
-  ]);
-
   const IGNORED_DIRS = [
     'node_modules/', 'vendor/', 'third_party/', '.git/', 'dist/', 'build/', '.next/', '.out/',
     '__tests__/', 'test/', 'tests/', 'fixtures/', 'spec/', 'coverage/', 'docs/', '.github/'
@@ -265,9 +284,7 @@ export function filterHighValueCodeFiles(files: string[], maxFiles: number = 180
   const codeFiles = files.filter(f => {
     const fLower = f.toLowerCase();
     if (IGNORED_DIRS.some(dir => fLower.includes(dir))) return false;
-    const extMatch = fLower.match(/\.[^/.]+$/);
-    if (extMatch && IGNORED_EXTS.has(extMatch[0])) return false;
-    return true;
+    return isSourceFile(f);
   });
 
   if (codeFiles.length <= maxFiles) return codeFiles;
@@ -510,14 +527,17 @@ export function generateCallGraphFromFiles(
     }
   };
 
-  // Connect logical architecture layers using indexed bucketing
+  const genericSegments = new Set(['src', 'app', 'components', 'lib', 'utils', 'helpers', 'views', 'pages', 'api', 'services', 'models']);
+  
   nodes.forEach(sourceNode => {
-    const dir = sourceNode.file.substring(0, Math.max(0, sourceNode.file.lastIndexOf('/')));
-
-    // 1. Connect sibling files sharing parent folder
-    const siblings = dirMap.get(dir) || [];
-    siblings.forEach(targetNode => {
-      if (sourceNode.id !== targetNode.id) {
+    const sourceSegments = sourceNode.file.toLowerCase().split('/').filter(s => s && !genericSegments.has(s));
+    
+    nodes.forEach(targetNode => {
+      if (sourceNode.id === targetNode.id) return;
+      
+      const hasSharedDomain = sourceSegments.some(seg => targetNode.file.toLowerCase().includes(seg));
+      
+      if (hasSharedDomain) {
         if (sourceNode.type === 'ui' && (targetNode.type === 'service' || targetNode.type === 'api')) {
           addEdge(sourceNode.id, targetNode.id, 'uses');
         } else if (sourceNode.type === 'api' && (targetNode.type === 'service' || targetNode.type === 'db')) {

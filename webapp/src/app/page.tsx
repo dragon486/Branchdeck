@@ -1186,6 +1186,7 @@ export default function Dashboard() {
               edges={filteredEdges} 
               onSelectNode={handleSelectNode} 
               selectedFile={selectedFile}
+              selectedFolder={selectedFolder}
               isFullscreen={isGraphFullscreen}
               members={displayMembers}
               repoSource={repoSource}
