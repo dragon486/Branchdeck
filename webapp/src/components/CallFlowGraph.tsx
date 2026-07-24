@@ -141,6 +141,7 @@ const nodeTypes = {
 
 function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selectedFolder, isFullscreen, members, repoSource }: CallFlowGraphProps) {
   const { fitView } = useReactFlow();
+  const draggedPositionsRef = React.useRef<Record<string, { x: number; y: number }>>({});
 
   // 1. Build memoized node set for fast validation
   const validNodeIds = useMemo(() => new Set(nodes.map(n => n.id)), [nodes]);
@@ -204,8 +205,8 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selected
     });
 
     const computedPositions: Record<string, { x: number; y: number }> = {};
-    const levelHeight = 220;
-    const nodeWidth = 300;
+    const levelHeight = 240;
+    const nodeWidth = 340;
 
     Object.entries(nodesByLevel).forEach(([levelStr, nodeIds]) => {
       const level = parseInt(levelStr, 10);
@@ -221,10 +222,11 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selected
     });
 
     return nodes.map((node, index) => {
-      const pos = computedPositions[node.id] || { 
+      const initialPos = computedPositions[node.id] || { 
         x: (index % 2 === 0 ? -150 : 150), 
         y: index * 240 
       };
+      const pos = draggedPositionsRef.current[node.id] || initialPos;
 
       let isCurrentFileActive = false;
       if (selectedFile) {
@@ -352,8 +354,29 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selected
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(computedNodes);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>(computedEdges);
 
+  const handleNodesChange = React.useCallback((changes: any) => {
+    changes.forEach((change: any) => {
+      if (change.type === 'position' && change.position) {
+        draggedPositionsRef.current[change.id] = change.position;
+      }
+    });
+    onNodesChange(changes);
+  }, [onNodesChange]);
+
   useEffect(() => {
-    setFlowNodes(computedNodes);
+    setFlowNodes(prevNodes => {
+      return computedNodes.map(cn => {
+        const dragged = draggedPositionsRef.current[cn.id];
+        if (dragged) {
+          return { ...cn, position: dragged };
+        }
+        const existing = prevNodes.find(pn => pn.id === cn.id);
+        if (existing) {
+          return { ...cn, position: existing.position };
+        }
+        return cn;
+      });
+    });
     setFlowEdges(computedEdges);
   }, [computedNodes, computedEdges, setFlowNodes, setFlowEdges]);
 
@@ -372,7 +395,7 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selected
       nodes={flowNodes}
       edges={flowEdges}
       nodeTypes={nodeTypes}
-      onNodesChange={onNodesChange}
+      onNodesChange={handleNodesChange}
       onEdgesChange={onEdgesChange}
       onNodeClick={(_, node) => onSelectNode(node.data as unknown as CallGraphNode)}
       minZoom={0.2}

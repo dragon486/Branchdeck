@@ -527,15 +527,29 @@ export function generateCallGraphFromFiles(
     }
   };
 
-  const genericSegments = new Set(['src', 'app', 'components', 'lib', 'utils', 'helpers', 'views', 'pages', 'api', 'services', 'models']);
+  const genericSegments = new Set([
+    'src', 'app', 'components', 'lib', 'utils', 'helpers', 'views', 'pages', 'api', 'services', 'models',
+    'webapp', 'backend', 'frontend', 'client', 'server', 'packages', 'apps', 'modules', 'projects', 'project',
+    'main', 'master', 'dev', 'prod', 'dist', 'build', 'public', 'static'
+  ]);
   
   nodes.forEach(sourceNode => {
-    const sourceSegments = sourceNode.file.toLowerCase().split('/').filter(s => s && !genericSegments.has(s));
+    const sourceSegments = sourceNode.file
+      .toLowerCase()
+      .split('/')
+      .filter(s => s && s.length >= 3 && !genericSegments.has(s) && !s.includes('.'));
     
     nodes.forEach(targetNode => {
       if (sourceNode.id === targetNode.id) return;
       
-      const hasSharedDomain = sourceSegments.some(seg => targetNode.file.toLowerCase().includes(seg));
+      const targetSegments = new Set(
+        targetNode.file
+          .toLowerCase()
+          .split('/')
+          .filter(s => s && s.length >= 3 && !genericSegments.has(s) && !s.includes('.'))
+      );
+      
+      const hasSharedDomain = sourceSegments.some(seg => targetSegments.has(seg));
       
       if (hasSharedDomain) {
         if (sourceNode.type === 'ui' && (targetNode.type === 'service' || targetNode.type === 'api')) {
