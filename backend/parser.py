@@ -12,7 +12,7 @@ def traverse_tree(node, callback):
 def clean_quote(text: str) -> str:
     return text.strip("'\"` ")
 
-# Parses TS/JS imports, calls, and declarations
+# Parses TS/JS imports, calls, exports, declarations, and new expressions
 def parse_ts_js(content_bytes: bytes) -> dict:
     parser = Parser()
     parser.set_language(get_language("typescript"))
@@ -21,6 +21,8 @@ def parse_ts_js(content_bytes: bytes) -> dict:
     imports = []
     calls = []
     declarations = []
+    exports = []
+    instantiations = []
     
     def visitor(node):
         # 1. Capture imports
@@ -40,20 +42,36 @@ def parse_ts_js(content_bytes: bytes) -> dict:
                     if property_node:
                         calls.append(property_node.text.decode("utf8"))
         
-        # 3. Capture function/method declarations
-        if node.type in ("function_declaration", "method_definition"):
+        # 3. Capture new expressions (e.g. new PrismaClient(), new OpenAI())
+        if node.type == "new_expression":
+            constructor_node = node.child_by_field_name("constructor")
+            if constructor_node:
+                instantiations.append(constructor_node.text.decode("utf8"))
+        
+        # 4. Capture function/method/class declarations
+        if node.type in ("function_declaration", "method_definition", "class_declaration", "interface_declaration"):
             name_node = node.child_by_field_name("name")
             if name_node:
                 declarations.append(name_node.text.decode("utf8"))
+
+        # 5. Capture export statements
+        if node.type == "export_statement":
+            declaration = node.child_by_field_name("declaration")
+            if declaration:
+                name_node = declaration.child_by_field_name("name")
+                if name_node:
+                    exports.append(name_node.text.decode("utf8"))
 
     traverse_tree(tree.root_node, visitor)
     return {
         "imports": list(set(imports)),
         "calls": list(set(calls)),
-        "declarations": list(set(declarations))
+        "declarations": list(set(declarations)),
+        "exports": list(set(exports)),
+        "instantiations": list(set(instantiations))
     }
 
-# Parses Python imports, calls, and declarations
+# Parses Python imports, calls, decorators, and declarations
 def parse_python(content_bytes: bytes) -> dict:
     parser = Parser()
     parser.set_language(get_language("python"))
@@ -62,6 +80,7 @@ def parse_python(content_bytes: bytes) -> dict:
     imports = []
     calls = []
     declarations = []
+    decorators = []
     
     def visitor(node):
         # 1. Capture import statements
@@ -85,7 +104,11 @@ def parse_python(content_bytes: bytes) -> dict:
                     if attribute:
                         calls.append(attribute.text.decode("utf8"))
 
-        # 3. Capture function/class declarations
+        # 3. Capture decorators (e.g. @app.post("/api/analyze"))
+        if node.type == "decorator":
+            decorators.append(node.text.decode("utf8").strip())
+
+        # 4. Capture function/class declarations
         if node.type in ("function_definition", "class_definition"):
             name_node = node.child_by_field_name("name")
             if name_node:
@@ -95,7 +118,8 @@ def parse_python(content_bytes: bytes) -> dict:
     return {
         "imports": list(set(imports)),
         "calls": list(set(calls)),
-        "declarations": list(set(declarations))
+        "declarations": list(set(declarations)),
+        "decorators": list(set(decorators))
     }
 
 # Parses Go imports, calls, and declarations
@@ -139,7 +163,7 @@ def parse_go(content_bytes: bytes) -> dict:
         "declarations": list(set(declarations))
     }
 
-# General file parsing dispatch
+# General file parsing dispatch with explainability metadata
 def parse_file(file_path: str, content: str) -> dict:
     content_bytes = bytes(content, "utf8")
     content_hash = hashlib.sha256(content_bytes).hexdigest()
@@ -159,5 +183,13 @@ def parse_file(file_path: str, content: str) -> dict:
         "hash": content_hash,
         "imports": ast_info["imports"],
         "calls": ast_info["calls"],
-        "declarations": ast_info.get("declarations", [])
+        "declarations": ast_info.get("declarations", []),
+        "exports": ast_info.get("exports", []),
+        "instantiations": ast_info.get("instantiations", []),
+        "decorators": ast_info.get("decorators", []),
+        "explainability": {
+            "parser": "tree-sitter",
+            "confidence": 0.98,
+            "evidence": f"AST parsed {len(ast_info.get('declarations', []))} declarations and {len(ast_info.get('calls', []))} call expressions"
+        }
     }

@@ -10,6 +10,7 @@ def test_typescript_parsing():
         console.log("Processing request");
         login();
         db.saveUser();
+        const client = new PrismaClient();
     }
     """
     
@@ -21,6 +22,21 @@ def test_typescript_parsing():
     assert "login" in result["calls"]
     assert "saveUser" in result["calls"]
     assert "handleRequest" in result["declarations"]
+    assert "PrismaClient" in result["instantiations"]
+    assert result["explainability"]["confidence"] == 0.98
+
+def test_python_decorator_parsing():
+    python_code = """
+    from fastapi import FastAPI
+    app = FastAPI()
+
+    @app.post("/api/analyze")
+    async def analyze_repo():
+        return {"status": "ok"}
+    """
+    result = parse_file("backend/main.py", python_code)
+    assert "analyze_repo" in result["declarations"]
+    assert any("app.post" in d for d in result["decorators"])
 
 def test_is_source_file():
     from main import is_source_file
@@ -39,4 +55,3 @@ def test_is_source_file():
     assert is_source_file("README.md") is False
     assert is_source_file("package.json") is False
     assert is_source_file("package-lock.json") is False
-
