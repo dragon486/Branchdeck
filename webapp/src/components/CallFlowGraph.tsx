@@ -521,13 +521,12 @@ function CallFlowGraphInner({
     setFlowEdges(computedEdges);
   }, [computedNodes, computedEdges, setFlowNodes, setFlowEdges]);
 
-  // Fast single-pass camera adjustment on mount/node changes
+  // Double-pass fitView camera adjustment after DOM measurement
   useEffect(() => {
     if (computedNodes.length > 0) {
-      const timer = setTimeout(() => {
-        fitView({ padding: 0.15, duration: 0 });
-      }, 80);
-      return () => clearTimeout(timer);
+      const t1 = setTimeout(() => fitView({ padding: 0.15, duration: 0 }), 50);
+      const t2 = setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 250);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
     }
   }, [computedNodes.length, fitView, isFullscreen]);
 
@@ -541,8 +540,22 @@ function CallFlowGraphInner({
     }
   }, [searchQuery, fitView]);
 
+  if (nodes.length === 0) {
+    return (
+      <div className="w-full h-full min-h-[400px] flex flex-col items-center justify-center bg-[#f8fafc] text-slate-500 gap-3 font-sans p-6 rounded-xl border border-slate-200/80">
+        <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center">
+          <RefreshCw className="w-5 h-5 text-slate-700 animate-spin" />
+        </div>
+        <div className="flex flex-col items-center gap-1 text-center">
+          <span className="text-xs font-bold text-slate-800">Generating Codebase Call Flow Graph...</span>
+          <span className="text-[11px] text-slate-400 font-mono">Parsing AST nodes & mapping dependency edges...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full min-h-[400px] relative">
       {/* Top Header Control Toolbar */}
       <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none gap-2">
         <div className="bg-white/95 backdrop-blur border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-2 pointer-events-auto">
@@ -619,7 +632,7 @@ function CallFlowGraphInner({
         onlyRenderVisibleElements={true}
         nodesDraggable={true}
         nodesConnectable={false}
-        className="w-full h-full bg-[#f8fafc]"
+        className="w-full h-full min-h-[400px] bg-[#f8fafc]"
       >
         <Background color="rgba(148, 163, 184, 0.3)" gap={18} size={1} />
         <Controls showInteractive={false} className="!bg-white !border-slate-200/80 !shadow-sm !rounded-lg" />
@@ -631,7 +644,7 @@ function CallFlowGraphInner({
 export default function CallFlowGraph({ isFullscreen, onToggleFullscreen, onResetFocus, isFocused, ...props }: CallFlowGraphProps) {
   const containerClasses = isFullscreen
     ? "fixed inset-0 z-50 bg-[#f8fafc] p-4 flex flex-col w-screen h-screen font-sans select-none"
-    : "w-full flex-grow flex flex-col bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm font-sans";
+    : "w-full h-full min-h-[400px] flex-grow flex flex-col bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm font-sans";
 
   return (
     <div className={containerClasses}>
