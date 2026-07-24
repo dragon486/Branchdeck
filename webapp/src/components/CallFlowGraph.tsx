@@ -98,7 +98,7 @@ function CustomCallNode({
           topBorder: 'border-t-4 border-t-cyan-500',
           badge: 'bg-cyan-50 text-cyan-700 border-cyan-200/80',
           glow: 'hover:shadow-[0_12px_28px_rgba(6,182,212,0.2)]',
-          cardSize: 'w-[300px]',
+          cardSize: 'w-[310px]',
         };
       case 'api':
         return {
@@ -271,11 +271,31 @@ function CallFlowGraphInner({
 }: CallFlowGraphProps) {
   const { fitView } = useReactFlow();
 
-  const [activeViewMode, setActiveViewMode] = useState<'request' | 'data' | 'dependency' | 'impact'>('data');
+  const [activeViewMode, setActiveViewMode] = useState<'request' | 'data' | 'dependency'>('data');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [fitKey, setFitKey] = useState(0);
   const draggedPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
+  
+  // Real-time container dimensions measurement
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerBounds, setContainerBounds] = useState<{ width: number; height: number }>({ width: 900, height: 600 });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+          setContainerBounds({
+            width: entry.contentRect.width,
+            height: entry.contentRect.height,
+          });
+        }
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   /* ── 1. Dedupe incoming nodes & edges ── */
   const { allNodes, allEdges } = useMemo(() => {
@@ -296,20 +316,17 @@ function CallFlowGraphInner({
 
   const validNodeIds = useMemo(() => new Set(allNodes.map((n) => n.id)), [allNodes]);
 
-  /* ── 2. Capped Focus Graph Filtering (6 to 10 Nodes Max per View Mode) ── */
+  /* ── 2. Capped Focus Graph Filtering (6 to 8 Nodes Max per View Mode) ── */
   const { visibleNodes, visibleEdges } = useMemo(() => {
     let nodes = allNodes;
     let edges = allEdges;
 
     // A. Mode Specific Filter
     if (activeViewMode === 'request') {
-      // Request Flow: UI -> API Routes -> Controllers
       nodes = nodes.filter(n => n.type === 'ui' || n.type === 'api' || n.type === 'service');
     } else if (activeViewMode === 'data') {
-      // Data Flow: Controllers -> Services -> Repositories -> Database
       nodes = nodes.filter(n => n.type === 'api' || n.type === 'service' || n.type === 'db' || n.type === 'ui');
     } else if (activeViewMode === 'dependency') {
-      // Dependency Flow: UI -> Services -> Libraries -> External SDKs
       nodes = nodes.filter(n => n.type === 'service' || n.type === 'lib' || n.type === 'external' || n.type === 'db');
     }
 
@@ -353,7 +370,7 @@ function CallFlowGraphInner({
       nodes = nodes.filter((n) => keep.has(n.id));
     }
 
-    // D. CRITICAL: Capping Focus Graph to 8 Nodes Max for Pristine Legibility
+    // D. Capping Focus Graph to 8 Nodes Max for Pristine Legibility
     if (nodes.length > 8) {
       const rootNode = nodes.find(n => n.type === 'ui') || nodes.find(n => n.type === 'api') || nodes[0];
       if (rootNode) {
@@ -365,7 +382,6 @@ function CallFlowGraphInner({
           }
         });
 
-        // 2nd hop expansion up to 8 nodes
         edges.forEach(e => {
           if (cappedIds.size < 8) {
             if (cappedIds.has(e.from)) cappedIds.add(e.to);
@@ -385,7 +401,7 @@ function CallFlowGraphInner({
     return { visibleNodes: nodes, visibleEdges: edges };
   }, [allNodes, allEdges, selectedFile, selectedFolder, searchQuery, activeViewMode]);
 
-  /* ── 3. Horizontal Tier Matrix Layout (80–90% Viewport Fill) ── */
+  /* ── 3. Dynamic Responsive Matrix Layout (80–90% Viewport Fill) ── */
   const layoutedNodes = useMemo(() => {
     if (visibleNodes.length === 0) return [];
 
@@ -403,8 +419,13 @@ function CallFlowGraphInner({
       }
     });
 
-    const COL_W = 380;
-    const ROW_H = 190;
+    const activeCols = Object.keys(columns).map(Number).filter(col => columns[col].length > 0);
+    const numCols = Math.max(1, activeCols.length);
+    const maxRowsInCol = Math.max(...Object.values(columns).map(arr => arr.length), 1);
+
+    // Calculate dynamic responsive column & row gaps based on container dimensions
+    const colGap = Math.max(340, Math.min(460, (containerBounds.width * 0.82) / numCols));
+    const rowGap = Math.max(180, Math.min(250, (containerBounds.height * 0.76) / maxRowsInCol));
 
     const pos: Record<string, { x: number; y: number }> = {};
     let stepCount = 1;
@@ -412,13 +433,13 @@ function CallFlowGraphInner({
     [0, 1, 2, 3].forEach(colIdx => {
       const nodesInCol = columns[colIdx];
       const count = nodesInCol.length;
-      const startY = -((count - 1) * ROW_H) / 2;
-      const x = colIdx * COL_W - 550; // Center matrix around x = 0
+      const startY = -((count - 1) * rowGap) / 2;
+      const x = colIdx * colGap - ((numCols - 1) * colGap) / 2;
 
       nodesInCol.forEach((node, rowIdx) => {
         pos[node.id] = {
           x,
-          y: startY + rowIdx * ROW_H
+          y: startY + rowIdx * rowGap
         };
       });
     });
@@ -431,9 +452,9 @@ function CallFlowGraphInner({
         _pos: p
       };
     });
-  }, [visibleNodes]);
+  }, [visibleNodes, containerBounds]);
 
-  /* ── 4. Build React Flow nodes & edges ── */
+  /* ── 4. Build React Flow nodes & smooth-step edges ── */
   const computedNodes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
 
@@ -540,7 +561,8 @@ function CallFlowGraphInner({
         id: `edge-${edge.from}-${edge.to}`,
         source: edge.from,
         target: edge.to,
-        type: 'default' as const,
+        type: 'smoothstep' as const,
+        pathOptions: { borderRadius: 10 },
         label: numberedLabel,
         animated: isConn,
         style: {
@@ -562,7 +584,7 @@ function CallFlowGraphInner({
     });
   }, [visibleEdges, visibleNodes, hoveredNodeId, searchQuery]);
 
-  /* ── 5. React Flow state & Google Maps Style Camera Auto-Centering ── */
+  /* ── 5. React Flow state & Camera Auto-Fit ── */
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(computedNodes);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>(computedEdges);
 
@@ -574,13 +596,13 @@ function CallFlowGraphInner({
   // Google Maps Style Camera Auto-Center Focus (80-90% Viewport Fill)
   useEffect(() => {
     if (flowNodes.length === 0) return;
-    const t1 = setTimeout(() => fitView({ padding: 0.18, duration: 400 }), 80);
-    const t2 = setTimeout(() => fitView({ padding: 0.18, duration: 300 }), 300);
+    const t1 = setTimeout(() => fitView({ padding: 0.12, duration: 400 }), 80);
+    const t2 = setTimeout(() => fitView({ padding: 0.12, duration: 300 }), 300);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [flowNodes.length, flowEdges.length, fitKey, activeViewMode, fitView]);
+  }, [flowNodes.length, flowEdges.length, fitKey, activeViewMode, containerBounds, fitView]);
 
   const handleNodesChange = useCallback(
     (changes: any) => {
@@ -605,7 +627,7 @@ function CallFlowGraphInner({
   const isEmpty = flowNodes.length === 0;
 
   return (
-    <div className="w-full h-full flex-1 min-h-0 relative font-sans select-none flex flex-col">
+    <div ref={containerRef} className="w-full h-full flex-1 min-h-0 relative font-sans select-none flex flex-col">
       {/* ── Top Header Control Toolbar ── */}
       <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none gap-2 flex-wrap">
         
@@ -629,10 +651,10 @@ function CallFlowGraphInner({
           </button>
         </div>
 
-        {/* Right Controls: 4 View Mode Tabs + Search + Fullscreen */}
+        {/* Right Controls: 3 View Mode Tabs + Search + Fullscreen */}
         <div className="flex items-center gap-2 pointer-events-auto flex-wrap justify-end">
           
-          {/* 4 Architectural View Mode Tabs */}
+          {/* 3 Architectural View Mode Tabs */}
           <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-xl p-1 shadow-sm flex items-center gap-0.5">
             {[
               { id: 'request', label: 'Request Flow' },
