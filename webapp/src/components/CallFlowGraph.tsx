@@ -74,7 +74,7 @@ function isInsideFolder(file: string, folder: string): boolean {
 }
 
 /* ──────────────────────────────────────────────────────────────────── */
-/*  BALANCED VISUAL HIERARCHY NODE CARD                                 */
+/*  VISUAL HIERARCHY NODE CARD                                          */
 /* ──────────────────────────────────────────────────────────────────── */
 
 function CustomCallNode({
@@ -98,36 +98,42 @@ function CustomCallNode({
           topBorder: 'border-t-4 border-t-cyan-500',
           badge: 'bg-cyan-50 text-cyan-700 border-cyan-200/80',
           glow: 'hover:shadow-[0_12px_28px_rgba(6,182,212,0.2)]',
+          cardSize: 'w-[300px]',
         };
       case 'api':
         return {
           topBorder: 'border-t-4 border-t-orange-500',
           badge: 'bg-orange-50 text-orange-700 border-orange-200/80',
           glow: 'hover:shadow-[0_12px_28px_rgba(249,115,22,0.2)]',
+          cardSize: 'w-[290px]',
         };
       case 'service':
         return {
           topBorder: 'border-t-4 border-t-indigo-500',
           badge: 'bg-indigo-50 text-indigo-700 border-indigo-200/80',
           glow: 'hover:shadow-[0_8px_24px_rgba(99,102,241,0.15)]',
+          cardSize: 'w-[270px]',
         };
       case 'db':
         return {
           topBorder: 'border-t-4 border-t-emerald-600',
           badge: 'bg-emerald-50 text-emerald-800 border-emerald-200/80',
           glow: 'hover:shadow-[0_8px_24px_rgba(16,185,129,0.15)]',
+          cardSize: 'w-[260px]',
         };
       case 'lib':
         return {
           topBorder: 'border-t-4 border-t-purple-500',
           badge: 'bg-purple-50 text-purple-700 border-purple-200/80',
           glow: 'hover:shadow-[0_8px_24px_rgba(168,85,247,0.15)]',
+          cardSize: 'w-[260px]',
         };
       default:
         return {
           topBorder: 'border-t-4 border-t-slate-400',
           badge: 'bg-slate-50 text-slate-700 border-slate-200/80',
           glow: 'hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)]',
+          cardSize: 'w-[260px]',
         };
     }
   }, [data.type]);
@@ -150,7 +156,7 @@ function CustomCallNode({
 
   return (
     <div
-      className={`p-4 rounded-2xl border bg-white shadow-[0_6px_20px_rgba(0,0,0,0.05)] w-[280px] h-[130px] transition-all duration-300 relative flex flex-col justify-between ${tierStyle.topBorder} ${tierStyle.glow} ${
+      className={`p-4 rounded-2xl border bg-white shadow-[0_6px_20px_rgba(0,0,0,0.05)] ${tierStyle.cardSize} transition-all duration-300 relative ${tierStyle.topBorder} ${tierStyle.glow} ${
         data.isDimmed ? 'opacity-10 grayscale' : 'opacity-100'
       } ${
         data.stepActive
@@ -189,7 +195,7 @@ function CustomCallNode({
         </div>
       )}
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         {/* Card Header: Title & Badges */}
         <div className="flex items-center justify-between gap-1.5">
           <div className="flex items-center gap-1.5 truncate">
@@ -198,7 +204,7 @@ function CustomCallNode({
                 {data.stepNumber}
               </span>
             )}
-            <span className={`font-black text-slate-900 truncate ${isEntryPoint ? 'text-xs' : 'text-[11px]'}`} title={data.label}>
+            <span className={`font-black text-slate-900 truncate ${isEntryPoint ? 'text-sm' : 'text-xs'}`} title={data.label}>
               {data.label}
             </span>
           </div>
@@ -213,27 +219,31 @@ function CustomCallNode({
         </div>
 
         {/* Subtitle / API Route / Table */}
-        <div className="text-[9.5px] text-slate-500 font-mono font-semibold truncate bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100" title={data.subtitle || data.file}>
+        <div className="text-[10px] text-slate-500 font-mono font-semibold truncate bg-slate-50 px-2 py-1 rounded-lg border border-slate-100" title={data.subtitle || data.file}>
           {data.subtitle || data.file}
         </div>
 
         {/* Exported Methods / Functions List */}
         {data.methods && data.methods.length > 0 && (
-          <div className="flex items-center gap-1.5 border-t border-slate-100 pt-1 font-mono text-[9px] text-slate-700">
-            <span className="w-1.5 h-1.5 rounded-full bg-sky-500 flex-shrink-0" />
-            <span className="font-bold truncate text-slate-800">{data.methods[0]}</span>
+          <div className="flex flex-col gap-0.5 border-t border-slate-100 pt-1.5 mt-0.5 bg-slate-50/70 p-2 rounded-xl border border-slate-100/60 font-mono text-[9.5px] text-slate-700">
+            {data.methods.slice(0, 2).map((method, idx) => (
+              <div key={idx} className="flex items-center gap-1.5 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 flex-shrink-0" />
+                <span className="font-bold truncate text-slate-800">{method}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {data.developer && (
+          <div className="flex items-center gap-1.5 border-t border-slate-100 pt-1.5 mt-0.5">
+            <div className={`w-4 h-4 rounded-full border flex items-center justify-center text-[7.5px] font-bold ${devColors}`}>
+              {data.developer.avatar}
+            </div>
+            <span className="text-[9px] font-bold text-slate-700 truncate">{data.developer.name}</span>
           </div>
         )}
       </div>
-
-      {data.developer && (
-        <div className="flex items-center gap-1.5 border-t border-slate-100 pt-1 mt-0.5">
-          <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[7.5px] font-bold ${devColors}`}>
-            {data.developer.avatar}
-          </div>
-          <span className="text-[8.5px] font-bold text-slate-700 truncate">{data.developer.name}</span>
-        </div>
-      )}
 
       <Handle type="source" position={Position.Right} className="w-3 h-3 !bg-slate-900 border-2 border-white" />
     </div>
@@ -261,7 +271,7 @@ function CallFlowGraphInner({
 }: CallFlowGraphProps) {
   const { fitView } = useReactFlow();
 
-  const [activeViewMode, setActiveViewMode] = useState<'request' | 'data' | 'dependency'>('data');
+  const [activeViewMode, setActiveViewMode] = useState<'request' | 'data' | 'dependency' | 'impact'>('data');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [fitKey, setFitKey] = useState(0);
@@ -286,17 +296,20 @@ function CallFlowGraphInner({
 
   const validNodeIds = useMemo(() => new Set(allNodes.map((n) => n.id)), [allNodes]);
 
-  /* ── 2. Capped Focus Graph Filtering (6 to 8 Nodes Max per View Mode) ── */
+  /* ── 2. Capped Focus Graph Filtering (6 to 10 Nodes Max per View Mode) ── */
   const { visibleNodes, visibleEdges } = useMemo(() => {
     let nodes = allNodes;
     let edges = allEdges;
 
     // A. Mode Specific Filter
     if (activeViewMode === 'request') {
+      // Request Flow: UI -> API Routes -> Controllers
       nodes = nodes.filter(n => n.type === 'ui' || n.type === 'api' || n.type === 'service');
     } else if (activeViewMode === 'data') {
+      // Data Flow: Controllers -> Services -> Repositories -> Database
       nodes = nodes.filter(n => n.type === 'api' || n.type === 'service' || n.type === 'db' || n.type === 'ui');
     } else if (activeViewMode === 'dependency') {
+      // Dependency Flow: UI -> Services -> Libraries -> External SDKs
       nodes = nodes.filter(n => n.type === 'service' || n.type === 'lib' || n.type === 'external' || n.type === 'db');
     }
 
@@ -340,20 +353,29 @@ function CallFlowGraphInner({
       nodes = nodes.filter((n) => keep.has(n.id));
     }
 
-    // D. Cap Focus Graph to 6 Nodes Max for 3:2 Aspect Ratio Fill
-    if (nodes.length > 6) {
+    // D. CRITICAL: Capping Focus Graph to 8 Nodes Max for Pristine Legibility
+    if (nodes.length > 8) {
       const rootNode = nodes.find(n => n.type === 'ui') || nodes.find(n => n.type === 'api') || nodes[0];
       if (rootNode) {
         const cappedIds = new Set<string>([rootNode.id]);
         edges.forEach(e => {
-          if (cappedIds.size < 6) {
+          if (cappedIds.size < 8) {
             if (e.from === rootNode.id) cappedIds.add(e.to);
             if (e.to === rootNode.id) cappedIds.add(e.from);
           }
         });
+
+        // 2nd hop expansion up to 8 nodes
+        edges.forEach(e => {
+          if (cappedIds.size < 8) {
+            if (cappedIds.has(e.from)) cappedIds.add(e.to);
+            if (cappedIds.has(e.to)) cappedIds.add(e.from);
+          }
+        });
+
         nodes = nodes.filter(n => cappedIds.has(n.id));
       } else {
-        nodes = nodes.slice(0, 6);
+        nodes = nodes.slice(0, 8);
       }
     }
 
@@ -363,40 +385,52 @@ function CallFlowGraphInner({
     return { visibleNodes: nodes, visibleEdges: edges };
   }, [allNodes, allEdges, selectedFile, selectedFolder, searchQuery, activeViewMode]);
 
-  /* ── 3. Balanced 3x2 Matrix Layout (3:2 Aspect Ratio matching 85% viewport fill) ── */
+  /* ── 3. Horizontal Tier Matrix Layout (80–90% Viewport Fill) ── */
   const layoutedNodes = useMemo(() => {
     if (visibleNodes.length === 0) return [];
 
-    // Distribute nodes across a balanced 3-column by 2-row grid (3:2 aspect ratio)
-    // Row 0 (Top): Entrypoint UI -> API Route -> Controller (y = -130px)
-    // Row 1 (Bottom): Service -> Repository -> Database (y = +130px)
-    const pos: Record<string, { x: number; y: number }> = {};
-    const COL_W = 340;
-    const ROW_H = 220;
+    const columns: Record<number, CallGraphNode[]> = { 0: [], 1: [], 2: [], 3: [] };
 
-    const uis = visibleNodes.filter(n => n.type === 'ui');
-    const apis = visibleNodes.filter(n => n.type === 'api' || n.type === 'worker');
-    const svcs = visibleNodes.filter(n => n.type === 'service' || n.type === 'lib');
-    const dbs = visibleNodes.filter(n => n.type === 'db' || n.type === 'external');
-
-    const orderedNodes = [...uis, ...apis, ...svcs, ...dbs];
-
-    orderedNodes.forEach((node, idx) => {
-      const col = idx % 3; // 3 columns: 0, 1, 2
-      const row = Math.floor(idx / 3); // 2 rows: 0, 1
-
-      pos[node.id] = {
-        x: col * COL_W - COL_W, // Center columns around x = 0 (-340, 0, +340)
-        y: row * ROW_H - ROW_H / 2 // Center rows around y = 0 (-110, +110)
-      };
+    visibleNodes.forEach(node => {
+      if (node.type === 'ui') {
+        columns[0].push(node);
+      } else if (node.type === 'api' || node.type === 'worker') {
+        columns[1].push(node);
+      } else if (node.type === 'service' || node.type === 'lib') {
+        columns[2].push(node);
+      } else {
+        columns[3].push(node);
+      }
     });
 
+    const COL_W = 380;
+    const ROW_H = 190;
+
+    const pos: Record<string, { x: number; y: number }> = {};
     let stepCount = 1;
-    return visibleNodes.map(node => ({
-      ...node,
-      stepNumber: stepCount++,
-      _pos: pos[node.id] || { x: 0, y: 0 }
-    }));
+
+    [0, 1, 2, 3].forEach(colIdx => {
+      const nodesInCol = columns[colIdx];
+      const count = nodesInCol.length;
+      const startY = -((count - 1) * ROW_H) / 2;
+      const x = colIdx * COL_W - 550; // Center matrix around x = 0
+
+      nodesInCol.forEach((node, rowIdx) => {
+        pos[node.id] = {
+          x,
+          y: startY + rowIdx * ROW_H
+        };
+      });
+    });
+
+    return visibleNodes.map(node => {
+      const p = pos[node.id] || { x: 0, y: 0 };
+      return {
+        ...node,
+        stepNumber: stepCount++,
+        _pos: p
+      };
+    });
   }, [visibleNodes]);
 
   /* ── 4. Build React Flow nodes & edges ── */
@@ -528,7 +562,7 @@ function CallFlowGraphInner({
     });
   }, [visibleEdges, visibleNodes, hoveredNodeId, searchQuery]);
 
-  /* ── 5. React Flow state & Tight Camera Auto-Fit (padding: 0.08 = 85-90% Viewport Fill) ── */
+  /* ── 5. React Flow state & Google Maps Style Camera Auto-Centering ── */
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(computedNodes);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>(computedEdges);
 
@@ -537,11 +571,11 @@ function CallFlowGraphInner({
     setFlowEdges(computedEdges);
   }, [computedNodes, computedEdges, setFlowNodes, setFlowEdges]);
 
-  // Tight Camera Auto-Fit expanding graph to fill 85-90% of viewport
+  // Google Maps Style Camera Auto-Center Focus (80-90% Viewport Fill)
   useEffect(() => {
     if (flowNodes.length === 0) return;
-    const t1 = setTimeout(() => fitView({ padding: 0.08, duration: 400 }), 80);
-    const t2 = setTimeout(() => fitView({ padding: 0.08, duration: 300 }), 300);
+    const t1 = setTimeout(() => fitView({ padding: 0.18, duration: 400 }), 80);
+    const t2 = setTimeout(() => fitView({ padding: 0.18, duration: 300 }), 300);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
@@ -571,7 +605,7 @@ function CallFlowGraphInner({
   const isEmpty = flowNodes.length === 0;
 
   return (
-    <div className="w-full h-full min-h-[400px] relative font-sans select-none">
+    <div className="w-full h-full flex-1 min-h-0 relative font-sans select-none flex flex-col">
       {/* ── Top Header Control Toolbar ── */}
       <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none gap-2 flex-wrap">
         
@@ -595,10 +629,10 @@ function CallFlowGraphInner({
           </button>
         </div>
 
-        {/* Right Controls: 3 View Mode Tabs + Search + Fullscreen */}
+        {/* Right Controls: 4 View Mode Tabs + Search + Fullscreen */}
         <div className="flex items-center gap-2 pointer-events-auto flex-wrap justify-end">
           
-          {/* 3 Architectural View Mode Tabs */}
+          {/* 4 Architectural View Mode Tabs */}
           <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-xl p-1 shadow-sm flex items-center gap-0.5">
             {[
               { id: 'request', label: 'Request Flow' },
@@ -719,14 +753,14 @@ function CallFlowGraphInner({
         onNodeClick={(_, node) => onSelectNode(node.data as unknown as CallGraphNode)}
         onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
         onNodeMouseLeave={() => setHoveredNodeId(null)}
-        minZoom={0.3}
+        minZoom={0.25}
         maxZoom={1.5}
         onlyRenderVisibleElements={false}
         nodesDraggable={true}
         nodesConnectable={false}
-        className="w-full h-full min-h-[400px] bg-[#f8fafc]"
+        className="w-full h-full min-h-0 flex-1 bg-[#f8fafc]"
         fitView
-        fitViewOptions={{ padding: 0.08, duration: 400 }}
+        fitViewOptions={{ padding: 0.12, duration: 400 }}
       >
         <Background color="rgba(148, 163, 184, 0.3)" gap={18} size={1} />
         <Controls showInteractive={false} className="!bg-white !border-slate-200/80 !shadow-sm !rounded-xl" />
@@ -748,7 +782,7 @@ export default function CallFlowGraph({
 }: CallFlowGraphProps) {
   const containerClasses = isFullscreen
     ? 'fixed inset-0 z-50 bg-[#f8fafc] p-4 flex flex-col w-screen h-screen font-sans select-none'
-    : 'w-full h-full min-h-[400px] flex-grow flex flex-col bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm font-sans';
+    : 'w-full h-full flex-1 min-h-0 flex flex-col bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm font-sans';
 
   return (
     <div className={containerClasses}>

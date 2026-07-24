@@ -1125,7 +1125,7 @@ export default function Dashboard() {
       />
 
       {/* 3. Workspace Layout */}
-      <div className="flex-1 flex flex-row gap-4 p-4 overflow-hidden relative h-[calc(100vh-100px)]">
+      <div className="flex-1 min-h-0 flex flex-row gap-4 p-4 pb-4 overflow-hidden relative w-full">
         
         {/* Left pane: Project Map */}
         <div className={`h-full flex flex-col bg-white border border-slate-200/80 rounded-xl shadow-sm transition-all duration-300 overflow-hidden flex-shrink-0 ${
