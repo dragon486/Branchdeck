@@ -779,10 +779,10 @@ export default function CallFlowGraph({
 }: CallFlowGraphProps) {
   const containerClasses = isFullscreen
     ? 'fixed inset-0 z-50 bg-[#f8fafc] p-4 flex flex-col w-screen h-screen font-sans select-none'
-    : 'w-full h-full flex-1 min-h-[500px] flex flex-col bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm font-sans';
+    : 'w-full h-full flex-1 flex flex-col bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm font-sans';
 
   return (
-    <div className={containerClasses} style={{ height: '100%', minHeight: '500px' }}>
+    <div className={containerClasses} style={{ height: '100%' }}>
       <ReactFlowProvider>
         <CallFlowGraphInner
           isFullscreen={isFullscreen}
