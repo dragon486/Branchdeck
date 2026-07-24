@@ -16,7 +16,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { CallGraphNode, CallGraphEdge } from '@/lib/analyzer';
-import { Layers, MessageSquare, Maximize2, Minimize2, RefreshCw, Search, ArrowRight, ShieldCheck, Database, Server, Code, Eye } from 'lucide-react';
+import { Layers, MessageSquare, Maximize2, Minimize2, RefreshCw, Search, ArrowRight, ShieldAlert, GitBranch, Database, HardDrive, Server } from 'lucide-react';
 
 /* ──────────────────────────────────────────────────────────────────── */
 /*  TYPES & UTILS                                                       */
@@ -74,7 +74,7 @@ function isInsideFolder(file: string, folder: string): boolean {
 }
 
 /* ──────────────────────────────────────────────────────────────────── */
-/*  CUSTOM ARCHITECTURAL NODE CARD                                      */
+/*  VISUAL HIERARCHY NODE CARD                                          */
 /* ──────────────────────────────────────────────────────────────────── */
 
 function CustomCallNode({
@@ -89,49 +89,51 @@ function CustomCallNode({
     stepActive?: boolean;
   };
 }) {
+  const isEntryPoint = data.type === 'ui' || data.type === 'api';
+
   const tierStyle = useMemo(() => {
     switch (data.type) {
       case 'ui':
         return {
           topBorder: 'border-t-4 border-t-cyan-500',
           badge: 'bg-cyan-50 text-cyan-700 border-cyan-200/80',
-          glow: 'hover:shadow-[0_8px_24px_rgba(6,182,212,0.15)]',
+          glow: 'hover:shadow-[0_12px_28px_rgba(6,182,212,0.2)]',
+          cardSize: 'w-[300px]',
         };
       case 'api':
         return {
           topBorder: 'border-t-4 border-t-orange-500',
           badge: 'bg-orange-50 text-orange-700 border-orange-200/80',
-          glow: 'hover:shadow-[0_8px_24px_rgba(249,115,22,0.15)]',
+          glow: 'hover:shadow-[0_12px_28px_rgba(249,115,22,0.2)]',
+          cardSize: 'w-[290px]',
         };
       case 'service':
         return {
           topBorder: 'border-t-4 border-t-indigo-500',
           badge: 'bg-indigo-50 text-indigo-700 border-indigo-200/80',
           glow: 'hover:shadow-[0_8px_24px_rgba(99,102,241,0.15)]',
+          cardSize: 'w-[270px]',
         };
       case 'db':
         return {
           topBorder: 'border-t-4 border-t-emerald-600',
           badge: 'bg-emerald-50 text-emerald-800 border-emerald-200/80',
           glow: 'hover:shadow-[0_8px_24px_rgba(16,185,129,0.15)]',
+          cardSize: 'w-[260px]',
         };
       case 'lib':
         return {
           topBorder: 'border-t-4 border-t-purple-500',
           badge: 'bg-purple-50 text-purple-700 border-purple-200/80',
           glow: 'hover:shadow-[0_8px_24px_rgba(168,85,247,0.15)]',
-        };
-      case 'external':
-        return {
-          topBorder: 'border-t-4 border-t-rose-500',
-          badge: 'bg-rose-50 text-rose-700 border-rose-200/80',
-          glow: 'hover:shadow-[0_8px_24px_rgba(244,63,94,0.15)]',
+          cardSize: 'w-[260px]',
         };
       default:
         return {
           topBorder: 'border-t-4 border-t-slate-400',
           badge: 'bg-slate-50 text-slate-700 border-slate-200/80',
           glow: 'hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)]',
+          cardSize: 'w-[260px]',
         };
     }
   }, [data.type]);
@@ -154,21 +156,21 @@ function CustomCallNode({
 
   return (
     <div
-      className={`p-4 rounded-2xl border bg-white shadow-[0_4px_16px_rgba(0,0,0,0.04)] min-w-[260px] max-w-[300px] transition-all duration-300 relative ${tierStyle.topBorder} ${tierStyle.glow} ${
-        data.isDimmed ? 'opacity-20 grayscale-[50%]' : 'opacity-100'
+      className={`p-4 rounded-2xl border bg-white shadow-[0_6px_20px_rgba(0,0,0,0.05)] ${tierStyle.cardSize} transition-all duration-300 relative ${tierStyle.topBorder} ${tierStyle.glow} ${
+        data.isDimmed ? 'opacity-10 grayscale' : 'opacity-100'
       } ${
         data.stepActive
-          ? 'border-slate-950 ring-4 ring-sky-500/30 shadow-[0_12px_32px_rgba(2,132,199,0.3)] scale-[1.03]'
+          ? 'border-slate-950 ring-4 ring-sky-500/40 shadow-[0_16px_36px_rgba(2,132,199,0.35)] scale-[1.05]'
           : data.isHighlighted
-            ? 'border-slate-900 ring-4 ring-sky-500/25 shadow-[0_8px_24px_rgba(2,132,199,0.25)]'
+            ? 'border-slate-950 ring-4 ring-sky-500/25 shadow-[0_10px_28px_rgba(2,132,199,0.25)] scale-[1.02]'
             : data.activeFileSelected
-              ? 'border-slate-900 ring-4 ring-slate-950/10'
+              ? 'border-slate-950 ring-4 ring-slate-950/10'
               : data.isTarget
-                ? 'border-slate-900 ring-2 ring-slate-950/20'
+                ? 'border-slate-950 ring-2 ring-slate-950/20'
                 : 'border-slate-200/90 hover:border-slate-400'
       }`}
     >
-      <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 !bg-slate-800 border-2 border-white" />
+      <Handle type="target" position={Position.Left} className="w-3 h-3 !bg-slate-900 border-2 border-white" />
 
       {liveUsers.length > 0 && (
         <div className="absolute -top-3.5 -right-2 flex items-center gap-1 bg-white border border-slate-200 shadow-sm px-2 py-0.5 rounded-full z-20">
@@ -195,14 +197,14 @@ function CustomCallNode({
 
       <div className="flex flex-col gap-2">
         {/* Card Header: Title & Badges */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-1.5">
           <div className="flex items-center gap-1.5 truncate">
             {data.stepNumber && (
-              <span className="w-4 h-4 rounded-full bg-slate-900 text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+              <span className="w-5 h-5 rounded-full bg-slate-950 text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 shadow-xs">
                 {data.stepNumber}
               </span>
             )}
-            <span className="text-xs font-black text-slate-900 truncate" title={data.label}>
+            <span className={`font-black text-slate-900 truncate ${isEntryPoint ? 'text-sm' : 'text-xs'}`} title={data.label}>
               {data.label}
             </span>
           </div>
@@ -210,43 +212,40 @@ function CustomCallNode({
             <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200/70">
               {extBadge}
             </span>
-            <span className={`text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${tierStyle.badge}`}>
+            <span className={`text-[8.5px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border ${tierStyle.badge}`}>
               {data.type}
             </span>
           </div>
         </div>
 
         {/* Subtitle / API Route / Table */}
-        <div className="text-[10px] text-slate-500 font-mono font-semibold truncate bg-slate-50 px-2 py-1 rounded border border-slate-100" title={data.subtitle || data.file}>
+        <div className="text-[10px] text-slate-500 font-mono font-semibold truncate bg-slate-50 px-2 py-1 rounded-lg border border-slate-100" title={data.subtitle || data.file}>
           {data.subtitle || data.file}
         </div>
 
         {/* Exported Methods / Functions List */}
         {data.methods && data.methods.length > 0 && (
-          <div className="flex flex-col gap-1 border-t border-slate-100 pt-2 mt-0.5 bg-slate-50/70 p-2 rounded-xl border border-slate-100/60 font-mono text-[9.5px] text-slate-700">
-            {data.methods.slice(0, 3).map((method, idx) => (
+          <div className="flex flex-col gap-0.5 border-t border-slate-100 pt-1.5 mt-0.5 bg-slate-50/70 p-2 rounded-xl border border-slate-100/60 font-mono text-[9.5px] text-slate-700">
+            {data.methods.slice(0, 2).map((method, idx) => (
               <div key={idx} className="flex items-center gap-1.5 truncate">
                 <span className="w-1.5 h-1.5 rounded-full bg-sky-500 flex-shrink-0" />
-                <span className="font-semibold truncate text-slate-800">{method}</span>
+                <span className="font-bold truncate text-slate-800">{method}</span>
               </div>
             ))}
           </div>
         )}
 
         {data.developer && (
-          <div className="flex items-center gap-2 border-t border-slate-100 pt-1.5 mt-0.5">
-            <div className={`w-4 h-4 rounded-full border flex items-center justify-center text-[8px] font-bold ${devColors}`}>
+          <div className="flex items-center gap-1.5 border-t border-slate-100 pt-1.5 mt-0.5">
+            <div className={`w-4 h-4 rounded-full border flex items-center justify-center text-[7.5px] font-bold ${devColors}`}>
               {data.developer.avatar}
             </div>
-            <div className="flex flex-col">
-              <span className="text-[9px] font-bold text-slate-700 leading-none">{data.developer.name}</span>
-              <span className="text-[7.5px] text-slate-400 leading-none mt-0.5">{data.developer.role}</span>
-            </div>
+            <span className="text-[9px] font-bold text-slate-700 truncate">{data.developer.name}</span>
           </div>
         )}
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="w-2.5 h-2.5 !bg-slate-800 border-2 border-white" />
+      <Handle type="source" position={Position.Right} className="w-3 h-3 !bg-slate-900 border-2 border-white" />
     </div>
   );
 }
@@ -272,8 +271,7 @@ function CallFlowGraphInner({
 }: CallFlowGraphProps) {
   const { fitView } = useReactFlow();
 
-  const [activeTier, setActiveTier] = useState<string>('all');
-  const [viewDepth, setViewDepth] = useState<'1-hop' | '2-hop' | '3-hop' | 'full'>('full');
+  const [activeViewMode, setActiveViewMode] = useState<'request' | 'data' | 'dependency' | 'impact'>('data');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [fitKey, setFitKey] = useState(0);
@@ -298,12 +296,24 @@ function CallFlowGraphInner({
 
   const validNodeIds = useMemo(() => new Set(allNodes.map((n) => n.id)), [allNodes]);
 
-  /* ── 2. Filter: folder / file / tier / search / view depth ── */
+  /* ── 2. Capped Focus Graph Filtering (6 to 10 Nodes Max per View Mode) ── */
   const { visibleNodes, visibleEdges } = useMemo(() => {
     let nodes = allNodes;
     let edges = allEdges;
 
-    // --- File / Folder / Feature drill-down ---
+    // A. Mode Specific Filter
+    if (activeViewMode === 'request') {
+      // Request Flow: UI -> API Routes -> Controllers
+      nodes = nodes.filter(n => n.type === 'ui' || n.type === 'api' || n.type === 'service');
+    } else if (activeViewMode === 'data') {
+      // Data Flow: Controllers -> Services -> Repositories -> Database
+      nodes = nodes.filter(n => n.type === 'api' || n.type === 'service' || n.type === 'db' || n.type === 'ui');
+    } else if (activeViewMode === 'dependency') {
+      // Dependency Flow: UI -> Services -> Libraries -> External SDKs
+      nodes = nodes.filter(n => n.type === 'service' || n.type === 'lib' || n.type === 'external' || n.type === 'db');
+    }
+
+    // B. Scope Drill-Down (File / Folder)
     if (selectedFile) {
       const target = allNodes.find((n) => n.file === selectedFile);
       if (target) {
@@ -327,18 +337,7 @@ function CallFlowGraphInner({
       nodes = nodes.filter((n) => keep.has(n.id));
     }
 
-    // --- Tier filter ---
-    if (activeTier !== 'all') {
-      const tierIds = new Set(nodes.filter((n) => n.type === activeTier).map((n) => n.id));
-      const keep = new Set<string>(tierIds);
-      for (const e of edges) {
-        if (tierIds.has(e.from)) keep.add(e.to);
-        if (tierIds.has(e.to)) keep.add(e.from);
-      }
-      nodes = nodes.filter((n) => keep.has(n.id));
-    }
-
-    // --- Search filter ---
+    // C. Search Query Filter
     const q = searchQuery.trim().toLowerCase();
     if (q) {
       const matched = new Set(
@@ -354,79 +353,85 @@ function CallFlowGraphInner({
       nodes = nodes.filter((n) => keep.has(n.id));
     }
 
+    // D. CRITICAL: Capping Focus Graph to 8 Nodes Max for Pristine Legibility
+    if (nodes.length > 8) {
+      const rootNode = nodes.find(n => n.type === 'ui') || nodes.find(n => n.type === 'api') || nodes[0];
+      if (rootNode) {
+        const cappedIds = new Set<string>([rootNode.id]);
+        edges.forEach(e => {
+          if (cappedIds.size < 8) {
+            if (e.from === rootNode.id) cappedIds.add(e.to);
+            if (e.to === rootNode.id) cappedIds.add(e.from);
+          }
+        });
+
+        // 2nd hop expansion up to 8 nodes
+        edges.forEach(e => {
+          if (cappedIds.size < 8) {
+            if (cappedIds.has(e.from)) cappedIds.add(e.to);
+            if (cappedIds.has(e.to)) cappedIds.add(e.from);
+          }
+        });
+
+        nodes = nodes.filter(n => cappedIds.has(n.id));
+      } else {
+        nodes = nodes.slice(0, 8);
+      }
+    }
+
     const nodeIds = new Set(nodes.map((n) => n.id));
     edges = edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
 
     return { visibleNodes: nodes, visibleEdges: edges };
-  }, [allNodes, allEdges, selectedFile, selectedFolder, activeTier, searchQuery]);
+  }, [allNodes, allEdges, selectedFile, selectedFolder, searchQuery, activeViewMode]);
 
-  /* ── 3. Layout calculation (Top-down BFS, centered around y = 0) ── */
+  /* ── 3. Horizontal Tier Matrix Layout (80–90% Viewport Fill) ── */
   const layoutedNodes = useMemo(() => {
     if (visibleNodes.length === 0) return [];
 
-    const adj: Record<string, string[]> = {};
-    const inDegree: Record<string, number> = {};
-    visibleNodes.forEach((n) => {
-      adj[n.id] = [];
-      inDegree[n.id] = 0;
-    });
-    visibleEdges.forEach((e) => {
-      if (adj[e.from]) adj[e.from].push(e.to);
-      if (inDegree[e.to] !== undefined) inDegree[e.to]++;
-    });
+    const columns: Record<number, CallGraphNode[]> = { 0: [], 1: [], 2: [], 3: [] };
 
-    const queue = visibleNodes.filter((n) => inDegree[n.id] === 0).map((n) => n.id);
-    if (queue.length === 0 && visibleNodes.length > 0) queue.push(visibleNodes[0].id);
-
-    const levels: Record<string, number> = {};
-    queue.forEach((id) => (levels[id] = 0));
-
-    const visited = new Set<string>(queue);
-    let qIdx = 0;
-    while (qIdx < queue.length) {
-      const cur = queue[qIdx++];
-      const lvl = levels[cur] || 0;
-      for (const nxt of adj[cur] || []) {
-        if (!visited.has(nxt)) {
-          visited.add(nxt);
-          levels[nxt] = lvl + 1;
-          queue.push(nxt);
-        } else {
-          levels[nxt] = Math.max(levels[nxt] || 0, lvl + 1);
-        }
+    visibleNodes.forEach(node => {
+      if (node.type === 'ui') {
+        columns[0].push(node);
+      } else if (node.type === 'api' || node.type === 'worker') {
+        columns[1].push(node);
+      } else if (node.type === 'service' || node.type === 'lib') {
+        columns[2].push(node);
+      } else {
+        columns[3].push(node);
       }
-    }
-    visibleNodes.forEach((n) => {
-      if (levels[n.id] === undefined) levels[n.id] = 0;
     });
 
-    const byLevel: Record<number, string[]> = {};
-    visibleNodes.forEach((n) => {
-      const l = levels[n.id];
-      if (!byLevel[l]) byLevel[l] = [];
-      byLevel[l].push(n.id);
-    });
-
-    const LEVEL_H = 220;
-    const NODE_W = 330;
-    const maxL = Math.max(...Object.keys(byLevel).map(Number));
-    const startY = -((maxL * LEVEL_H) / 2);
+    const COL_W = 380;
+    const ROW_H = 190;
 
     const pos: Record<string, { x: number; y: number }> = {};
-    Object.entries(byLevel).forEach(([lStr, ids]) => {
-      const l = parseInt(lStr, 10);
-      const startX = -((ids.length - 1) * NODE_W) / 2;
-      ids.forEach((id, i) => {
-        pos[id] = { x: startX + i * NODE_W, y: startY + l * LEVEL_H };
+    let stepCount = 1;
+
+    [0, 1, 2, 3].forEach(colIdx => {
+      const nodesInCol = columns[colIdx];
+      const count = nodesInCol.length;
+      const startY = -((count - 1) * ROW_H) / 2;
+      const x = colIdx * COL_W - 550; // Center matrix around x = 0
+
+      nodesInCol.forEach((node, rowIdx) => {
+        pos[node.id] = {
+          x,
+          y: startY + rowIdx * ROW_H
+        };
       });
     });
 
-    return visibleNodes.map((node, index) => ({
-      ...node,
-      stepNumber: index + 1,
-      _pos: pos[node.id] || { x: 0, y: 0 },
-    }));
-  }, [visibleNodes, visibleEdges]);
+    return visibleNodes.map(node => {
+      const p = pos[node.id] || { x: 0, y: 0 };
+      return {
+        ...node,
+        stepNumber: stepCount++,
+        _pos: p
+      };
+    });
+  }, [visibleNodes]);
 
   /* ── 4. Build React Flow nodes & edges ── */
   const computedNodes = useMemo(() => {
@@ -529,7 +534,7 @@ function CallFlowGraphInner({
 
       const numberedLabel = edge.labels.length > 0 
         ? `${index + 1}. ${edge.labels.slice(0, 2).join(' / ')}` 
-        : `${index + 1}. Data Flow`;
+        : `${index + 1}. Flow Step`;
 
       return {
         id: `edge-${edge.from}-${edge.to}`,
@@ -557,7 +562,7 @@ function CallFlowGraphInner({
     });
   }, [visibleEdges, visibleNodes, hoveredNodeId, searchQuery]);
 
-  /* ── 5. React Flow state ── */
+  /* ── 5. React Flow state & Google Maps Style Camera Auto-Centering ── */
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(computedNodes);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>(computedEdges);
 
@@ -566,16 +571,16 @@ function CallFlowGraphInner({
     setFlowEdges(computedEdges);
   }, [computedNodes, computedEdges, setFlowNodes, setFlowEdges]);
 
-  // Double-pass fitView camera adjustment post-DOM measurement
+  // Google Maps Style Camera Auto-Center Focus (80-90% Viewport Fill)
   useEffect(() => {
     if (flowNodes.length === 0) return;
-    const t1 = setTimeout(() => fitView({ padding: 0.2, duration: 600 }), 100);
-    const t2 = setTimeout(() => fitView({ padding: 0.15, duration: 400 }), 400);
+    const t1 = setTimeout(() => fitView({ padding: 0.18, duration: 400 }), 80);
+    const t2 = setTimeout(() => fitView({ padding: 0.18, duration: 300 }), 300);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [flowNodes.length, flowEdges.length, fitKey, fitView]);
+  }, [flowNodes.length, flowEdges.length, fitKey, activeViewMode, fitView]);
 
   const handleNodesChange = useCallback(
     (changes: any) => {
@@ -592,8 +597,7 @@ function CallFlowGraphInner({
   const handleFullViewReset = useCallback(() => {
     draggedPositionsRef.current = {};
     setSearchQuery('');
-    setActiveTier('all');
-    setViewDepth('full');
+    setActiveViewMode('data');
     if (onResetFocus) onResetFocus();
     setFitKey((k) => k + 1);
   }, [onResetFocus]);
@@ -601,49 +605,50 @@ function CallFlowGraphInner({
   const isEmpty = flowNodes.length === 0;
 
   return (
-    <div className="w-full h-full min-h-[400px] relative font-sans">
-      {/* ── Top Header Control Toolbar (ALWAYS visible in normal view and fullscreen) ── */}
+    <div className="w-full h-full min-h-[400px] relative font-sans select-none">
+      {/* ── Top Header Control Toolbar ── */}
       <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none gap-2 flex-wrap">
         
         {/* Left Badge: Data Flow Diagram Title & Scope */}
         <div className="bg-white/95 backdrop-blur border border-slate-200 px-3.5 py-1.5 rounded-xl shadow-sm flex items-center gap-2.5 pointer-events-auto">
-          <Layers className="w-4 h-4 text-slate-900" />
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-black text-slate-900 tracking-tight">Data Flow Diagram</span>
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                {selectedFeature ? `Feature: ${selectedFeature}` : selectedFile ? `File: ${selectedFile.split('/').pop()}` : 'Authentication Flow'}
-              </span>
-            </div>
+          <Layers className="w-4 h-4 text-slate-950" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black text-slate-950 tracking-tight">Codebase Focus Graph</span>
+            <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-200">
+              {selectedFeature ? `Feature: ${selectedFeature}` : selectedFile ? `File: ${selectedFile.split('/').pop()}` : 'Authentication Flow'}
+            </span>
           </div>
           
           <button
             onClick={handleFullViewReset}
-            className="ml-1 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 shadow-xs"
+            className="ml-1 bg-slate-950 hover:bg-slate-800 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 shadow-xs"
             title="Reset position and fit view to all graph nodes"
           >
             <RefreshCw className="w-3 h-3" />
-            <span>Full View</span>
+            <span>Center Camera</span>
           </button>
         </div>
 
-        {/* Right Controls: View Depth Selector + Search + Tier Filters + Fullscreen */}
+        {/* Right Controls: 4 View Mode Tabs + Search + Fullscreen */}
         <div className="flex items-center gap-2 pointer-events-auto flex-wrap justify-end">
           
-          {/* View Depth Pills: [1-hop] [2-hop] [3-hop] [Full] */}
+          {/* 4 Architectural View Mode Tabs */}
           <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-xl p-1 shadow-sm flex items-center gap-0.5">
-            <span className="text-[9px] font-extrabold uppercase text-slate-400 px-1.5">View:</span>
-            {(['1-hop', '2-hop', '3-hop', 'full'] as const).map((depth) => (
+            {[
+              { id: 'request', label: 'Request Flow' },
+              { id: 'data', label: 'Data Flow' },
+              { id: 'dependency', label: 'Dependency Flow' },
+            ].map((mode) => (
               <button
-                key={depth}
-                onClick={() => setViewDepth(depth)}
-                className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${
-                  viewDepth === depth
-                    ? 'bg-slate-900 text-white shadow-xs'
+                key={mode.id}
+                onClick={() => setActiveViewMode(mode.id as any)}
+                className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-lg transition-all ${
+                  activeViewMode === mode.id
+                    ? 'bg-slate-950 text-white shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
                 }`}
               >
-                {depth}
+                {mode.label}
               </button>
             ))}
           </div>
@@ -653,7 +658,7 @@ function CallFlowGraphInner({
             <Search className="w-3.5 h-3.5 text-slate-400 ml-1.5" />
             <input
               type="text"
-              placeholder="Search data flow..."
+              placeholder="Search focus graph..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="text-xs bg-transparent border-none outline-none w-32 placeholder:text-slate-400 font-medium text-slate-800"
@@ -666,23 +671,6 @@ function CallFlowGraphInner({
                 ✕
               </button>
             )}
-          </div>
-
-          {/* Category Tier Pills */}
-          <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-xl p-1 shadow-sm flex items-center gap-0.5">
-            {(['all', 'ui', 'api', 'service', 'db', 'lib'] as const).map((tier) => (
-              <button
-                key={tier}
-                onClick={() => setActiveTier(tier)}
-                className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${
-                  activeTier === tier
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-                }`}
-              >
-                {tier}
-              </button>
-            ))}
           </div>
 
           {onToggleFullscreen && (
@@ -698,35 +686,35 @@ function CallFlowGraphInner({
         </div>
       </div>
 
-      {/* ── Bottom Canvas Legend Bar ── */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 bg-white/95 backdrop-blur border border-slate-200 px-4 py-2 rounded-xl shadow-sm flex items-center gap-5 text-[10px] font-bold text-slate-600 pointer-events-auto select-none">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded bg-cyan-500 border border-cyan-600" />
+      {/* ── Compact Bottom-Right Legend Bar ── */}
+      <div className="absolute bottom-3 right-3 z-20 bg-white/95 backdrop-blur border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm flex items-center gap-3 text-[9px] font-bold text-slate-600 pointer-events-auto select-none">
+        <div className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded bg-cyan-500" />
           <span>UI</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded bg-orange-500 border border-orange-600" />
+        <div className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded bg-orange-500" />
           <span>API</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded bg-indigo-500 border border-indigo-600" />
+        <div className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded bg-indigo-500" />
           <span>SERVICE</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded bg-emerald-600 border border-emerald-700" />
+        <div className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded bg-emerald-600" />
           <span>DB</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded bg-purple-500 border border-purple-600" />
-          <span>LIBRARY</span>
+        <div className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded bg-purple-500" />
+          <span>LIB</span>
         </div>
-        <div className="h-3 w-px bg-slate-200" />
-        <div className="flex items-center gap-1.5 text-slate-400 font-mono">
-          <span className="text-[12px] font-bold text-slate-700">──►</span>
-          <span>HTTP Request</span>
+        <div className="h-2.5 w-px bg-slate-200" />
+        <div className="flex items-center gap-1 text-slate-400 font-mono">
+          <span className="text-[10px] font-bold text-slate-700">──►</span>
+          <span>HTTP</span>
         </div>
-        <div className="flex items-center gap-1.5 text-slate-400 font-mono">
-          <span className="text-[12px] font-bold text-slate-700">- - ►</span>
+        <div className="flex items-center gap-1 text-slate-400 font-mono">
+          <span className="text-[10px] font-bold text-slate-700">- - ►</span>
           <span>Data Access</span>
         </div>
       </div>
@@ -738,19 +726,18 @@ function CallFlowGraphInner({
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <path d="M3 9h18M9 21V9" />
           </svg>
-          <p className="text-sm font-medium">No data flow nodes match the current view.</p>
-          {(selectedFile || selectedFolder || activeTier !== 'all' || searchQuery) && (
+          <p className="text-sm font-medium">No focus nodes match the current view.</p>
+          {(selectedFile || selectedFolder || searchQuery) && (
             <button
               onClick={() => {
                 setSearchQuery('');
-                setActiveTier('all');
-                setViewDepth('full');
+                setActiveViewMode('data');
                 if (onResetFocus) onResetFocus();
                 setFitKey((k) => k + 1);
               }}
-              className="mt-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm"
+              className="mt-3 bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm"
             >
-              Clear filters &amp; show full diagram
+              Clear filters &amp; show focus diagram
             </button>
           )}
         </div>
@@ -766,14 +753,14 @@ function CallFlowGraphInner({
         onNodeClick={(_, node) => onSelectNode(node.data as unknown as CallGraphNode)}
         onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
         onNodeMouseLeave={() => setHoveredNodeId(null)}
-        minZoom={0.1}
+        minZoom={0.25}
         maxZoom={1.5}
         onlyRenderVisibleElements={false}
         nodesDraggable={true}
         nodesConnectable={false}
         className="w-full h-full min-h-[400px] bg-[#f8fafc]"
         fitView
-        fitViewOptions={{ padding: 0.2, duration: 600 }}
+        fitViewOptions={{ padding: 0.18, duration: 400 }}
       >
         <Background color="rgba(148, 163, 184, 0.3)" gap={18} size={1} />
         <Controls showInteractive={false} className="!bg-white !border-slate-200/80 !shadow-sm !rounded-xl" />
