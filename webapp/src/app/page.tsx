@@ -1181,8 +1181,8 @@ export default function Dashboard() {
         </div>
 
         {/* Central Workspace: Call Flow Graph */}
-        <div className="flex-1 flex flex-col gap-4 overflow-hidden relative min-w-0 min-h-0 h-full">
-          <div className="flex-1 flex flex-col min-h-0 h-full relative">
+        <div className="w-full h-full flex-1 flex flex-col gap-4 overflow-hidden relative min-w-0 min-h-[500px]" style={{ height: '100%', minHeight: '500px' }}>
+          <div className="w-full h-full flex-1 flex flex-col min-h-[500px] relative" style={{ height: '100%', minHeight: '500px' }}>
              <CallFlowGraph 
               nodes={filteredNodes} 
               edges={filteredEdges} 
