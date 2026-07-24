@@ -75,7 +75,6 @@ function isInsideFolder(file: string, folder: string): boolean {
 
 /* ──────────────────────────────────────────────────────────────────── */
 /*  UNIVERSAL DUAL-STRATEGY LAYOUT ENGINE                               */
-/*  Guarantees 100% of nodes receive valid (x, y) coordinates.           */
 /* ──────────────────────────────────────────────────────────────────── */
 
 function computeLayout(
@@ -84,7 +83,6 @@ function computeLayout(
 ): Record<string, { x: number; y: number }> {
   if (nodes.length === 0) return {};
 
-  // Group all nodes by uppercase normalized type
   const byType: Record<string, CallGraphNode[]> = {};
   for (const n of nodes) {
     const t = (n.type || 'FILE').toString().toUpperCase();
@@ -92,7 +90,6 @@ function computeLayout(
     byType[t].push(n);
   }
 
-  // Desired architectural order, followed by any custom types
   const preferredOrder = ['UI', 'API', 'SERVICE', 'DB', 'EXTERNAL', 'FILE'];
   const allDiscoveredTypes = Object.keys(byType);
   
@@ -101,12 +98,10 @@ function computeLayout(
     ...allDiscoveredTypes.filter(t => !preferredOrder.includes(t) && byType[t]?.length > 0)
   ];
 
-  // If single-type view (e.g. folder drill-down), use compact grid layout
   if (presentTypes.length <= 1) {
     return computeGridLayout(nodes);
   }
 
-  // Multi-type view: Architectural tier columns
   const COL_GAP = 80;
   const NODE_W = 310;
   const NODE_H = 160;
@@ -139,7 +134,6 @@ function computeLayout(
     currentX += colWidth + COL_GAP;
   }
 
-  // Safety check: Ensure every single node gets a fallback position if missed
   nodes.forEach((node, idx) => {
     if (!positions[node.id]) {
       positions[node.id] = {
@@ -152,7 +146,6 @@ function computeLayout(
   return positions;
 }
 
-/** Compact grid layout for single-type or isolated folder views */
 function computeGridLayout(nodes: CallGraphNode[]): Record<string, { x: number; y: number }> {
   const n = nodes.length;
   if (n === 0) return {};
@@ -377,12 +370,11 @@ function CallFlowGraphInner({
 
   const validNodeIds = useMemo(() => new Set(allNodes.map((n) => n.id)), [allNodes]);
 
-  /* ── 2. Filter (Case-insensitive & path-normalized) ── */
+  /* ── 2. Filter ── */
   const { visibleNodes, visibleEdges } = useMemo(() => {
     let nodes = allNodes;
     let edges = allEdges;
 
-    // File selection filter
     if (selectedFile) {
       const normSelFile = norm(selectedFile);
       const target = allNodes.find((n) => norm(n.file) === normSelFile || norm(n.file).endsWith(normSelFile.split('/').pop() || ''));
@@ -395,7 +387,6 @@ function CallFlowGraphInner({
         nodes = nodes.filter((n) => keep.has(n.id));
       }
     } 
-    // Folder selection filter
     else if (selectedFolder) {
       const inFolder = new Set<string>();
       for (const n of nodes) {
@@ -409,7 +400,6 @@ function CallFlowGraphInner({
       nodes = nodes.filter((n) => keep.has(n.id));
     }
 
-    // Tier selection filter (Case-insensitive matching)
     if (activeTier !== 'all') {
       const targetTier = activeTier.toLowerCase();
       const tierIds = new Set(nodes.filter((n) => (n.type || '').toLowerCase() === targetTier).map((n) => n.id));
@@ -421,7 +411,6 @@ function CallFlowGraphInner({
       nodes = nodes.filter((n) => keep.has(n.id));
     }
 
-    // Search query filter
     const q = searchQuery.trim().toLowerCase();
     if (q) {
       const matched = new Set(
@@ -518,7 +507,7 @@ function CallFlowGraphInner({
     });
   }, [visibleNodes, visibleEdges, positions, selectedFile, selectedFolder, members, hoveredNodeId, searchQuery, validNodeIds]);
 
-  /* ── 5. Build RF Edges (Smoothstep) ── */
+  /* ── 5. Build RF Edges (Smooth Curved Dotted Connections: type: 'default') ── */
   const computedEdges = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const active = hoveredNodeId || q;
@@ -552,22 +541,22 @@ function CallFlowGraphInner({
         id: `edge-${edge.from}-${edge.to}`,
         source: edge.from,
         target: edge.to,
-        type: 'smoothstep' as const,
+        type: 'default' as const,
         label: edge.labels.length > 0 ? edge.labels.slice(0, 2).join(' / ') : undefined,
         animated: isConn,
         style: {
-          stroke: isConn ? '#0284c7' : '#94a3b8',
-          strokeWidth: isConn ? 2.5 : 1.2,
-          opacity: isDimmed ? 0.12 : isConn ? 1 : 0.7,
-          strokeDasharray: isConn ? undefined : '5 3',
+          stroke: isConn ? '#0284c7' : '#64748b',
+          strokeWidth: isConn ? 2.5 : 1.4,
+          opacity: isDimmed ? 0.15 : isConn ? 1 : 0.75,
+          strokeDasharray: '4,4',
         },
-        labelStyle: { fill: isConn ? '#0284c7' : '#64748b', fontSize: 9, fontWeight: 600, fontFamily: 'monospace' },
+        labelStyle: { fill: isConn ? '#0284c7' : '#334155', fontSize: 9, fontWeight: 600, fontFamily: 'monospace' },
         labelBgPadding: [5, 3] as [number, number],
         labelBgBorderRadius: 4,
         labelBgStyle: {
           fill: '#ffffff',
           color: '#0f172a',
-          stroke: isConn ? '#0284c7' : '#e2e8f0',
+          stroke: isConn ? '#0284c7' : '#cbd5e1',
           strokeWidth: isConn ? 1 : 0.5,
         },
       };
@@ -586,8 +575,8 @@ function CallFlowGraphInner({
   /* ── Camera auto-fit trigger on mount and state changes ── */
   useEffect(() => {
     if (flowNodes.length === 0) return;
-    const t1 = setTimeout(() => fitView({ padding: 0.2, duration: 500 }), 80);
-    const t2 = setTimeout(() => fitView({ padding: 0.15, duration: 400 }), 350);
+    const t1 = setTimeout(() => fitView({ padding: 0.15, duration: 500 }), 80);
+    const t2 = setTimeout(() => fitView({ padding: 0.12, duration: 400 }), 350);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
@@ -617,7 +606,7 @@ function CallFlowGraphInner({
   const isEmpty = flowNodes.length === 0;
 
   return (
-    <div className="w-full h-full min-h-[400px] relative">
+    <div className="w-full h-full flex-1 min-h-0 relative">
       {/* ── Toolbar (ALWAYS visible) ── */}
       <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none gap-2">
         <div className="bg-white/95 backdrop-blur border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-2 pointer-events-auto">
@@ -712,9 +701,9 @@ function CallFlowGraphInner({
         onlyRenderVisibleElements={false}
         nodesDraggable={true}
         nodesConnectable={false}
-        className="w-full h-full min-h-[400px] bg-[#f8fafc]"
+        className="w-full h-full min-h-0 bg-[#f8fafc]"
         fitView
-        fitViewOptions={{ padding: 0.2, duration: 500 }}
+        fitViewOptions={{ padding: 0.15, duration: 500 }}
       >
         <Background color="rgba(148, 163, 184, 0.25)" gap={18} size={1} />
         <Controls showInteractive={false} className="!bg-white !border-slate-200/80 !shadow-sm !rounded-lg" />
@@ -736,7 +725,7 @@ export default function CallFlowGraph({
 }: CallFlowGraphProps) {
   const containerClasses = isFullscreen
     ? 'fixed inset-0 z-50 bg-[#f8fafc] p-4 flex flex-col w-screen h-screen font-sans select-none'
-    : 'w-full h-full min-h-[400px] flex-grow flex flex-col bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm font-sans';
+    : 'w-full h-full flex-1 flex flex-col min-h-0 bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm font-sans';
 
   return (
     <div className={containerClasses}>
