@@ -134,6 +134,7 @@ export default function Dashboard() {
 
   // Right sidebar configurations
   const [activeRightTab, setActiveRightTab] = useState<'story' | 'impact'>('story');
+  const [activeWalkthroughStep, setActiveWalkthroughStep] = useState<number | null>(null);
   
   // Selected detail values
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -1180,14 +1181,16 @@ export default function Dashboard() {
         </div>
 
         {/* Central Workspace: Call Flow Graph */}
-        <div className="flex-1 flex flex-col gap-4 overflow-hidden relative min-w-0 min-h-[450px] h-full">
-          <div className="flex-1 flex flex-col min-h-[450px] h-full relative">
+        <div className="flex-grow flex flex-col gap-4 overflow-hidden relative min-w-0 min-h-0 h-full">
+          <div className="flex-grow flex flex-col min-h-[400px] h-full relative">
              <CallFlowGraph 
               nodes={filteredNodes} 
               edges={filteredEdges} 
               onSelectNode={handleSelectNode} 
               selectedFile={selectedFile}
               selectedFolder={selectedFolder}
+              selectedFeature={selectedFolder}
+              activeStepIndex={activeWalkthroughStep}
               isFullscreen={isGraphFullscreen}
               members={displayMembers}
               repoSource={repoSource}
@@ -1196,6 +1199,7 @@ export default function Dashboard() {
                 setSelectedFile(null);
                 setSelectedFolder(null);
                 setSelectedNode(null);
+                setActiveWalkthroughStep(null);
               }}
               onToggleFullscreen={() => {
                 const anyCollapsed = leftSidebarCollapsed || rightSidebarCollapsed;
@@ -1307,7 +1311,13 @@ export default function Dashboard() {
 
               <div className="flex-1 overflow-hidden">
                 {activeRightTab === 'story' ? (
-                  <StoryMode loading={storyLoading} story={storyData} />
+                  <StoryMode 
+                    loading={storyLoading} 
+                    story={storyData} 
+                    onHoverStep={(idx) => setActiveWalkthroughStep(idx)}
+                    onSelectStep={(idx) => setActiveWalkthroughStep(idx)}
+                    activeStepIndex={activeWalkthroughStep}
+                  />
                 ) : (
                   <ImpactPanel 
                     onAnalyzeImpact={handleLoadImpact} 

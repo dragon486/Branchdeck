@@ -22,9 +22,12 @@ export interface CallGraphNode {
   id: string;
   label: string;
   file: string;
-  type: 'ui' | 'api' | 'service' | 'db' | 'external' | 'worker';
+  type: 'ui' | 'api' | 'service' | 'db' | 'external' | 'worker' | 'lib';
   developer?: Developer;
   note?: string;
+  methods?: string[];
+  subtitle?: string;
+  stepNumber?: number;
 }
 
 export interface CallGraphEdge {
@@ -483,22 +486,33 @@ export function generateCallGraphFromFiles(
   // 1. High-value file culling (excludes non-code and styling files)
   const targetFiles = filterHighValueCodeFiles(files, 120);
 
-  // 2. Build Nodes with descriptive names and tier types
+  // 2. Build Nodes with descriptive names, methods, and tier types
   const nodes: CallGraphNode[] = targetFiles.map((file) => {
     const label = getDescriptiveNodeLabel(file);
-    let type: 'ui' | 'api' | 'service' | 'db' | 'external' | 'worker' = 'service';
+    let type: 'ui' | 'api' | 'service' | 'db' | 'external' | 'worker' | 'lib' = 'service';
+    const methods: string[] = [];
+    let subtitle = file;
 
     const pathLower = file.toLowerCase();
     if (pathLower.includes('page') || pathLower.includes('layout') || pathLower.includes('view') || pathLower.includes('screen') || pathLower.includes('component') || pathLower.includes('components/')) {
       type = 'ui';
+      methods.push('render()', 'useContext()');
     } else if (pathLower.includes('controller') || pathLower.includes('route') || pathLower.includes('api/') || pathLower.includes('endpoint')) {
       type = 'api';
+      subtitle = `POST /api/${label.toLowerCase()}`;
+      methods.push('validate()', 'handleRequest()');
     } else if (pathLower.includes('db/') || pathLower.includes('model') || pathLower.includes('entity') || pathLower.includes('repository') || pathLower.includes('schema') || pathLower.includes('sql') || pathLower.includes('database')) {
       type = 'db';
+      subtitle = `${label.toLowerCase()} table`;
+      methods.push('findById()', 'save()');
     } else if (pathLower.includes('cron') || pathLower.includes('worker') || pathLower.includes('job') || pathLower.includes('task')) {
       type = 'worker';
+      methods.push('runTask()', 'schedule()');
     } else if (pathLower.includes('adapter') || pathLower.includes('external') || pathLower.includes('client') || pathLower.includes('sdk')) {
       type = 'external';
+      methods.push('fetchExternal()', 'parseSDK()');
+    } else {
+      methods.push('executeLogic()', 'transform()');
     }
 
     return {
@@ -506,6 +520,8 @@ export function generateCallGraphFromFiles(
       label,
       file,
       type,
+      subtitle,
+      methods,
       note: `Module: ${file}`
     };
   });
