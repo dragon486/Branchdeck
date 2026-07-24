@@ -210,26 +210,89 @@ function CallFlowGraphInner({
     }
   }, [fitView, onResetFocus]);
 
-  // Interactive path resolution for hover/search/tier
+  // Complete Upstream & Downstream Data Flow Subgraph Resolution for Hover and Search
   const connectedInfo = useMemo(() => {
     const activeId = hoveredNodeId;
-    if (!activeId || !validNodeIds.has(activeId)) {
-      return { connectedNodes: new Set<string>(), connectedEdges: new Set<string>() };
+    const filterSearch = searchQuery.trim().toLowerCase();
+
+    // Case 1: Hovered Node (1-hop immediate connection)
+    if (activeId && validNodeIds.has(activeId)) {
+      const connNodes = new Set<string>([activeId]);
+      const connEdges = new Set<string>();
+
+      edges.forEach(e => {
+        if (e.from === activeId || e.to === activeId) {
+          connEdges.add(`edge-${e.from}-${e.to}`);
+          connNodes.add(e.from);
+          connNodes.add(e.to);
+        }
+      });
+
+      return { connectedNodes: connNodes, connectedEdges: connEdges };
     }
 
-    const connNodes = new Set<string>([activeId]);
-    const connEdges = new Set<string>();
+    // Case 2: Full Data Flow Search Traversal (Multi-hop BFS for complete call graph trace)
+    if (filterSearch !== '') {
+      const seedNodes = nodes.filter(n => 
+        n.label.toLowerCase().includes(filterSearch) || 
+        n.file.toLowerCase().includes(filterSearch)
+      );
 
-    edges.forEach(e => {
-      if (e.from === activeId || e.to === activeId) {
-        connEdges.add(`edge-${e.from}-${e.to}`);
-        connNodes.add(e.from);
-        connNodes.add(e.to);
+      if (seedNodes.length === 0) {
+        return { connectedNodes: new Set<string>(), connectedEdges: new Set<string>() };
       }
-    });
 
-    return { connectedNodes: connNodes, connectedEdges: connEdges };
-  }, [hoveredNodeId, edges, validNodeIds]);
+      const connNodes = new Set<string>();
+      const connEdges = new Set<string>();
+
+      const outgoing: Record<string, string[]> = {};
+      const incoming: Record<string, string[]> = {};
+      nodes.forEach(n => { outgoing[n.id] = []; incoming[n.id] = []; });
+
+      edges.forEach(e => {
+        if (outgoing[e.from] && validNodeIds.has(e.to)) outgoing[e.from].push(e.to);
+        if (incoming[e.to] && validNodeIds.has(e.from)) incoming[e.to].push(e.from);
+      });
+
+      seedNodes.forEach(seed => {
+        connNodes.add(seed.id);
+
+        // Downstream BFS (Services & DBs called by this seed)
+        const downQueue = [seed.id];
+        const visitedDown = new Set<string>([seed.id]);
+        while (downQueue.length > 0) {
+          const curr = downQueue.shift()!;
+          (outgoing[curr] || []).forEach(next => {
+            connEdges.add(`edge-${curr}-${next}`);
+            connNodes.add(next);
+            if (!visitedDown.has(next)) {
+              visitedDown.add(next);
+              downQueue.push(next);
+            }
+          });
+        }
+
+        // Upstream BFS (Pages & UI components calling this seed)
+        const upQueue = [seed.id];
+        const visitedUp = new Set<string>([seed.id]);
+        while (upQueue.length > 0) {
+          const curr = upQueue.shift()!;
+          (incoming[curr] || []).forEach(prev => {
+            connEdges.add(`edge-${prev}-${curr}`);
+            connNodes.add(prev);
+            if (!visitedUp.has(prev)) {
+              visitedUp.add(prev);
+              upQueue.push(prev);
+            }
+          });
+        }
+      });
+
+      return { connectedNodes: connNodes, connectedEdges: connEdges };
+    }
+
+    return { connectedNodes: new Set<string>(), connectedEdges: new Set<string>() };
+  }, [hoveredNodeId, searchQuery, nodes, edges, validNodeIds]);
 
   // Vertically centered layout positioning around y = 0
   const computedNodes = useMemo(() => {
@@ -359,13 +422,12 @@ function CallFlowGraphInner({
       if (activeTier !== 'all' && node.type !== activeTier) {
         matchesFilter = false;
       }
-      if (filterSearch !== '' && !(node.label.toLowerCase().includes(filterSearch) || node.file.toLowerCase().includes(filterSearch))) {
-        matchesFilter = false;
-      }
 
+      const isSearchConnected = filterSearch !== '' ? connectedInfo.connectedNodes.has(node.id) : true;
       const isHoverConnected = hoveredNodeId ? connectedInfo.connectedNodes.has(node.id) : true;
-      const isHighlighted = (hoveredNodeId && isHoverConnected) || (filterSearch !== '' && matchesFilter) || (activeTier !== 'all' && matchesFilter);
-      const isDimmed = !matchesFilter || (hoveredNodeId && !isHoverConnected);
+
+      const isHighlighted = (hoveredNodeId && isHoverConnected) || (filterSearch !== '' && isSearchConnected) || (activeTier !== 'all' && matchesFilter);
+      const isDimmed = !matchesFilter || (filterSearch !== '' && !isSearchConnected) || (hoveredNodeId && !isHoverConnected);
 
       return {
         id: node.id,
@@ -400,10 +462,12 @@ function CallFlowGraphInner({
 
     const uniqueEdges = Array.from(edgeMap.values());
 
+    const filterSearch = searchQuery.trim().toLowerCase();
+
     return uniqueEdges.map((edge) => {
       const edgeId = `edge-${edge.from}-${edge.to}`;
-      const isConnected = hoveredNodeId ? connectedInfo.connectedEdges.has(edgeId) : false;
-      const isDimmed = hoveredNodeId ? !isConnected : false;
+      const isConnected = (hoveredNodeId || filterSearch !== '') ? connectedInfo.connectedEdges.has(edgeId) : false;
+      const isDimmed = (hoveredNodeId || filterSearch !== '') ? !isConnected : false;
 
       const combinedLabel = edge.labels.length > 0 ? edge.labels.slice(0, 2).join(' / ') : undefined;
 
@@ -426,7 +490,7 @@ function CallFlowGraphInner({
         labelBgStyle: { fill: '#ffffff', color: '#0f172a', stroke: isConnected ? '#0284c7' : '#cbd5e1', strokeWidth: isConnected ? 1 : 0.5 }
       };
     });
-  }, [edges, validNodeIds, hoveredNodeId, connectedInfo]);
+  }, [edges, validNodeIds, hoveredNodeId, connectedInfo, searchQuery]);
 
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(computedNodes);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>(computedEdges);
@@ -457,7 +521,7 @@ function CallFlowGraphInner({
     setFlowEdges(computedEdges);
   }, [computedNodes, computedEdges, setFlowNodes, setFlowEdges]);
 
-  // Fast single-pass camera adjustment
+  // Fast single-pass camera adjustment on mount/node changes
   useEffect(() => {
     if (computedNodes.length > 0) {
       const timer = setTimeout(() => {
@@ -466,6 +530,16 @@ function CallFlowGraphInner({
       return () => clearTimeout(timer);
     }
   }, [computedNodes.length, fitView, isFullscreen]);
+
+  // Auto-fit camera to search result data flow trace
+  useEffect(() => {
+    if (searchQuery.trim() !== '') {
+      const timer = setTimeout(() => {
+        fitView({ padding: 0.2, duration: 400 });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [searchQuery, fitView]);
 
   return (
     <div className="w-full h-full relative">
