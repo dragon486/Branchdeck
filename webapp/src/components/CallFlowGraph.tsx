@@ -102,18 +102,17 @@ function CustomCallNode({ data }: { data: CallGraphNode & { isTarget?: boolean; 
   const liveUsers = useMemo(() => data.liveUsers || [], [data.liveUsers]);
 
   return (
-    <div className={`p-3.5 rounded-xl border bg-white shadow-[0_4px_12px_rgba(0,0,0,0.06)] min-w-[250px] max-w-[290px] transition-all duration-300 relative ${tierStyle.topBorder} ${tierStyle.glow} ${
-      data.isDimmed ? 'opacity-30 grayscale-[40%]' : 'opacity-100'
+    <div className={`p-3.5 rounded-xl border bg-white shadow-[0_4px_12px_rgba(0,0,0,0.06)] min-w-[240px] max-w-[280px] transition-all duration-300 relative ${tierStyle.topBorder} ${tierStyle.glow} ${
+      data.isDimmed ? 'opacity-20 grayscale-[40%]' : 'opacity-100'
     } ${
       data.isHighlighted
-        ? 'border-slate-900 ring-4 ring-sky-500/20 shadow-[0_8px_24px_rgba(2,132,199,0.2)]'
+        ? 'border-slate-900 ring-4 ring-sky-500/25 shadow-[0_8px_24px_rgba(2,132,199,0.25)]'
         : data.activeFileSelected
           ? 'border-slate-900 ring-4 ring-slate-950/10'
           : data.isTarget 
             ? 'border-slate-900 ring-2 ring-slate-950/20' 
             : 'border-slate-200/80 hover:border-slate-400'
     }`}>
-      {/* Target/source ports laid out TOP and BOTTOM for vertical flows */}
       <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 !bg-slate-800" />
       
       {liveUsers.length > 0 && (
@@ -198,21 +197,9 @@ function CallFlowGraphInner({
   const draggedPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
-  // 1. Filter nodes by tier and search query
-  const filteredNodes = useMemo(() => {
-    return nodes.filter(n => {
-      if (activeTier !== 'all' && n.type !== activeTier) return false;
-      if (searchQuery.trim() !== '') {
-        const q = searchQuery.toLowerCase();
-        return n.label.toLowerCase().includes(q) || n.file.toLowerCase().includes(q);
-      }
-      return true;
-    });
-  }, [nodes, activeTier, searchQuery]);
+  const validNodeIds = useMemo(() => new Set(nodes.map(n => n.id)), [nodes]);
 
-  const validNodeIds = useMemo(() => new Set(filteredNodes.map(n => n.id)), [filteredNodes]);
-
-  // 2. Interactive Connected Node & Edge Resolution
+  // Interactive path resolution for hover/search/tier
   const connectedInfo = useMemo(() => {
     const activeId = hoveredNodeId;
     if (!activeId || !validNodeIds.has(activeId)) {
@@ -233,14 +220,14 @@ function CallFlowGraphInner({
     return { connectedNodes: connNodes, connectedEdges: connEdges };
   }, [hoveredNodeId, edges, validNodeIds]);
 
-  // 3. Layout calculation with tiered non-overlapping positioning
+  // Vertically centered layout positioning around y = 0
   const computedNodes = useMemo(() => {
-    if (filteredNodes.length === 0) return [];
+    if (nodes.length === 0) return [];
 
     const adj: Record<string, string[]> = {};
     const inDegree: Record<string, number> = {};
     
-    filteredNodes.forEach(n => {
+    nodes.forEach(n => {
       adj[n.id] = [];
       inDegree[n.id] = 0;
     });
@@ -254,9 +241,9 @@ function CallFlowGraphInner({
       }
     });
 
-    const queue: string[] = filteredNodes.filter(n => inDegree[n.id] === 0).map(n => n.id);
-    if (queue.length === 0 && filteredNodes.length > 0) {
-      queue.push(filteredNodes[0].id);
+    const queue: string[] = nodes.filter(n => inDegree[n.id] === 0).map(n => n.id);
+    if (queue.length === 0 && nodes.length > 0) {
+      queue.push(nodes[0].id);
     }
 
     const levels: Record<string, number> = {};
@@ -279,20 +266,22 @@ function CallFlowGraphInner({
       });
     }
 
-    filteredNodes.forEach(n => {
+    nodes.forEach(n => {
       if (levels[n.id] === undefined) levels[n.id] = 0;
     });
 
     const nodesByLevel: Record<number, string[]> = {};
-    filteredNodes.forEach(n => {
+    nodes.forEach(n => {
       const lvl = levels[n.id];
       if (!nodesByLevel[lvl]) nodesByLevel[lvl] = [];
       nodesByLevel[lvl].push(n.id);
     });
 
     const computedPositions: Record<string, { x: number; y: number }> = {};
-    const levelHeight = 240;
-    const nodeWidth = 340;
+    const levelHeight = 200;
+    const nodeWidth = 320;
+    const totalLevels = Object.keys(nodesByLevel).length;
+    const startY = -((totalLevels - 1) * levelHeight) / 2;
 
     Object.entries(nodesByLevel).forEach(([levelStr, nodeIds]) => {
       const level = parseInt(levelStr, 10);
@@ -302,22 +291,23 @@ function CallFlowGraphInner({
       nodeIds.forEach((id, index) => {
         computedPositions[id] = {
           x: startX + index * nodeWidth,
-          y: level * levelHeight
+          y: startY + level * levelHeight
         };
       });
     });
 
-    return filteredNodes.map((node, index) => {
+    const filterSearch = searchQuery.trim().toLowerCase();
+
+    return nodes.map((node, index) => {
       const initialPos = computedPositions[node.id] || { 
         x: (index % 2 === 0 ? -160 : 160), 
-        y: index * 240 
+        y: index * 200 
       };
       const pos = draggedPositionsRef.current[node.id] || initialPos;
 
       let isCurrentFileActive = false;
       if (selectedFile) {
         const clickedFilename = selectedFile.split('/').pop() || '';
-        const nodeFilename = node.file.split('/').pop() || '';
         if (node.file.includes(clickedFilename)) {
           isCurrentFileActive = true;
         }
@@ -353,8 +343,18 @@ function CallFlowGraphInner({
         ? node.file === selectedFile 
         : (selectedFolder ? isInsideFolder(node.file, selectedFolder) : false);
 
-      const isHighlighted = hoveredNodeId ? connectedInfo.connectedNodes.has(node.id) : false;
-      const isDimmed = hoveredNodeId ? !connectedInfo.connectedNodes.has(node.id) : false;
+      // Non-destructive tier & search highlight logic
+      let matchesFilter = true;
+      if (activeTier !== 'all' && node.type !== activeTier) {
+        matchesFilter = false;
+      }
+      if (filterSearch !== '' && !(node.label.toLowerCase().includes(filterSearch) || node.file.toLowerCase().includes(filterSearch))) {
+        matchesFilter = false;
+      }
+
+      const isHoverConnected = hoveredNodeId ? connectedInfo.connectedNodes.has(node.id) : true;
+      const isHighlighted = (hoveredNodeId && isHoverConnected) || (filterSearch !== '' && matchesFilter) || (activeTier !== 'all' && matchesFilter);
+      const isDimmed = !matchesFilter || (hoveredNodeId && !isHoverConnected);
 
       return {
         id: node.id,
@@ -370,9 +370,9 @@ function CallFlowGraphInner({
         }
       };
     });
-  }, [filteredNodes, edges, selectedFile, selectedFolder, members, validNodeIds, hoveredNodeId, connectedInfo]);
+  }, [nodes, edges, selectedFile, selectedFolder, members, validNodeIds, hoveredNodeId, connectedInfo, activeTier, searchQuery]);
 
-  // 4. Edges with interactive path styling
+  // Edges with interactive path styling
   const computedEdges = useMemo(() => {
     const validEdges = edges.filter(edge => validNodeIds.has(edge.from) && validNodeIds.has(edge.to));
     
@@ -406,7 +406,7 @@ function CallFlowGraphInner({
         style: {
           stroke: isConnected ? '#0284c7' : '#94a3b8',
           strokeWidth: isConnected ? 2.5 : 1.2,
-          opacity: isDimmed ? 0.2 : (isConnected ? 1 : 0.75),
+          opacity: isDimmed ? 0.15 : (isConnected ? 1 : 0.75),
           strokeDasharray: isConnected ? undefined : '4,4'
         },
         labelStyle: { fill: isConnected ? '#0284c7' : '#475569', fontSize: 9, fontWeight: 600, fontFamily: 'monospace' },
@@ -446,11 +446,12 @@ function CallFlowGraphInner({
     setFlowEdges(computedEdges);
   }, [computedNodes, computedEdges, setFlowNodes, setFlowEdges]);
 
+  // Fast single-pass camera adjustment
   useEffect(() => {
     if (computedNodes.length > 0) {
       const timer = setTimeout(() => {
-        fitView({ padding: 0.2, duration: 0 });
-      }, 100);
+        fitView({ padding: 0.15, duration: 0 });
+      }, 80);
       return () => clearTimeout(timer);
     }
   }, [computedNodes.length, fitView, isFullscreen]);
@@ -465,7 +466,7 @@ function CallFlowGraphInner({
       onNodeClick={(_, node) => onSelectNode(node.data as unknown as CallGraphNode)}
       onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
       onNodeMouseLeave={() => setHoveredNodeId(null)}
-      minZoom={0.2}
+      minZoom={0.15}
       maxZoom={1.5}
       onlyRenderVisibleElements={true}
       nodesDraggable={true}
@@ -482,10 +483,14 @@ export default function CallFlowGraph({ isFullscreen, onToggleFullscreen, onRese
   const [activeTier, setActiveTier] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  const containerClasses = isFullscreen
+    ? "fixed inset-0 z-50 bg-slate-950 p-4 flex flex-col w-screen h-screen"
+    : "w-full flex-grow flex flex-col bg-white rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm";
+
   return (
-    <div className="w-full flex-grow flex flex-col bg-white rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm">
+    <div className={containerClasses}>
       {/* Top Header Control Toolbar */}
-      <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between pointer-events-none gap-2">
+      <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none gap-2">
         <div className="bg-white/95 backdrop-blur border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-2 pointer-events-auto">
           <Layers className="w-4 h-4 text-slate-800" />
           <span className="text-xs font-extrabold text-slate-800">Call Flow Diagram</span>
@@ -501,34 +506,38 @@ export default function CallFlowGraph({ isFullscreen, onToggleFullscreen, onRese
           )}
         </div>
 
-        {/* Tier Filter Toggles & Search Bar */}
+        {/* Search & Tier Filters — ONLY rendered when in Fullscreen mode */}
         <div className="flex items-center gap-2 pointer-events-auto">
-          <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-lg p-1 shadow-sm flex items-center gap-1">
-            <Search className="w-3.5 h-3.5 text-slate-400 ml-1.5" />
-            <input
-              type="text"
-              placeholder="Search graph nodes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="text-xs bg-transparent border-none outline-none w-32 placeholder:text-slate-400 font-medium"
-            />
-          </div>
+          {isFullscreen && (
+            <>
+              <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-lg p-1 shadow-sm flex items-center gap-1">
+                <Search className="w-3.5 h-3.5 text-slate-400 ml-1.5" />
+                <input
+                  type="text"
+                  placeholder="Search graph nodes..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="text-xs bg-transparent border-none outline-none w-36 placeholder:text-slate-400 font-medium"
+                />
+              </div>
 
-          <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-lg p-1 shadow-sm flex items-center gap-0.5">
-            {(['all', 'ui', 'api', 'service', 'db'] as const).map(tier => (
-              <button
-                key={tier}
-                onClick={() => setActiveTier(tier)}
-                className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all ${
-                  activeTier === tier
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-                }`}
-              >
-                {tier}
-              </button>
-            ))}
-          </div>
+              <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-lg p-1 shadow-sm flex items-center gap-0.5">
+                {(['all', 'ui', 'api', 'service', 'db'] as const).map(tier => (
+                  <button
+                    key={tier}
+                    onClick={() => setActiveTier(tier)}
+                    className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all ${
+                      activeTier === tier
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                    }`}
+                  >
+                    {tier}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           {onToggleFullscreen && (
             <button
@@ -537,6 +546,7 @@ export default function CallFlowGraph({ isFullscreen, onToggleFullscreen, onRese
               title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}
             >
               {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              <span>{isFullscreen ? "Exit Fullscreen" : "Fullscreen"}</span>
             </button>
           )}
         </div>

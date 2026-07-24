@@ -370,8 +370,9 @@ export default function Dashboard() {
     }
 
     setAnalyzing(true);
-    setIndexingProgress(0);
+    setIndexingProgress(5);
     setWarningMsg(null);
+    setHasData(true);
 
     try {
       const response = await authenticatedFetch('/api/analyze', {

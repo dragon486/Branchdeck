@@ -510,15 +510,18 @@ export function generateCallGraphFromFiles(
     };
   });
 
-  // 3. Smart Architectural Edge Construction
+  // 3. Smart Grounded Edge Construction (Targeted, non-cluttered)
   const edges: CallGraphEdge[] = [];
   const edgeSet = new Set<string>();
+  const outDegreeCount = new Map<string, number>();
 
   const addEdge = (fromId: string, toId: string, label: string) => {
     if (fromId === toId) return;
     const key = `${fromId}->${toId}`;
-    if (!edgeSet.has(key) && edges.length < 250) {
+    const curCount = outDegreeCount.get(fromId) || 0;
+    if (!edgeSet.has(key) && curCount < 3 && edges.length < 150) {
       edgeSet.add(key);
+      outDegreeCount.set(fromId, curCount + 1);
       edges.push({
         from: fromId,
         to: toId,
@@ -535,34 +538,53 @@ export function generateCallGraphFromFiles(
   const serviceNodes = nodes.filter(n => n.type === 'service');
   const dbNodes = nodes.filter(n => n.type === 'db' || n.type === 'external');
 
-  // A. Page -> Component Rendering Edges
+  // A. Page -> Component Rendering (Match module name or limit to top components)
   pageNodes.forEach(page => {
     componentNodes.forEach(comp => {
-      addEdge(page.id, comp.id, 'renders');
+      const compName = comp.label.toLowerCase();
+      if (page.file.toLowerCase().includes(compName) || compName.includes('flow') || compName.includes('card') || compName.includes('field')) {
+        addEdge(page.id, comp.id, 'renders');
+      }
     });
+    if ((outDegreeCount.get(page.id) || 0) === 0 && componentNodes.length > 0) {
+      addEdge(page.id, componentNodes[0].id, 'renders');
+    }
   });
 
-  // B. UI (Page/Component) -> API Fetching Edges
+  // B. UI -> API Fetching (Match API endpoint name or domain)
   uiNodes.forEach(ui => {
     apiNodes.forEach(api => {
-      const apiRouteName = api.label.toLowerCase();
-      if (ui.file.toLowerCase().includes(apiRouteName) || apiRouteName.includes('analyze') || apiRouteName.includes('callflow')) {
+      const apiParts = api.file.toLowerCase().split('/').filter(p => p && p !== 'route.ts' && p !== 'api');
+      const uiLower = ui.file.toLowerCase();
+      const matchesApi = apiParts.some(part => part.length >= 3 && uiLower.includes(part));
+      if (matchesApi) {
         addEdge(ui.id, api.id, 'fetches');
       }
     });
   });
 
-  // C. API -> Service Delegation Edges
+  // C. API -> Service Delegation (Match service module name)
   apiNodes.forEach(api => {
     serviceNodes.forEach(svc => {
-      addEdge(api.id, svc.id, 'delegates to');
+      const svcName = svc.label.toLowerCase();
+      const apiLower = api.file.toLowerCase();
+      if (apiLower.includes(svcName) || svcName.includes('analyzer') || svcName.includes('retrieval') || svcName.includes('agent')) {
+        addEdge(api.id, svc.id, 'delegates to');
+      }
     });
+    if ((outDegreeCount.get(api.id) || 0) === 0 && serviceNodes.length > 0) {
+      addEdge(api.id, serviceNodes[0].id, 'delegates to');
+    }
   });
 
-  // D. Service -> Database/External Queries Edges
+  // D. Service -> Database/External Queries
   serviceNodes.forEach(svc => {
     dbNodes.forEach(db => {
-      addEdge(svc.id, db.id, 'queries');
+      const dbName = db.label.toLowerCase();
+      const svcLower = svc.file.toLowerCase();
+      if (svcLower.includes(dbName) || dbName.includes('db') || dbName.includes('store') || dbName.includes('github') || dbName.includes('resend')) {
+        addEdge(svc.id, db.id, 'queries');
+      }
     });
   });
 
@@ -571,15 +593,6 @@ export function generateCallGraphFromFiles(
     uiNodes.forEach(ui => {
       serviceNodes.forEach(svc => {
         addEdge(ui.id, svc.id, 'uses');
-      });
-    });
-  }
-
-  // Fallback: If no Services exist, connect API directly to Database
-  if (serviceNodes.length === 0) {
-    apiNodes.forEach(api => {
-      dbNodes.forEach(db => {
-        addEdge(api.id, db.id, 'queries');
       });
     });
   }
