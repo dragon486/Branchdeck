@@ -98,7 +98,7 @@ function CustomCallNode({
           topBorder: 'border-t-4 border-t-cyan-500',
           badge: 'bg-cyan-50 text-cyan-700 border-cyan-200/80',
           glow: 'hover:shadow-[0_12px_28px_rgba(6,182,212,0.2)]',
-          cardSize: 'w-[310px]',
+          cardSize: 'w-[300px]',
         };
       case 'api':
         return {
@@ -156,10 +156,8 @@ function CustomCallNode({
 
   return (
     <div
-      className={`p-4 rounded-2xl border bg-white shadow-[0_6px_20px_rgba(0,0,0,0.05)] ${tierStyle.cardSize} transition-all duration-300 relative ${tierStyle.topBorder} ${tierStyle.glow} ${
-        data.isDimmed ? 'opacity-10 grayscale' : 'opacity-100'
-      } ${
-        data.stepActive
+      className={`p-4 rounded-2xl border bg-white shadow-[0_6px_20px_rgba(0,0,0,0.05)] ${tierStyle.cardSize} transition-all duration-300 relative ${tierStyle.topBorder} ${tierStyle.glow} ${data.isDimmed ? 'opacity-10 grayscale' : 'opacity-100'
+        } ${data.stepActive
           ? 'border-slate-950 ring-4 ring-sky-500/40 shadow-[0_16px_36px_rgba(2,132,199,0.35)] scale-[1.05]'
           : data.isHighlighted
             ? 'border-slate-950 ring-4 ring-sky-500/25 shadow-[0_10px_28px_rgba(2,132,199,0.25)] scale-[1.02]'
@@ -168,7 +166,7 @@ function CustomCallNode({
               : data.isTarget
                 ? 'border-slate-950 ring-2 ring-slate-950/20'
                 : 'border-slate-200/90 hover:border-slate-400'
-      }`}
+        }`}
     >
       <Handle type="target" position={Position.Left} className="w-3 h-3 !bg-slate-900 border-2 border-white" />
 
@@ -182,9 +180,8 @@ function CustomCallNode({
             {liveUsers.map((user, idx) => (
               <div
                 key={idx}
-                className={`w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold text-white ring-1 ring-white ${
-                  user.color.startsWith('bg-') ? user.color : `bg-${user.color}`
-                } cursor-default`}
+                className={`w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold text-white ring-1 ring-white ${user.color.startsWith('bg-') ? user.color : `bg-${user.color}`
+                  } cursor-default`}
                 title={`${user.name} is actively ${user.action}`}
               >
                 {user.avatar}
@@ -271,31 +268,11 @@ function CallFlowGraphInner({
 }: CallFlowGraphProps) {
   const { fitView } = useReactFlow();
 
-  const [activeViewMode, setActiveViewMode] = useState<'request' | 'data' | 'dependency'>('data');
+  const [activeViewMode, setActiveViewMode] = useState<'request' | 'data' | 'dependency' | 'impact'>('data');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [fitKey, setFitKey] = useState(0);
   const draggedPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
-  
-  // Real-time container dimensions measurement
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [containerBounds, setContainerBounds] = useState<{ width: number; height: number }>({ width: 900, height: 600 });
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
-          setContainerBounds({
-            width: entry.contentRect.width,
-            height: entry.contentRect.height,
-          });
-        }
-      }
-    });
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, []);
 
   /* ── 1. Dedupe incoming nodes & edges ── */
   const { allNodes, allEdges } = useMemo(() => {
@@ -316,17 +293,20 @@ function CallFlowGraphInner({
 
   const validNodeIds = useMemo(() => new Set(allNodes.map((n) => n.id)), [allNodes]);
 
-  /* ── 2. Capped Focus Graph Filtering (6 to 8 Nodes Max per View Mode) ── */
+  /* ── 2. Capped Focus Graph Filtering (6 to 10 Nodes Max per View Mode) ── */
   const { visibleNodes, visibleEdges } = useMemo(() => {
     let nodes = allNodes;
     let edges = allEdges;
 
     // A. Mode Specific Filter
     if (activeViewMode === 'request') {
+      // Request Flow: UI -> API Routes -> Controllers
       nodes = nodes.filter(n => n.type === 'ui' || n.type === 'api' || n.type === 'service');
     } else if (activeViewMode === 'data') {
+      // Data Flow: Controllers -> Services -> Repositories -> Database
       nodes = nodes.filter(n => n.type === 'api' || n.type === 'service' || n.type === 'db' || n.type === 'ui');
     } else if (activeViewMode === 'dependency') {
+      // Dependency Flow: UI -> Services -> Libraries -> External SDKs
       nodes = nodes.filter(n => n.type === 'service' || n.type === 'lib' || n.type === 'external' || n.type === 'db');
     }
 
@@ -370,7 +350,7 @@ function CallFlowGraphInner({
       nodes = nodes.filter((n) => keep.has(n.id));
     }
 
-    // D. Capping Focus Graph to 8 Nodes Max for Pristine Legibility
+    // D. CRITICAL: Capping Focus Graph to 8 Nodes Max for Pristine Legibility
     if (nodes.length > 8) {
       const rootNode = nodes.find(n => n.type === 'ui') || nodes.find(n => n.type === 'api') || nodes[0];
       if (rootNode) {
@@ -382,6 +362,7 @@ function CallFlowGraphInner({
           }
         });
 
+        // 2nd hop expansion up to 8 nodes
         edges.forEach(e => {
           if (cappedIds.size < 8) {
             if (cappedIds.has(e.from)) cappedIds.add(e.to);
@@ -401,7 +382,7 @@ function CallFlowGraphInner({
     return { visibleNodes: nodes, visibleEdges: edges };
   }, [allNodes, allEdges, selectedFile, selectedFolder, searchQuery, activeViewMode]);
 
-  /* ── 3. Dynamic Responsive Matrix Layout (80–90% Viewport Fill) ── */
+  /* ── 3. Horizontal Tier Matrix Layout (80–90% Viewport Fill) ── */
   const layoutedNodes = useMemo(() => {
     if (visibleNodes.length === 0) return [];
 
@@ -419,13 +400,8 @@ function CallFlowGraphInner({
       }
     });
 
-    const activeCols = Object.keys(columns).map(Number).filter(col => columns[col].length > 0);
-    const numCols = Math.max(1, activeCols.length);
-    const maxRowsInCol = Math.max(...Object.values(columns).map(arr => arr.length), 1);
-
-    // Calculate dynamic responsive column & row gaps based on container dimensions
-    const colGap = Math.max(340, Math.min(460, (containerBounds.width * 0.82) / numCols));
-    const rowGap = Math.max(180, Math.min(250, (containerBounds.height * 0.76) / maxRowsInCol));
+    const COL_W = 380;
+    const ROW_H = 190;
 
     const pos: Record<string, { x: number; y: number }> = {};
     let stepCount = 1;
@@ -433,13 +409,13 @@ function CallFlowGraphInner({
     [0, 1, 2, 3].forEach(colIdx => {
       const nodesInCol = columns[colIdx];
       const count = nodesInCol.length;
-      const startY = -((count - 1) * rowGap) / 2;
-      const x = colIdx * colGap - ((numCols - 1) * colGap) / 2;
+      const startY = -((count - 1) * ROW_H) / 2;
+      const x = colIdx * COL_W - 550; // Center matrix around x = 0
 
       nodesInCol.forEach((node, rowIdx) => {
         pos[node.id] = {
           x,
-          y: startY + rowIdx * rowGap
+          y: startY + rowIdx * ROW_H
         };
       });
     });
@@ -452,9 +428,9 @@ function CallFlowGraphInner({
         _pos: p
       };
     });
-  }, [visibleNodes, containerBounds]);
+  }, [visibleNodes]);
 
-  /* ── 4. Build React Flow nodes & smooth-step edges ── */
+  /* ── 4. Build React Flow nodes & edges ── */
   const computedNodes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
 
@@ -553,16 +529,15 @@ function CallFlowGraphInner({
       const isConn = active ? connEdges.has(key) : false;
       const isDimmed = active ? !isConn : false;
 
-      const numberedLabel = edge.labels.length > 0 
-        ? `${index + 1}. ${edge.labels.slice(0, 2).join(' / ')}` 
+      const numberedLabel = edge.labels.length > 0
+        ? `${index + 1}. ${edge.labels.slice(0, 2).join(' / ')}`
         : `${index + 1}. Flow Step`;
 
       return {
         id: `edge-${edge.from}-${edge.to}`,
         source: edge.from,
         target: edge.to,
-        type: 'smoothstep' as const,
-        pathOptions: { borderRadius: 10 },
+        type: 'default' as const,
         label: numberedLabel,
         animated: isConn,
         style: {
@@ -584,7 +559,7 @@ function CallFlowGraphInner({
     });
   }, [visibleEdges, visibleNodes, hoveredNodeId, searchQuery]);
 
-  /* ── 5. React Flow state & Camera Auto-Fit ── */
+  /* ── 5. React Flow state & Google Maps Style Camera Auto-Centering ── */
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(computedNodes);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>(computedEdges);
 
@@ -596,13 +571,13 @@ function CallFlowGraphInner({
   // Google Maps Style Camera Auto-Center Focus (80-90% Viewport Fill)
   useEffect(() => {
     if (flowNodes.length === 0) return;
-    const t1 = setTimeout(() => fitView({ padding: 0.12, duration: 400 }), 80);
-    const t2 = setTimeout(() => fitView({ padding: 0.12, duration: 300 }), 300);
+    const t1 = setTimeout(() => fitView({ padding: 0.18, duration: 400 }), 80);
+    const t2 = setTimeout(() => fitView({ padding: 0.18, duration: 300 }), 300);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [flowNodes.length, flowEdges.length, fitKey, activeViewMode, containerBounds, fitView]);
+  }, [flowNodes.length, flowEdges.length, fitKey, activeViewMode, fitView]);
 
   const handleNodesChange = useCallback(
     (changes: any) => {
@@ -627,10 +602,10 @@ function CallFlowGraphInner({
   const isEmpty = flowNodes.length === 0;
 
   return (
-    <div ref={containerRef} className="w-full h-full flex-1 min-h-0 relative font-sans select-none flex flex-col">
+    <div className="w-full h-full flex-1 min-h-0 relative font-sans select-none flex flex-col">
       {/* ── Top Header Control Toolbar ── */}
       <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none gap-2 flex-wrap">
-        
+
         {/* Left Badge: Data Flow Diagram Title & Scope */}
         <div className="bg-white/95 backdrop-blur border border-slate-200 px-3.5 py-1.5 rounded-xl shadow-sm flex items-center gap-2.5 pointer-events-auto">
           <Layers className="w-4 h-4 text-slate-950" />
@@ -640,7 +615,7 @@ function CallFlowGraphInner({
               {selectedFeature ? `Feature: ${selectedFeature}` : selectedFile ? `File: ${selectedFile.split('/').pop()}` : 'Authentication Flow'}
             </span>
           </div>
-          
+
           <button
             onClick={handleFullViewReset}
             className="ml-1 bg-slate-950 hover:bg-slate-800 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 shadow-xs"
@@ -651,10 +626,10 @@ function CallFlowGraphInner({
           </button>
         </div>
 
-        {/* Right Controls: 3 View Mode Tabs + Search + Fullscreen */}
+        {/* Right Controls: 4 View Mode Tabs + Search + Fullscreen */}
         <div className="flex items-center gap-2 pointer-events-auto flex-wrap justify-end">
-          
-          {/* 3 Architectural View Mode Tabs */}
+
+          {/* 4 Architectural View Mode Tabs */}
           <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-xl p-1 shadow-sm flex items-center gap-0.5">
             {[
               { id: 'request', label: 'Request Flow' },
@@ -664,11 +639,10 @@ function CallFlowGraphInner({
               <button
                 key={mode.id}
                 onClick={() => setActiveViewMode(mode.id as any)}
-                className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-lg transition-all ${
-                  activeViewMode === mode.id
+                className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-lg transition-all ${activeViewMode === mode.id
                     ? 'bg-slate-950 text-white shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-                }`}
+                  }`}
               >
                 {mode.label}
               </button>
@@ -775,14 +749,14 @@ function CallFlowGraphInner({
         onNodeClick={(_, node) => onSelectNode(node.data as unknown as CallGraphNode)}
         onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
         onNodeMouseLeave={() => setHoveredNodeId(null)}
-        minZoom={0.25}
+        minZoom={0.6}
         maxZoom={1.5}
         onlyRenderVisibleElements={false}
         nodesDraggable={true}
         nodesConnectable={false}
         className="w-full h-full min-h-0 flex-1 bg-[#f8fafc]"
         fitView
-        fitViewOptions={{ padding: 0.12, duration: 400 }}
+        fitViewOptions={{ padding: 0.15, duration: 400 }}
       >
         <Background color="rgba(148, 163, 184, 0.3)" gap={18} size={1} />
         <Controls showInteractive={false} className="!bg-white !border-slate-200/80 !shadow-sm !rounded-xl" />
