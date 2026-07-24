@@ -606,7 +606,7 @@ function CallFlowGraphInner({
   const isEmpty = flowNodes.length === 0;
 
   return (
-    <div className="w-full h-full flex-1 min-h-0 relative">
+    <div className="w-full h-full flex-1 min-h-[450px] relative">
       {/* ── Toolbar (ALWAYS visible) ── */}
       <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none gap-2">
         <div className="bg-white/95 backdrop-blur border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-2 pointer-events-auto">
@@ -701,7 +701,7 @@ function CallFlowGraphInner({
         onlyRenderVisibleElements={false}
         nodesDraggable={true}
         nodesConnectable={false}
-        className="w-full h-full min-h-0 bg-[#f8fafc]"
+        className="w-full h-full min-h-[450px] bg-[#f8fafc]"
         fitView
         fitViewOptions={{ padding: 0.15, duration: 500 }}
       >
@@ -725,7 +725,7 @@ export default function CallFlowGraph({
 }: CallFlowGraphProps) {
   const containerClasses = isFullscreen
     ? 'fixed inset-0 z-50 bg-[#f8fafc] p-4 flex flex-col w-screen h-screen font-sans select-none'
-    : 'w-full h-full flex-1 flex flex-col min-h-0 bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm font-sans';
+    : 'w-full h-full flex-1 flex flex-col min-h-[450px] bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm font-sans';
 
   return (
     <div className={containerClasses}>
