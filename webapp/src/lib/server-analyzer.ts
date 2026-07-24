@@ -1,7 +1,7 @@
 import { Project, SyntaxKind } from 'ts-morph';
 import * as path from 'path';
 import * as fs from 'fs';
-import { CallGraphNode, CallGraphEdge, generateCallGraphFromFiles, isSourceFile } from './analyzer';
+import { CallGraphNode, CallGraphEdge, generateCallGraphFromFiles, isSourceFile, getDescriptiveNodeLabel } from './analyzer';
 
 // Builds a true AST-parsed static call and dependency graph from local files
 export function generateCallGraphFromAST(workspacePath: string, files: string[]): { nodes: CallGraphNode[]; edges: CallGraphEdge[] } {
@@ -42,12 +42,11 @@ export function generateCallGraphFromAST(workspacePath: string, files: string[])
   // Create code graph nodes representing files
   files.filter(isSourceFile).forEach((file) => {
     const normalizedFile = file.replace(/\\/g, '/').replace(/^\.\//, '');
-    const filename = normalizedFile.split('/').pop() || normalizedFile;
-    const cleanName = filename.replace(/\.[^/.]+$/, "");
+    const label = getDescriptiveNodeLabel(normalizedFile);
     let type: 'ui' | 'api' | 'service' | 'db' | 'external' | 'worker' = 'service';
     const pathLower = normalizedFile.toLowerCase();
 
-    if (pathLower.includes('page') || pathLower.includes('layout') || pathLower.includes('view') || pathLower.endsWith('.css') || pathLower.includes('screen') || pathLower.includes('component') || pathLower.includes('components/')) {
+    if (pathLower.includes('page') || pathLower.includes('layout') || pathLower.includes('view') || pathLower.includes('screen') || pathLower.includes('component') || pathLower.includes('components/')) {
       type = 'ui';
     } else if (pathLower.includes('controller') || pathLower.includes('route') || pathLower.includes('api/') || pathLower.includes('endpoint')) {
       type = 'api';
@@ -64,7 +63,7 @@ export function generateCallGraphFromAST(workspacePath: string, files: string[])
 
     nodes.push({
       id: nodeId,
-      label: cleanName,
+      label,
       file: normalizedFile,
       type,
       note: `Module: ${normalizedFile}`

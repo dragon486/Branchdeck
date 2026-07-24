@@ -454,7 +454,7 @@ export function normalizePath(path: string): string {
   return normalized;
 }
 
-// Scalable O(N) dependency and call graph generator capable of handling massive repositories (e.g. Supabase, Next.js, Monorepos)
+// Enterprise O(N) dependency and call graph generator capable of handling massive repositories
 export function generateCallGraphFromFiles(
   rawFiles: string[],
   repoId: string = 'local-repo',
@@ -463,21 +463,20 @@ export function generateCallGraphFromFiles(
   // Deduplicate and normalize input file paths
   const files = Array.from(new Set(rawFiles.map(normalizePath).filter(Boolean)));
   
-  // 1. High-value file culling
-  const targetFiles = filterHighValueCodeFiles(files, 150);
+  // 1. High-value file culling (excludes non-code and styling files)
+  const targetFiles = filterHighValueCodeFiles(files, 120);
 
-  // 2. Build Nodes
+  // 2. Build Nodes with descriptive names and tier types
   const nodes: CallGraphNode[] = targetFiles.map((file) => {
-    const filename = file.split('/').pop() || file;
-    const cleanName = filename.replace(/\.[^/.]+$/, "");
+    const label = getDescriptiveNodeLabel(file);
     let type: 'ui' | 'api' | 'service' | 'db' | 'external' | 'worker' = 'service';
 
     const pathLower = file.toLowerCase();
-    if (pathLower.includes('page') || pathLower.includes('layout') || pathLower.includes('view') || pathLower.endsWith('.css') || pathLower.includes('screen') || pathLower.includes('component')) {
+    if (pathLower.includes('page') || pathLower.includes('layout') || pathLower.includes('view') || pathLower.includes('screen') || pathLower.includes('component') || pathLower.includes('components/')) {
       type = 'ui';
     } else if (pathLower.includes('controller') || pathLower.includes('route') || pathLower.includes('api/') || pathLower.includes('endpoint')) {
       type = 'api';
-    } else if (pathLower.includes('db/') || pathLower.includes('model') || pathLower.includes('entity') || pathLower.includes('repository') || pathLower.includes('schema') || pathLower.includes('sql')) {
+    } else if (pathLower.includes('db/') || pathLower.includes('model') || pathLower.includes('entity') || pathLower.includes('repository') || pathLower.includes('schema') || pathLower.includes('sql') || pathLower.includes('database')) {
       type = 'db';
     } else if (pathLower.includes('cron') || pathLower.includes('worker') || pathLower.includes('job') || pathLower.includes('task')) {
       type = 'worker';
@@ -487,36 +486,21 @@ export function generateCallGraphFromFiles(
 
     return {
       id: `${repoId}:${commitSha}:${file}`,
-      label: cleanName,
-      file: file,
+      label,
+      file,
       type,
       note: `Module: ${file}`
     };
   });
 
-  // 3. Fast O(N) Hash-Indexed Edge Construction
-  const dirMap = new Map<string, CallGraphNode[]>();
-  const typeMap = new Map<string, CallGraphNode[]>();
-  const nameMap = new Map<string, CallGraphNode>();
-
-  nodes.forEach(node => {
-    const dir = node.file.substring(0, Math.max(0, node.file.lastIndexOf('/')));
-    if (!dirMap.has(dir)) dirMap.set(dir, []);
-    dirMap.get(dir)!.push(node);
-
-    if (!typeMap.has(node.type)) typeMap.set(node.type, []);
-    typeMap.get(node.type)!.push(node);
-
-    nameMap.set(node.label.toLowerCase(), node);
-  });
-
+  // 3. Smart Architectural Edge Construction
   const edges: CallGraphEdge[] = [];
   const edgeSet = new Set<string>();
 
   const addEdge = (fromId: string, toId: string, label: string) => {
     if (fromId === toId) return;
     const key = `${fromId}->${toId}`;
-    if (!edgeSet.has(key) && edges.length < 200) {
+    if (!edgeSet.has(key) && edges.length < 250) {
       edgeSet.add(key);
       edges.push({
         from: fromId,
@@ -527,42 +511,61 @@ export function generateCallGraphFromFiles(
     }
   };
 
-  const genericSegments = new Set([
-    'src', 'app', 'components', 'lib', 'utils', 'helpers', 'views', 'pages', 'api', 'services', 'models',
-    'webapp', 'backend', 'frontend', 'client', 'server', 'packages', 'apps', 'modules', 'projects', 'project',
-    'main', 'master', 'dev', 'prod', 'dist', 'build', 'public', 'static'
-  ]);
-  
-  nodes.forEach(sourceNode => {
-    const sourceSegments = sourceNode.file
-      .toLowerCase()
-      .split('/')
-      .filter(s => s && s.length >= 3 && !genericSegments.has(s) && !s.includes('.'));
-    
-    nodes.forEach(targetNode => {
-      if (sourceNode.id === targetNode.id) return;
-      
-      const targetSegments = new Set(
-        targetNode.file
-          .toLowerCase()
-          .split('/')
-          .filter(s => s && s.length >= 3 && !genericSegments.has(s) && !s.includes('.'))
-      );
-      
-      const hasSharedDomain = sourceSegments.some(seg => targetSegments.has(seg));
-      
-      if (hasSharedDomain) {
-        if (sourceNode.type === 'ui' && (targetNode.type === 'service' || targetNode.type === 'api')) {
-          addEdge(sourceNode.id, targetNode.id, 'uses');
-        } else if (sourceNode.type === 'api' && (targetNode.type === 'service' || targetNode.type === 'db')) {
-          addEdge(sourceNode.id, targetNode.id, 'delegates to');
-        } else if (sourceNode.type === 'service' && (targetNode.type === 'db' || targetNode.type === 'external')) {
-          addEdge(sourceNode.id, targetNode.id, targetNode.type === 'db' ? 'queries' : 'uses adapter');
-        }
+  const uiNodes = nodes.filter(n => n.type === 'ui');
+  const pageNodes = uiNodes.filter(n => n.file.toLowerCase().includes('page') || n.file.toLowerCase().includes('layout') || n.file.toLowerCase().includes('app.'));
+  const componentNodes = uiNodes.filter(n => !pageNodes.includes(n));
+  const apiNodes = nodes.filter(n => n.type === 'api');
+  const serviceNodes = nodes.filter(n => n.type === 'service');
+  const dbNodes = nodes.filter(n => n.type === 'db' || n.type === 'external');
+
+  // A. Page -> Component Rendering Edges
+  pageNodes.forEach(page => {
+    componentNodes.forEach(comp => {
+      addEdge(page.id, comp.id, 'renders');
+    });
+  });
+
+  // B. UI (Page/Component) -> API Fetching Edges
+  uiNodes.forEach(ui => {
+    apiNodes.forEach(api => {
+      const apiRouteName = api.label.toLowerCase();
+      if (ui.file.toLowerCase().includes(apiRouteName) || apiRouteName.includes('analyze') || apiRouteName.includes('callflow')) {
+        addEdge(ui.id, api.id, 'fetches');
       }
     });
   });
 
+  // C. API -> Service Delegation Edges
+  apiNodes.forEach(api => {
+    serviceNodes.forEach(svc => {
+      addEdge(api.id, svc.id, 'delegates to');
+    });
+  });
+
+  // D. Service -> Database/External Queries Edges
+  serviceNodes.forEach(svc => {
+    dbNodes.forEach(db => {
+      addEdge(svc.id, db.id, 'queries');
+    });
+  });
+
+  // Fallback: If no API routes exist, connect UI directly to Services
+  if (apiNodes.length === 0) {
+    uiNodes.forEach(ui => {
+      serviceNodes.forEach(svc => {
+        addEdge(ui.id, svc.id, 'uses');
+      });
+    });
+  }
+
+  // Fallback: If no Services exist, connect API directly to Database
+  if (serviceNodes.length === 0) {
+    apiNodes.forEach(api => {
+      dbNodes.forEach(db => {
+        addEdge(api.id, db.id, 'queries');
+      });
+    });
+  }
+
   return { nodes, edges };
 }
-

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { 
   ReactFlow, 
   Background, 
@@ -16,7 +16,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { CallGraphNode, CallGraphEdge } from '@/lib/analyzer';
-import { Layers, MessageSquare, Maximize2, Minimize2, RefreshCw } from 'lucide-react';
+import { Layers, MessageSquare, Maximize2, Minimize2, RefreshCw, Search } from 'lucide-react';
 
 interface CallFlowGraphProps {
   nodes: CallGraphNode[];
@@ -39,19 +39,56 @@ interface LiveCollaborator {
   action: 'editing' | 'viewing';
 }
 
-
 // Custom Node component to render cards in light theme with vertical handles, avatars, and notes
-function CustomCallNode({ data }: { data: CallGraphNode & { isTarget?: boolean; activeFileSelected?: boolean; liveUsers?: LiveCollaborator[] } }) {
-  const badgeColor = useMemo(() => {
+function CustomCallNode({ data }: { data: CallGraphNode & { isTarget?: boolean; activeFileSelected?: boolean; liveUsers?: LiveCollaborator[]; isDimmed?: boolean; isHighlighted?: boolean } }) {
+  const tierStyle = useMemo(() => {
     switch (data.type) {
-      case 'ui': return 'bg-cyan-50 text-cyan-700 border-cyan-200';
-      case 'api': return 'bg-orange-50 text-orange-700 border-orange-200';
-      case 'service': return 'bg-slate-50 text-slate-800 border-slate-200';
-      case 'db': return 'bg-slate-900 text-slate-100 border-slate-950';
-      case 'external': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      default: return 'bg-slate-50 text-slate-700 border-slate-200';
+      case 'ui': 
+        return {
+          topBorder: 'border-t-4 border-t-cyan-500',
+          badge: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+          glow: 'hover:shadow-[0_8px_24px_rgba(6,182,212,0.18)]'
+        };
+      case 'api': 
+        return {
+          topBorder: 'border-t-4 border-t-orange-500',
+          badge: 'bg-orange-50 text-orange-700 border-orange-200',
+          glow: 'hover:shadow-[0_8px_24px_rgba(249,115,22,0.18)]'
+        };
+      case 'service': 
+        return {
+          topBorder: 'border-t-4 border-t-indigo-500',
+          badge: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+          glow: 'hover:shadow-[0_8px_24px_rgba(99,102,241,0.18)]'
+        };
+      case 'db': 
+        return {
+          topBorder: 'border-t-4 border-t-emerald-600',
+          badge: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+          glow: 'hover:shadow-[0_8px_24px_rgba(16,185,129,0.18)]'
+        };
+      case 'external': 
+        return {
+          topBorder: 'border-t-4 border-t-rose-500',
+          badge: 'bg-rose-50 text-rose-700 border-rose-200',
+          glow: 'hover:shadow-[0_8px_24px_rgba(244,63,94,0.18)]'
+        };
+      default: 
+        return {
+          topBorder: 'border-t-4 border-t-slate-400',
+          badge: 'bg-slate-50 text-slate-700 border-slate-200',
+          glow: 'hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)]'
+        };
     }
   }, [data.type]);
+
+  const extBadge = useMemo(() => {
+    const parts = data.file.split('.');
+    if (parts.length > 1) {
+      return parts[parts.length - 1].toUpperCase();
+    }
+    return 'FILE';
+  }, [data.file]);
 
   const devColors = useMemo(() => {
     const initials = data.developer?.avatar || '';
@@ -62,20 +99,22 @@ function CustomCallNode({ data }: { data: CallGraphNode & { isTarget?: boolean; 
     return 'bg-slate-100 text-slate-700 border-slate-200';
   }, [data.developer]);
 
-  const liveUsers = useMemo(() => {
-    return data.liveUsers || [];
-  }, [data.liveUsers]);
+  const liveUsers = useMemo(() => data.liveUsers || [], [data.liveUsers]);
 
   return (
-    <div className={`p-4 rounded-xl border bg-white shadow-[0_4px_12px_rgba(0,0,0,0.1)] min-w-[240px] max-w-[280px] transition-all duration-300 relative ${
-      data.activeFileSelected
-        ? 'border-slate-900 ring-4 ring-slate-950/10'
-        : data.isTarget 
-          ? 'border-slate-900 ring-2 ring-slate-950/20' 
-          : 'border-slate-200/80 hover:border-slate-350 hover:shadow-[0_8px_24px_rgba(0,0,0,0.18)]'
+    <div className={`p-3.5 rounded-xl border bg-white shadow-[0_4px_12px_rgba(0,0,0,0.06)] min-w-[250px] max-w-[290px] transition-all duration-300 relative ${tierStyle.topBorder} ${tierStyle.glow} ${
+      data.isDimmed ? 'opacity-30 grayscale-[40%]' : 'opacity-100'
+    } ${
+      data.isHighlighted
+        ? 'border-slate-900 ring-4 ring-sky-500/20 shadow-[0_8px_24px_rgba(2,132,199,0.2)]'
+        : data.activeFileSelected
+          ? 'border-slate-900 ring-4 ring-slate-950/10'
+          : data.isTarget 
+            ? 'border-slate-900 ring-2 ring-slate-950/20' 
+            : 'border-slate-200/80 hover:border-slate-400'
     }`}>
       {/* Target/source ports laid out TOP and BOTTOM for vertical flows */}
-      <Handle type="target" position={Position.Top} className="w-2 h-2 !bg-slate-900" />
+      <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 !bg-slate-800" />
       
       {liveUsers.length > 0 && (
         <div className="absolute -top-3.5 -right-2 flex items-center gap-1 bg-white border border-slate-200 shadow-sm px-2 py-0.5 rounded-full z-20">
@@ -100,37 +139,42 @@ function CustomCallNode({ data }: { data: CallGraphNode & { isTarget?: boolean; 
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-bold text-slate-800 truncate">{data.label}</span>
-          <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${badgeColor}`}>
-            {data.type}
-          </span>
+          <span className="text-xs font-extrabold text-slate-800 truncate" title={data.label}>{data.label}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200/60">
+              {extBadge}
+            </span>
+            <span className={`text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${tierStyle.badge}`}>
+              {data.type}
+            </span>
+          </div>
         </div>
 
-        <div className="text-[10px] text-slate-400 font-mono truncate">{data.file}</div>
+        <div className="text-[10px] text-slate-400 font-mono truncate" title={data.file}>{data.file}</div>
 
         {data.developer && (
-          <div className="flex items-center gap-2 border-t border-slate-100 pt-2">
-            <div className={`w-5 h-5 rounded-full border flex items-center justify-center text-[9px] font-bold ${devColors}`}>
+          <div className="flex items-center gap-2 border-t border-slate-100 pt-1.5 mt-0.5">
+            <div className={`w-4 h-4 rounded-full border flex items-center justify-center text-[8px] font-bold ${devColors}`}>
               {data.developer.avatar}
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-slate-700 leading-none">{data.developer.name}</span>
-              <span className="text-[8px] text-slate-400 leading-none mt-0.5">{data.developer.role}</span>
+              <span className="text-[9px] font-bold text-slate-700 leading-none">{data.developer.name}</span>
+              <span className="text-[7.5px] text-slate-400 leading-none mt-0.5">{data.developer.role}</span>
             </div>
           </div>
         )}
 
         {data.note && (
-          <div className="flex items-start gap-1.5 bg-slate-50 border border-slate-100 p-2 rounded-lg text-[9px] text-slate-500 leading-normal mt-1">
-            <MessageSquare className="w-3 h-3 text-slate-400 flex-shrink-0 mt-0.5" />
-            <span className="font-medium">{data.note}</span>
+          <div className="flex items-start gap-1 bg-slate-50 border border-slate-100 p-1.5 rounded-lg text-[8.5px] text-slate-500 leading-normal mt-0.5">
+            <MessageSquare className="w-2.5 h-2.5 text-slate-400 flex-shrink-0 mt-0.5" />
+            <span className="font-medium line-clamp-2">{data.note}</span>
           </div>
         )}
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="w-2 h-2 !bg-slate-900" />
+      <Handle type="source" position={Position.Bottom} className="w-2.5 h-2.5 !bg-slate-800" />
     </div>
   );
 }
@@ -139,21 +183,64 @@ const nodeTypes = {
   customCall: CustomCallNode
 };
 
-function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selectedFolder, isFullscreen, members, repoSource }: CallFlowGraphProps) {
+function CallFlowGraphInner({ 
+  nodes, 
+  edges, 
+  onSelectNode, 
+  selectedFile, 
+  selectedFolder, 
+  isFullscreen, 
+  members, 
+  activeTier, 
+  searchQuery 
+}: CallFlowGraphProps & { activeTier: string; searchQuery: string }) {
   const { fitView } = useReactFlow();
-  const draggedPositionsRef = React.useRef<Record<string, { x: number; y: number }>>({});
+  const draggedPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
-  // 1. Build memoized node set for fast validation
-  const validNodeIds = useMemo(() => new Set(nodes.map(n => n.id)), [nodes]);
+  // 1. Filter nodes by tier and search query
+  const filteredNodes = useMemo(() => {
+    return nodes.filter(n => {
+      if (activeTier !== 'all' && n.type !== activeTier) return false;
+      if (searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase();
+        return n.label.toLowerCase().includes(q) || n.file.toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }, [nodes, activeTier, searchQuery]);
 
-  // 2. Compute non-overlapping layout positions
+  const validNodeIds = useMemo(() => new Set(filteredNodes.map(n => n.id)), [filteredNodes]);
+
+  // 2. Interactive Connected Node & Edge Resolution
+  const connectedInfo = useMemo(() => {
+    const activeId = hoveredNodeId;
+    if (!activeId || !validNodeIds.has(activeId)) {
+      return { connectedNodes: new Set<string>(), connectedEdges: new Set<string>() };
+    }
+
+    const connNodes = new Set<string>([activeId]);
+    const connEdges = new Set<string>();
+
+    edges.forEach(e => {
+      if (e.from === activeId || e.to === activeId) {
+        connEdges.add(`edge-${e.from}-${e.to}`);
+        connNodes.add(e.from);
+        connNodes.add(e.to);
+      }
+    });
+
+    return { connectedNodes: connNodes, connectedEdges: connEdges };
+  }, [hoveredNodeId, edges, validNodeIds]);
+
+  // 3. Layout calculation with tiered non-overlapping positioning
   const computedNodes = useMemo(() => {
-    if (nodes.length === 0) return [];
+    if (filteredNodes.length === 0) return [];
 
     const adj: Record<string, string[]> = {};
     const inDegree: Record<string, number> = {};
     
-    nodes.forEach(n => {
+    filteredNodes.forEach(n => {
       adj[n.id] = [];
       inDegree[n.id] = 0;
     });
@@ -167,10 +254,9 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selected
       }
     });
 
-    // Root nodes
-    const queue: string[] = nodes.filter(n => inDegree[n.id] === 0).map(n => n.id);
-    if (queue.length === 0 && nodes.length > 0) {
-      queue.push(nodes[0].id);
+    const queue: string[] = filteredNodes.filter(n => inDegree[n.id] === 0).map(n => n.id);
+    if (queue.length === 0 && filteredNodes.length > 0) {
+      queue.push(filteredNodes[0].id);
     }
 
     const levels: Record<string, number> = {};
@@ -193,12 +279,12 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selected
       });
     }
 
-    nodes.forEach(n => {
+    filteredNodes.forEach(n => {
       if (levels[n.id] === undefined) levels[n.id] = 0;
     });
 
     const nodesByLevel: Record<number, string[]> = {};
-    nodes.forEach(n => {
+    filteredNodes.forEach(n => {
       const lvl = levels[n.id];
       if (!nodesByLevel[lvl]) nodesByLevel[lvl] = [];
       nodesByLevel[lvl].push(n.id);
@@ -221,9 +307,9 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selected
       });
     });
 
-    return nodes.map((node, index) => {
+    return filteredNodes.map((node, index) => {
       const initialPos = computedPositions[node.id] || { 
-        x: (index % 2 === 0 ? -150 : 150), 
+        x: (index % 2 === 0 ? -160 : 160), 
         y: index * 240 
       };
       const pos = draggedPositionsRef.current[node.id] || initialPos;
@@ -232,19 +318,8 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selected
       if (selectedFile) {
         const clickedFilename = selectedFile.split('/').pop() || '';
         const nodeFilename = node.file.split('/').pop() || '';
-        
         if (node.file.includes(clickedFilename)) {
           isCurrentFileActive = true;
-        } else {
-          const clickedParts = selectedFile.split('/');
-          const nodeParts = node.file.split('/');
-          if (clickedParts.length > 2 && nodeParts.length > 2) {
-            const clickedDir = clickedParts[clickedParts.length - 2];
-            const nodeDir = nodeParts[nodeParts.length - 2];
-            if (clickedDir === nodeDir && clickedDir !== 'src') {
-              isCurrentFileActive = true;
-            }
-          }
         }
       }
 
@@ -278,6 +353,9 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selected
         ? node.file === selectedFile 
         : (selectedFolder ? isInsideFolder(node.file, selectedFolder) : false);
 
+      const isHighlighted = hoveredNodeId ? connectedInfo.connectedNodes.has(node.id) : false;
+      const isDimmed = hoveredNodeId ? !connectedInfo.connectedNodes.has(node.id) : false;
+
       return {
         id: node.id,
         type: 'customCall',
@@ -286,17 +364,18 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selected
           ...node,
           isTarget: isNodeActive,
           activeFileSelected: isCurrentFileActive,
-          liveUsers: nodeLiveUsers
+          liveUsers: nodeLiveUsers,
+          isHighlighted,
+          isDimmed
         }
       };
     });
-  }, [nodes, edges, selectedFile, selectedFolder, members, validNodeIds]);
+  }, [filteredNodes, edges, selectedFile, selectedFolder, members, validNodeIds, hoveredNodeId, connectedInfo]);
 
-  // 3. Format valid, deduplicated edges with smoothstep routing
+  // 4. Edges with interactive path styling
   const computedEdges = useMemo(() => {
     const validEdges = edges.filter(edge => validNodeIds.has(edge.from) && validNodeIds.has(edge.to));
     
-    // Deduplicate parallel edges connecting the same source and target
     const edgeMap = new Map<string, { from: string; to: string; labels: string[] }>();
     validEdges.forEach(edge => {
       const key = `${edge.from}->${edge.to}`;
@@ -310,51 +389,38 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selected
 
     const uniqueEdges = Array.from(edgeMap.values());
 
-    const norm = (p: string) => p.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, '');
-    const isInsideFolder = (file: string, folder: string) => {
-      const normFile = norm(file);
-      const normFolder = norm(folder);
-      return normFile.startsWith(`${normFolder}/`) || normFile.includes(`/${normFolder}/`) || normFile === normFolder;
-    };
-
-    return uniqueEdges.map((edge, index) => {
-      const isSourceActive = selectedFile 
-        ? edge.from.includes(selectedFile) 
-        : (selectedFolder ? isInsideFolder(edge.from, selectedFolder) : false);
-        
-      const isTargetActive = selectedFile 
-        ? edge.to.includes(selectedFile) 
-        : (selectedFolder ? isInsideFolder(edge.to, selectedFolder) : false);
-
-      const isActivePath = (selectedFile || selectedFolder) ? (isSourceActive || isTargetActive) : false;
+    return uniqueEdges.map((edge) => {
+      const edgeId = `edge-${edge.from}-${edge.to}`;
+      const isConnected = hoveredNodeId ? connectedInfo.connectedEdges.has(edgeId) : false;
+      const isDimmed = hoveredNodeId ? !isConnected : false;
 
       const combinedLabel = edge.labels.length > 0 ? edge.labels.slice(0, 2).join(' / ') : undefined;
 
       return {
-        id: `edge-${edge.from}-${edge.to}`,
+        id: edgeId,
         source: edge.from,
         target: edge.to,
         type: 'default',
         label: combinedLabel,
-        animated: isActivePath,
+        animated: isConnected,
         style: {
-          stroke: isActivePath ? '#0284c7' : '#94a3b8',
-          strokeWidth: isActivePath ? 2.5 : 1.2,
-          opacity: (selectedFile || selectedFolder) ? (isActivePath ? 1 : 0.25) : 0.75,
-          strokeDasharray: '4,4'
+          stroke: isConnected ? '#0284c7' : '#94a3b8',
+          strokeWidth: isConnected ? 2.5 : 1.2,
+          opacity: isDimmed ? 0.2 : (isConnected ? 1 : 0.75),
+          strokeDasharray: isConnected ? undefined : '4,4'
         },
-        labelStyle: { fill: isActivePath ? '#0f172a' : '#475569', fontSize: 9, fontWeight: 600, fontFamily: 'monospace' },
+        labelStyle: { fill: isConnected ? '#0284c7' : '#475569', fontSize: 9, fontWeight: 600, fontFamily: 'monospace' },
         labelBgPadding: [5, 3] as [number, number],
         labelBgBorderRadius: 4,
-        labelBgStyle: { fill: '#ffffff', color: '#0f172a', stroke: isActivePath ? '#0284c7' : '#cbd5e1', strokeWidth: isActivePath ? 1 : 0.5 }
+        labelBgStyle: { fill: '#ffffff', color: '#0f172a', stroke: isConnected ? '#0284c7' : '#cbd5e1', strokeWidth: isConnected ? 1 : 0.5 }
       };
     });
-  }, [edges, validNodeIds, selectedFile, selectedFolder]);
+  }, [edges, validNodeIds, hoveredNodeId, connectedInfo]);
 
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(computedNodes);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>(computedEdges);
 
-  const handleNodesChange = React.useCallback((changes: any) => {
+  const handleNodesChange = useCallback((changes: any) => {
     changes.forEach((change: any) => {
       if (change.type === 'position' && change.position) {
         draggedPositionsRef.current[change.id] = change.position;
@@ -380,7 +446,6 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selected
     setFlowEdges(computedEdges);
   }, [computedNodes, computedEdges, setFlowNodes, setFlowEdges]);
 
-  // Fast single-pass camera adjustment
   useEffect(() => {
     if (computedNodes.length > 0) {
       const timer = setTimeout(() => {
@@ -398,6 +463,8 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selected
       onNodesChange={handleNodesChange}
       onEdgesChange={onEdgesChange}
       onNodeClick={(_, node) => onSelectNode(node.data as unknown as CallGraphNode)}
+      onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
+      onNodeMouseLeave={() => setHoveredNodeId(null)}
       minZoom={0.2}
       maxZoom={1.5}
       onlyRenderVisibleElements={true}
@@ -412,37 +479,77 @@ function CallFlowGraphInner({ nodes, edges, onSelectNode, selectedFile, selected
 }
 
 export default function CallFlowGraph({ isFullscreen, onToggleFullscreen, onResetFocus, isFocused, ...props }: CallFlowGraphProps) {
+  const [activeTier, setActiveTier] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
   return (
     <div className="w-full flex-grow flex flex-col bg-white rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm">
-      <div className="absolute top-4 left-4 z-10 bg-white/95 border border-slate-200 px-3 py-2 rounded-lg shadow-sm flex items-center gap-2">
-        <Layers className="w-4 h-4 text-slate-800" />
-        <span className="text-xs font-bold text-slate-700">Call Flow Diagram</span>
-        {isFocused && onResetFocus && (
-          <button
-            onClick={onResetFocus}
-            className="ml-2 bg-slate-900 hover:bg-slate-850 text-white text-[10px] font-bold px-2.5 py-1 rounded-md transition-all flex items-center gap-1 shadow-sm"
-          >
-            <RefreshCw className="w-3 h-3" />
-            <span>Show Full Diagram</span>
-          </button>
-        )}
+      {/* Top Header Control Toolbar */}
+      <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between pointer-events-none gap-2">
+        <div className="bg-white/95 backdrop-blur border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-2 pointer-events-auto">
+          <Layers className="w-4 h-4 text-slate-800" />
+          <span className="text-xs font-extrabold text-slate-800">Call Flow Diagram</span>
+          
+          {isFocused && onResetFocus && (
+            <button
+              onClick={onResetFocus}
+              className="ml-1 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold px-2 py-0.5 rounded transition-all flex items-center gap-1 shadow-sm"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>Full View</span>
+            </button>
+          )}
+        </div>
+
+        {/* Tier Filter Toggles & Search Bar */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-lg p-1 shadow-sm flex items-center gap-1">
+            <Search className="w-3.5 h-3.5 text-slate-400 ml-1.5" />
+            <input
+              type="text"
+              placeholder="Search graph nodes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="text-xs bg-transparent border-none outline-none w-32 placeholder:text-slate-400 font-medium"
+            />
+          </div>
+
+          <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-lg p-1 shadow-sm flex items-center gap-0.5">
+            {(['all', 'ui', 'api', 'service', 'db'] as const).map(tier => (
+              <button
+                key={tier}
+                onClick={() => setActiveTier(tier)}
+                className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all ${
+                  activeTier === tier
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                }`}
+              >
+                {tier}
+              </button>
+            ))}
+          </div>
+
+          {onToggleFullscreen && (
+            <button
+              onClick={onToggleFullscreen}
+              className="bg-white/95 backdrop-blur border border-slate-200 hover:border-slate-300 p-1.5 rounded-lg shadow-sm hover:bg-slate-50 text-slate-700 transition-all flex items-center gap-1 text-xs font-bold"
+              title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}
+            >
+              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
+          )}
+        </div>
       </div>
 
-      {onToggleFullscreen && (
-        <div className="absolute top-4 right-4 z-10">
-          <button
-            onClick={onToggleFullscreen}
-            className="bg-white/95 border border-slate-250 hover:border-slate-350 p-2 rounded-lg shadow-sm hover:bg-slate-50 text-slate-700 transition-all flex items-center gap-1.5 text-[11px] font-bold"
-            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}
-          >
-            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-            <span>{isFullscreen ? "Exit Fullscreen" : "Fullscreen"}</span>
-          </button>
-        </div>
-      )}
-
       <ReactFlowProvider>
-        <CallFlowGraphInner isFullscreen={isFullscreen} onToggleFullscreen={onToggleFullscreen} {...props} />
+        <CallFlowGraphInner 
+          isFullscreen={isFullscreen} 
+          onToggleFullscreen={onToggleFullscreen} 
+          activeTier={activeTier} 
+          searchQuery={searchQuery} 
+          {...props} 
+        />
       </ReactFlowProvider>
     </div>
   );
