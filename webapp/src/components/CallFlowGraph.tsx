@@ -74,9 +74,8 @@ function isInsideFolder(file: string, folder: string): boolean {
 }
 
 /* ──────────────────────────────────────────────────────────────────── */
-/*  DUAL-STRATEGY LAYOUT ENGINE                                         */
-/*  1. Multi-type graphs  → Type columns (UI → API → SERVICE → DB)     */
-/*  2. Single-type graphs → Compact grid (square aspect ratio)          */
+/*  UNIVERSAL DUAL-STRATEGY LAYOUT ENGINE                               */
+/*  Guarantees 100% of nodes receive valid (x, y) coordinates.           */
 /* ──────────────────────────────────────────────────────────────────── */
 
 function computeLayout(
@@ -85,6 +84,7 @@ function computeLayout(
 ): Record<string, { x: number; y: number }> {
   if (nodes.length === 0) return {};
 
+  // Group all nodes by uppercase normalized type
   const byType: Record<string, CallGraphNode[]> = {};
   for (const n of nodes) {
     const t = (n.type || 'FILE').toString().toUpperCase();
@@ -92,26 +92,34 @@ function computeLayout(
     byType[t].push(n);
   }
 
-  const typeOrder = ['UI', 'API', 'SERVICE', 'DB', 'EXTERNAL', 'FILE'];
-  const presentTypes = typeOrder.filter((t) => byType[t]?.length > 0);
+  // Desired architectural order, followed by any custom types
+  const preferredOrder = ['UI', 'API', 'SERVICE', 'DB', 'EXTERNAL', 'FILE'];
+  const allDiscoveredTypes = Object.keys(byType);
+  
+  const presentTypes = [
+    ...preferredOrder.filter(t => byType[t]?.length > 0),
+    ...allDiscoveredTypes.filter(t => !preferredOrder.includes(t) && byType[t]?.length > 0)
+  ];
 
-  // Single-type: use compact grid (prevents ultra-wide horizontal strip)
-  if (presentTypes.length === 1) {
+  // If single-type view (e.g. folder drill-down), use compact grid layout
+  if (presentTypes.length <= 1) {
     return computeGridLayout(nodes);
   }
 
-  // Multi-type: column layout with vertical stacking
-  const COL_GAP = 60;
-  const NODE_W = 300;
-  const NODE_H = 150;
+  // Multi-type view: Architectural tier columns
+  const COL_GAP = 80;
+  const NODE_W = 310;
+  const NODE_H = 160;
   const MAX_PER_COL = 6;
 
   const positions: Record<string, { x: number; y: number }> = {};
   let currentX = 0;
 
   for (const type of presentTypes) {
-    const typeNodes = byType[type];
+    const typeNodes = byType[type] || [];
     const count = typeNodes.length;
+    if (count === 0) continue;
+
     const subCols = Math.ceil(count / MAX_PER_COL);
     const colWidth = subCols * NODE_W;
 
@@ -131,17 +139,27 @@ function computeLayout(
     currentX += colWidth + COL_GAP;
   }
 
+  // Safety check: Ensure every single node gets a fallback position if missed
+  nodes.forEach((node, idx) => {
+    if (!positions[node.id]) {
+      positions[node.id] = {
+        x: (idx % 3) * 310,
+        y: Math.floor(idx / 3) * 160,
+      };
+    }
+  });
+
   return positions;
 }
 
-/** Compact grid layout for single-type views */
+/** Compact grid layout for single-type or isolated folder views */
 function computeGridLayout(nodes: CallGraphNode[]): Record<string, { x: number; y: number }> {
   const n = nodes.length;
   if (n === 0) return {};
 
   const cols = n <= 2 ? n : n <= 6 ? 2 : n <= 12 ? 3 : 4;
-  const NODE_W = 300;
-  const NODE_H = 150;
+  const NODE_W = 310;
+  const NODE_H = 160;
 
   const actualCols = Math.min(cols, n);
   const gridWidth = actualCols * NODE_W;
@@ -176,7 +194,8 @@ function CustomCallNode({
   };
 }) {
   const tierStyle = useMemo(() => {
-    switch (data.type) {
+    const t = (data.type || '').toString().toLowerCase();
+    switch (t) {
       case 'ui':
         return {
           topBorder: 'border-t-4 border-t-cyan-500',
@@ -217,7 +236,7 @@ function CustomCallNode({
   }, [data.type]);
 
   const extBadge = useMemo(() => {
-    const parts = data.file.split('.');
+    const parts = (data.file || '').split('.');
     return parts.length > 1 ? parts[parts.length - 1].toUpperCase() : 'FILE';
   }, [data.file]);
 
@@ -358,13 +377,15 @@ function CallFlowGraphInner({
 
   const validNodeIds = useMemo(() => new Set(allNodes.map((n) => n.id)), [allNodes]);
 
-  /* ── 2. Filter ── */
+  /* ── 2. Filter (Case-insensitive & path-normalized) ── */
   const { visibleNodes, visibleEdges } = useMemo(() => {
     let nodes = allNodes;
     let edges = allEdges;
 
+    // File selection filter
     if (selectedFile) {
-      const target = allNodes.find((n) => n.file === selectedFile);
+      const normSelFile = norm(selectedFile);
+      const target = allNodes.find((n) => norm(n.file) === normSelFile || norm(n.file).endsWith(normSelFile.split('/').pop() || ''));
       if (target) {
         const keep = new Set<string>([target.id]);
         for (const e of edges) {
@@ -373,7 +394,9 @@ function CallFlowGraphInner({
         }
         nodes = nodes.filter((n) => keep.has(n.id));
       }
-    } else if (selectedFolder) {
+    } 
+    // Folder selection filter
+    else if (selectedFolder) {
       const inFolder = new Set<string>();
       for (const n of nodes) {
         if (isInsideFolder(n.file, selectedFolder)) inFolder.add(n.id);
@@ -386,8 +409,10 @@ function CallFlowGraphInner({
       nodes = nodes.filter((n) => keep.has(n.id));
     }
 
+    // Tier selection filter (Case-insensitive matching)
     if (activeTier !== 'all') {
-      const tierIds = new Set(nodes.filter((n) => n.type === activeTier).map((n) => n.id));
+      const targetTier = activeTier.toLowerCase();
+      const tierIds = new Set(nodes.filter((n) => (n.type || '').toLowerCase() === targetTier).map((n) => n.id));
       const keep = new Set<string>(tierIds);
       for (const e of edges) {
         if (tierIds.has(e.from)) keep.add(e.to);
@@ -396,6 +421,7 @@ function CallFlowGraphInner({
       nodes = nodes.filter((n) => keep.has(n.id));
     }
 
+    // Search query filter
     const q = searchQuery.trim().toLowerCase();
     if (q) {
       const matched = new Set(
@@ -417,7 +443,7 @@ function CallFlowGraphInner({
     return { visibleNodes: nodes, visibleEdges: edges };
   }, [allNodes, allEdges, selectedFile, selectedFolder, activeTier, searchQuery]);
 
-  /* ── 3. Dual-Strategy Layout Calculation ── */
+  /* ── 3. Layout calculation ── */
   const positions = useMemo(() => {
     return computeLayout(visibleNodes, visibleEdges);
   }, [visibleNodes, visibleEdges]);
@@ -464,7 +490,7 @@ function CallFlowGraphInner({
           .map((m) => ({ name: m.name, avatar: m.avatar, color: m.color, action: 'editing' as const })) ?? [];
 
       const isTarget = selectedFile
-        ? node.file === selectedFile
+        ? norm(node.file) === norm(selectedFile)
         : selectedFolder
           ? isInsideFolder(node.file, selectedFolder)
           : false;
@@ -548,7 +574,7 @@ function CallFlowGraphInner({
     });
   }, [visibleEdges, visibleNodes, hoveredNodeId, searchQuery]);
 
-  /* ── 6. React Flow state ── */
+  /* ── 6. React Flow State Synchronization ── */
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>([]);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
@@ -557,7 +583,7 @@ function CallFlowGraphInner({
     setFlowEdges(computedEdges);
   }, [computedNodes, computedEdges, setFlowNodes, setFlowEdges]);
 
-  /* ── Multi-pass fitView timer ── */
+  /* ── Camera auto-fit trigger on mount and state changes ── */
   useEffect(() => {
     if (flowNodes.length === 0) return;
     const t1 = setTimeout(() => fitView({ padding: 0.2, duration: 500 }), 80);
@@ -591,8 +617,8 @@ function CallFlowGraphInner({
   const isEmpty = flowNodes.length === 0;
 
   return (
-    <div className="w-full h-full relative">
-      {/* ── Toolbar ── */}
+    <div className="w-full h-full min-h-[400px] relative">
+      {/* ── Toolbar (ALWAYS visible) ── */}
       <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none gap-2">
         <div className="bg-white/95 backdrop-blur border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-2 pointer-events-auto">
           <Layers className="w-4 h-4 text-slate-800" />
@@ -649,7 +675,7 @@ function CallFlowGraphInner({
 
       {/* ── Empty State ── */}
       {isEmpty && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-slate-400">
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-slate-400 bg-[#f8fafc]">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-slate-300 mb-3">
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <path d="M3 9h18M9 21V9" />
@@ -686,7 +712,7 @@ function CallFlowGraphInner({
         onlyRenderVisibleElements={false}
         nodesDraggable={true}
         nodesConnectable={false}
-        className="w-full h-full bg-[#f8fafc]"
+        className="w-full h-full min-h-[400px] bg-[#f8fafc]"
         fitView
         fitViewOptions={{ padding: 0.2, duration: 500 }}
       >
@@ -710,7 +736,7 @@ export default function CallFlowGraph({
 }: CallFlowGraphProps) {
   const containerClasses = isFullscreen
     ? 'fixed inset-0 z-50 bg-[#f8fafc] p-4 flex flex-col w-screen h-screen font-sans select-none'
-    : 'w-full h-full flex flex-col bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm font-sans';
+    : 'w-full h-full min-h-[400px] flex-grow flex flex-col bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm font-sans';
 
   return (
     <div className={containerClasses}>
