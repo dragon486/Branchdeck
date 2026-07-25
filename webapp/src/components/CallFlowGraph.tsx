@@ -19,7 +19,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import { CallGraphNode, CallGraphEdge } from '@/lib/analyzer';
-import { Layers, MessageSquare, Maximize2, Minimize2, RefreshCw, Search, ArrowRight, ShieldAlert, GitBranch, Database, HardDrive, Server } from 'lucide-react';
+import { Layers, MessageSquare, Maximize2, Minimize2, RefreshCw, Search, ArrowRight, ShieldAlert, GitBranch, Database, HardDrive, Server, BookOpen, FolderTree } from 'lucide-react';
 import PillNav from './PillNav';
 import Dock from './Dock';
 
@@ -37,6 +37,10 @@ interface CallFlowGraphProps {
   activeStepIndex?: number | null;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  /** Called when the user clicks the Project Structure expand button inside the graph */
+  onToggleLeftPanel?: () => void;
+  /** Called when the user clicks the Architecture Walkthrough expand button inside the graph */
+  onToggleRightPanel?: () => void;
   members?: any[];
   repoSource?: string;
   onResetFocus?: () => void;
@@ -259,8 +263,8 @@ const nodeTypes = { customCall: CustomCallNode };
 /* ──────────────────────────────────────────────────────────────────── */
 
 function CallFlowGraphInner({
-  nodes: rawNodesIn,
-  edges: rawEdgesIn,
+  nodes: rawNodes,
+  edges: rawEdges,
   onSelectNode,
   selectedFile,
   selectedFolder,
@@ -268,8 +272,12 @@ function CallFlowGraphInner({
   activeStepIndex,
   isFullscreen,
   onToggleFullscreen,
+  onToggleLeftPanel,
+  onToggleRightPanel,
   members,
+  repoSource,
   onResetFocus,
+  isFocused,
 }: CallFlowGraphProps) {
   const { fitView } = useReactFlow();
 
@@ -282,10 +290,10 @@ function CallFlowGraphInner({
 
   /* ── 1. Dedupe incoming nodes & edges ── */
   const { allNodes, allEdges } = useMemo(() => {
-    const nodes = dedupeNodes(rawNodesIn);
+    const nodes = dedupeNodes(rawNodes);
     const validIds = new Set(nodes.map((n) => n.id));
 
-    const edges = rawEdgesIn.filter((e) => validIds.has(e.from) && validIds.has(e.to) && e.from !== e.to);
+    const edges = rawEdges.filter((e: CallGraphEdge) => validIds.has(e.from) && validIds.has(e.to) && e.from !== e.to);
 
     const edgeMap = new Map<string, { from: string; to: string; labels: string[] }>();
     for (const e of edges) {
@@ -295,7 +303,7 @@ function CallFlowGraphInner({
     }
 
     return { allNodes: nodes, allEdges: Array.from(edgeMap.values()) };
-  }, [rawNodesIn, rawEdgesIn]);
+  }, [rawNodes, rawEdges]);
 
   const validNodeIds = useMemo(() => new Set(allNodes.map((n) => n.id)), [allNodes]);
 
@@ -656,8 +664,18 @@ function CallFlowGraphInner({
       {/* ── Single Minimal Glass Floating Bar ── */}
       <div className="absolute top-3 left-3 right-3 z-20 pointer-events-auto flex items-center justify-between gap-3 bg-white/95 backdrop-blur-md border border-slate-200/90 p-2 rounded-2xl shadow-sm">
         
-        {/* Left Section: Title & Scope Badge */}
+        {/* Left Section: Title & Scope Badge + Project Structure Toggle */}
         <div className="flex items-center gap-2.5">
+          {onToggleLeftPanel && (
+            <button
+              onClick={onToggleLeftPanel}
+              className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 transition-all cursor-pointer shrink-0"
+              title="Toggle Project Structure panel"
+            >
+              <FolderTree className="w-3.5 h-3.5 text-slate-700" />
+              <span className="hidden sm:inline">Project Map</span>
+            </button>
+          )}
           <div className="w-7 h-7 rounded-xl bg-slate-950 text-white flex items-center justify-center shadow-xs shrink-0">
             <Layers className="w-3.5 h-3.5" />
           </div>
@@ -675,7 +693,7 @@ function CallFlowGraphInner({
               <button
                 onClick={() => setShowAll(v => !v)}
                 className="text-[9px] font-bold px-2.5 py-0.5 rounded-full border transition-colors
-                  bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+                  bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 cursor-pointer"
                 title={showAll ? 'Collapse to focused view (20 nodes)' : `Expand to full graph (${allNodes.length} nodes)`}
               >
                 {showAll ? '⊟ Collapse' : `⊞ Expand all ${allNodes.length}`}
@@ -684,7 +702,7 @@ function CallFlowGraphInner({
           </div>
         </div>
 
-        {/* Right Section: Clean Search Box */}
+        {/* Right Section: Clean Search Box + Walkthrough Toggle */}
         <div className="flex items-center gap-1.5 shrink-0">
           <div className="bg-slate-100/90 border border-slate-200/80 rounded-xl px-3 py-1.5 flex items-center gap-2 focus-within:bg-white focus-within:border-slate-400 focus-within:shadow-xs transition-all duration-200 shrink-0">
             <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -704,7 +722,19 @@ function CallFlowGraphInner({
               </button>
             )}
           </div>
+
+          {onToggleRightPanel && (
+            <button
+              onClick={onToggleRightPanel}
+              className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white transition-all shadow-xs cursor-pointer shrink-0"
+              title="Toggle Architecture Walkthrough & Impact panel"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-white" />
+              <span className="hidden sm:inline">Walkthrough</span>
+            </button>
+          )}
         </div>
+
       </div>
 
       {/* ── Compact Bottom-Right Legend Bar (XL screens only to prevent Dock overlap) ── */}

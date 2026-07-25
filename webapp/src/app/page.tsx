@@ -1278,6 +1278,8 @@ export default function Dashboard() {
                 setSelectedNode(null);
                 setActiveWalkthroughStep(null);
               }}
+              onToggleLeftPanel={() => setLeftSidebarCollapsed((v) => !v)}
+              onToggleRightPanel={() => setRightSidebarCollapsed((v) => !v)}
               onToggleFullscreen={() => {
                 const anyCollapsed = leftSidebarCollapsed || rightSidebarCollapsed;
                 if (anyCollapsed) {
