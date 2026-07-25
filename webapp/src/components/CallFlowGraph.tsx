@@ -275,6 +275,7 @@ function CallFlowGraphInner({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [fitKey, setFitKey] = useState(0);
+  const [showAll, setShowAll] = useState(false);
   const draggedPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
 
   /* ── 1. Dedupe incoming nodes & edges ── */
@@ -353,29 +354,32 @@ function CallFlowGraphInner({
       nodes = nodes.filter((n) => keep.has(n.id));
     }
 
-    // D. CRITICAL: Capping Focus Graph to 8 Nodes Max for Pristine Legibility
-    if (nodes.length > 8) {
-      const rootNode = nodes.find(n => n.type === 'ui') || nodes.find(n => n.type === 'api') || nodes[0];
+    // D. Node cap — default 20 nodes for clarity, expandable to full graph via showAll toggle.
+    // BFS from the best root node guarantees the most connected subgraph is always shown first.
+    const NODE_CAP = showAll ? Infinity : 20;
+    if (nodes.length > NODE_CAP) {
+      const rootNode =
+        nodes.find(n => n.type === 'ui') ||
+        nodes.find(n => n.type === 'api') ||
+        nodes[0];
       if (rootNode) {
         const cappedIds = new Set<string>([rootNode.id]);
-        edges.forEach(e => {
-          if (cappedIds.size < 8) {
-            if (e.from === rootNode.id) cappedIds.add(e.to);
-            if (e.to === rootNode.id) cappedIds.add(e.from);
+        // BFS hop expansion
+        let frontier = [rootNode.id];
+        while (cappedIds.size < NODE_CAP && frontier.length > 0) {
+          const next: string[] = [];
+          for (const fid of frontier) {
+            for (const e of edges) {
+              if (cappedIds.size >= NODE_CAP) break;
+              if (e.from === fid && !cappedIds.has(e.to)) { cappedIds.add(e.to); next.push(e.to); }
+              if (e.to === fid && !cappedIds.has(e.from)) { cappedIds.add(e.from); next.push(e.from); }
+            }
           }
-        });
-
-        // 2nd hop expansion up to 8 nodes
-        edges.forEach(e => {
-          if (cappedIds.size < 8) {
-            if (cappedIds.has(e.from)) cappedIds.add(e.to);
-            if (cappedIds.has(e.to)) cappedIds.add(e.from);
-          }
-        });
-
+          frontier = next;
+        }
         nodes = nodes.filter(n => cappedIds.has(n.id));
       } else {
-        nodes = nodes.slice(0, 8);
+        nodes = nodes.slice(0, NODE_CAP);
       }
     }
 
@@ -383,7 +387,7 @@ function CallFlowGraphInner({
     edges = edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
 
     return { visibleNodes: nodes, visibleEdges: edges };
-  }, [allNodes, allEdges, selectedFile, selectedFolder, searchQuery, activeViewMode]);
+  }, [allNodes, allEdges, selectedFile, selectedFolder, searchQuery, activeViewMode, showAll]);
 
   /* ── 3. Horizontal Tier Matrix Layout (80–90% Viewport Fill) ── */
   const layoutedNodes = useMemo(() => {
@@ -617,8 +621,23 @@ function CallFlowGraphInner({
           <div className="flex items-center gap-2">
             <span className="text-xs font-black text-slate-950 tracking-tight">Codebase Focus Graph</span>
             <span className="text-[9px] font-extrabold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-              {selectedFeature ? `Feature: ${selectedFeature}` : selectedFile ? `File: ${selectedFile.split('/').pop()}` : 'Authentication Flow'}
+              {selectedFeature ? `Feature: ${selectedFeature}` : selectedFile ? `File: ${selectedFile.split('/').pop()}` : 'Dependency View'}
             </span>
+            {/* Node count badge */}
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
+              {visibleNodes.length} nodes · {visibleEdges.length} edges
+            </span>
+            {/* Expand/collapse toggle when graph has more nodes than cap */}
+            {allNodes.length > 20 && (
+              <button
+                onClick={() => setShowAll(v => !v)}
+                className="text-[9px] font-bold px-2.5 py-0.5 rounded-full border transition-colors
+                  bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+                title={showAll ? 'Collapse to focused view (20 nodes)' : `Expand to full graph (${allNodes.length} nodes)`}
+              >
+                {showAll ? '⊟ Collapse' : `⊞ Expand all ${allNodes.length}`}
+              </button>
+            )}
           </div>
         </div>
 

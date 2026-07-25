@@ -257,6 +257,159 @@ export const SOURCE_EXTENSIONS = new Set([
   '.cs', '.rs', '.rb', '.php', '.kt', '.swift'
 ]);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// REAL IMPORT PARSER (works purely from source text — no AST dependency)
+// Extracts all import/require/from statements from source files and maps
+// them to node IDs, producing ground-truth graph edges.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Extract import paths from JS/TS/Python/Go source using regex */
+export function parseImportsFromSource(filePath: string, source: string): string[] {
+  const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
+  const imports: string[] = [];
+
+  if (['ts', 'tsx', 'js', 'jsx'].includes(ext)) {
+    // Match: import ... from '...', import('...'), require('...')
+    const patterns = [
+      /import\s+(?:[\w\s{},*$]+\s+from\s+)?['"]([^'"]+)['"]/g,
+      /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+      /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+    ];
+    for (const re of patterns) {
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(source)) !== null) {
+        imports.push(m[1]);
+      }
+    }
+  } else if (ext === 'py') {
+    // Match: from X import Y, import X
+    const patterns = [
+      /from\s+([\w.]+)\s+import/g,
+      /^import\s+([\w.]+)/gm,
+    ];
+    for (const re of patterns) {
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(source)) !== null) {
+        imports.push(m[1]);
+      }
+    }
+  } else if (ext === 'go') {
+    // Match: import "pkg" and import ( "pkg" )
+    const patterns = [
+      /import\s+"([^"]+)"/g,
+      /"([^"]+)"/g,
+    ];
+    // Only scan import blocks
+    const importBlock = source.match(/import\s*\([\s\S]*?\)/)?.[0] ?? '';
+    const target = importBlock || source;
+    for (const re of patterns) {
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(target)) !== null) {
+        if (m[1] && !m[1].includes(' ')) imports.push(m[1]);
+      }
+    }
+  }
+
+  return [...new Set(imports)];
+}
+
+/**
+ * Resolve an import specifier to a file path in the known file list.
+ * Handles: relative imports (./foo, ../bar), alias imports (@/lib/foo),
+ * and partial matches against known files.
+ */
+export function resolveImportToFile(
+  importer: string,
+  specifier: string,
+  allFiles: string[]
+): string | null {
+  const importerDir = importer.split('/').slice(0, -1).join('/');
+
+  // Strip alias prefix (@/, ~/)
+  let cleaned = specifier.replace(/^@\//, 'src/').replace(/^~\//, '');
+
+  // Resolve relative paths
+  if (cleaned.startsWith('.')) {
+    const parts = `${importerDir}/${cleaned}`.split('/');
+    const resolved: string[] = [];
+    for (const p of parts) {
+      if (p === '..') resolved.pop();
+      else if (p !== '.') resolved.push(p);
+    }
+    cleaned = resolved.join('/');
+  }
+
+  // Remove extension if present for matching
+  const cleanedNoExt = cleaned.replace(/\.[^/.]+$/, '');
+
+  // Try exact match, then with common extensions, then prefix/suffix
+  for (const f of allFiles) {
+    const fNoExt = f.replace(/\.[^/.]+$/, '');
+    if (
+      f === cleaned ||
+      fNoExt === cleanedNoExt ||
+      fNoExt.endsWith('/' + cleanedNoExt) ||
+      cleanedNoExt.endsWith('/' + fNoExt.split('/').pop()) ||
+      f.endsWith('/' + cleaned.split('/').pop() + '.ts') ||
+      f.endsWith('/' + cleaned.split('/').pop() + '.tsx') ||
+      f.endsWith('/' + cleaned.split('/').pop() + '.js')
+    ) {
+      return f;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Given a map of filePath→sourceContent, build real import edges between nodes.
+ * Returns edges grounded in actual parsed import statements.
+ */
+export function buildRealEdgesFromContents(
+  fileContents: Map<string, string>,
+  fileToNodeId: Map<string, string>,
+  allFiles: string[]
+): CallGraphEdge[] {
+  const edges: CallGraphEdge[] = [];
+  const edgeSet = new Set<string>();
+
+  for (const [filePath, source] of fileContents) {
+    const fromId = fileToNodeId.get(filePath);
+    if (!fromId) continue;
+
+    const importedPaths = parseImportsFromSource(filePath, source);
+
+    for (const specifier of importedPaths) {
+      const resolved = resolveImportToFile(filePath, specifier, allFiles);
+      if (!resolved) continue;
+
+      const toId = fileToNodeId.get(resolved);
+      if (!toId || toId === fromId) continue;
+
+      const key = `${fromId}→${toId}`;
+      if (!edgeSet.has(key)) {
+        edgeSet.add(key);
+        // Extract what's being imported for the label
+        const importMatch = source.match(
+          new RegExp(`import\\s*\\{([^}]+)\\}\\s*from\\s*['"]${specifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]`)
+        );
+        const importedNames = importMatch
+          ? importMatch[1].split(',').map(s => s.trim().split(' as ')[0].trim()).filter(Boolean).slice(0, 2).join(', ')
+          : null;
+
+        edges.push({
+          from: fromId,
+          to: toId,
+          label: importedNames ? `imports { ${importedNames} }` : 'imports',
+          animated: true,
+        });
+      }
+    }
+  }
+
+  return edges;
+}
+
 export function getDescriptiveNodeLabel(filePath: string): string {
   if (!filePath) return 'Module';
   const parts = filePath.replace(/\\/g, '/').split('/').filter(Boolean);
