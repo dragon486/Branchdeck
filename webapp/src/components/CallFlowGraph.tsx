@@ -14,8 +14,10 @@ import {
   Position,
   ReactFlowProvider,
   useReactFlow,
+  MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import dagre from '@dagrejs/dagre';
 import { CallGraphNode, CallGraphEdge } from '@/lib/analyzer';
 import { Layers, MessageSquare, Maximize2, Minimize2, RefreshCw, Search, ArrowRight, ShieldAlert, GitBranch, Database, HardDrive, Server } from 'lucide-react';
 import PillNav from './PillNav';
@@ -389,53 +391,77 @@ function CallFlowGraphInner({
     return { visibleNodes: nodes, visibleEdges: edges };
   }, [allNodes, allEdges, selectedFile, selectedFolder, searchQuery, activeViewMode, showAll]);
 
-  /* ── 3. Horizontal Tier Matrix Layout (80–90% Viewport Fill) ── */
+  /* ── 3. Dagre hierarchical layout ─────────────────────────────────────────
+   *  Uses the Sugiyama-style ranking algorithm:
+   *   - rankdir: LR (left → right, matching data-flow direction)
+   *   - Nodes are ranked by their architectural tier (ui=0, api=1, service=2, db/external=3)
+   *   - Dagre minimises edge crossings within each rank automatically
+   *   - nodesep / ranksep control whitespace so cards never overlap
+   * ─────────────────────────────────────────────────────────────────────── */
   const layoutedNodes = useMemo(() => {
     if (visibleNodes.length === 0) return [];
 
-    const columns: Record<number, CallGraphNode[]> = { 0: [], 1: [], 2: [], 3: [] };
+    // Node dimensions — must match the CSS card sizes in CustomCallNode
+    const NODE_W = 300;
+    const NODE_H = 130;
 
+    // Tier rank — dagre uses these to lock nodes into columns
+    const tierRank: Record<string, number> = {
+      ui:       0,
+      api:      1,
+      worker:   1,
+      service:  2,
+      lib:      2,
+      db:       3,
+      external: 3,
+    };
+
+    // Build dagre graph
+    const g = new dagre.graphlib.Graph({ multigraph: false });
+    g.setDefaultEdgeLabel(() => ({}));
+    g.setGraph({
+      rankdir: 'LR',       // left-to-right flow
+      align:   'UL',       // align top-left within rank
+      nodesep: 40,         // vertical gap between nodes in same rank
+      ranksep: 120,        // horizontal gap between ranks
+      edgesep: 20,
+      ranker:  'tight-tree', // tightest valid tree ranking
+    });
+
+    // Add nodes with fixed rank hints
     visibleNodes.forEach(node => {
-      if (node.type === 'ui') {
-        columns[0].push(node);
-      } else if (node.type === 'api' || node.type === 'worker') {
-        columns[1].push(node);
-      } else if (node.type === 'service' || node.type === 'lib') {
-        columns[2].push(node);
-      } else {
-        columns[3].push(node);
+      g.setNode(node.id, { width: NODE_W, height: NODE_H, rank: tierRank[node.type] ?? 2 });
+    });
+
+    // Add edges
+    visibleEdges.forEach(edge => {
+      if (g.hasNode(edge.from) && g.hasNode(edge.to)) {
+        g.setEdge(edge.from, edge.to);
       }
     });
 
-    const COL_W = 380;
-    const ROW_H = 190;
+    // Run layout
+    dagre.layout(g);
 
+    // Extract positions — dagre gives centre-point, React Flow wants top-left
     const pos: Record<string, { x: number; y: number }> = {};
-    let stepCount = 1;
-
-    [0, 1, 2, 3].forEach(colIdx => {
-      const nodesInCol = columns[colIdx];
-      const count = nodesInCol.length;
-      const startY = -((count - 1) * ROW_H) / 2;
-      const x = colIdx * COL_W - 550; // Center matrix around x = 0
-
-      nodesInCol.forEach((node, rowIdx) => {
-        pos[node.id] = {
-          x,
-          y: startY + rowIdx * ROW_H
+    g.nodes().forEach(nodeId => {
+      const n = g.node(nodeId);
+      if (n) {
+        pos[nodeId] = {
+          x: n.x - NODE_W / 2,
+          y: n.y - NODE_H / 2,
         };
-      });
+      }
     });
 
-    return visibleNodes.map(node => {
-      const p = pos[node.id] || { x: 0, y: 0 };
-      return {
-        ...node,
-        stepNumber: stepCount++,
-        _pos: p
-      };
-    });
-  }, [visibleNodes]);
+    let stepCount = 1;
+    return visibleNodes.map(node => ({
+      ...node,
+      stepNumber: stepCount++,
+      _pos: pos[node.id] || { x: 0, y: 0 },
+    }));
+  }, [visibleNodes, visibleEdges]);
 
   /* ── 4. Build React Flow nodes & edges ── */
   const computedNodes = useMemo(() => {
@@ -531,37 +557,44 @@ function CallFlowGraphInner({
       }
     }
 
-    return visibleEdges.map((edge, index) => {
+    return visibleEdges.map((edge) => {
       const key = `${edge.from}->${edge.to}`;
       const isConn = active ? connEdges.has(key) : false;
       const isDimmed = active ? !isConn : false;
 
-      const numberedLabel = edge.labels.length > 0
-        ? `${index + 1}. ${edge.labels.slice(0, 2).join(' / ')}`
-        : `${index + 1}. Flow Step`;
+      // Show the import label if meaningful, otherwise nothing (keep edges clean)
+      const rawLabel = edge.labels?.[0] || '';
+      const label = rawLabel && rawLabel !== 'imports' && rawLabel !== 'calls' ? rawLabel : '';
 
       return {
         id: `edge-${edge.from}-${edge.to}`,
         source: edge.from,
         target: edge.to,
-        type: 'default' as const,
-        label: numberedLabel,
+        // 'smoothstep' gives clean orthogonal elbow routing — looks like a tree
+        type: 'smoothstep' as const,
+        label: label || undefined,
         animated: isConn,
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 14,
+          height: 14,
+          color: isConn ? '#0284c7' : '#94a3b8',
+        },
         style: {
-          stroke: isConn ? '#0284c7' : '#64748b',
-          strokeWidth: isConn ? 2.5 : 1.5,
-          opacity: isDimmed ? 0.15 : (isConn ? 1 : 0.8),
-          strokeDasharray: isConn ? undefined : '5,4',
-        },
-        labelStyle: { fill: isConn ? '#0284c7' : '#1e293b', fontSize: 9.5, fontWeight: 700, fontFamily: 'sans-serif' },
-        labelBgPadding: [6, 4] as [number, number],
-        labelBgBorderRadius: 6,
-        labelBgStyle: {
-          fill: '#ffffff',
-          color: '#0f172a',
           stroke: isConn ? '#0284c7' : '#cbd5e1',
-          strokeWidth: isConn ? 1.5 : 1,
+          strokeWidth: isConn ? 2.5 : 1.5,
+          opacity: isDimmed ? 0.12 : 1,
         },
+        ...(label ? {
+          labelStyle: { fill: isConn ? '#0284c7' : '#64748b', fontSize: 9, fontWeight: 700, fontFamily: 'monospace' },
+          labelBgPadding: [5, 3] as [number, number],
+          labelBgBorderRadius: 5,
+          labelBgStyle: {
+            fill: '#f8fafc',
+            stroke: isConn ? '#bae6fd' : '#e2e8f0',
+            strokeWidth: 1,
+          },
+        } : {}),
       };
     });
   }, [visibleEdges, visibleNodes, hoveredNodeId, searchQuery]);
@@ -575,7 +608,17 @@ function CallFlowGraphInner({
     setFlowEdges(computedEdges);
   }, [computedNodes, computedEdges, setFlowNodes, setFlowEdges]);
 
-  // Google Maps Style Camera Auto-Center Focus (80-90% Viewport Fill)
+  // Clear stale drag overrides whenever Dagre produces a new layout
+  // (node set changed: different repo, different filter, etc.)
+  const prevNodeSetRef = useRef<string>('');
+  useEffect(() => {
+    const currentSet = visibleNodes.map(n => n.id).sort().join(',');
+    if (currentSet !== prevNodeSetRef.current) {
+      prevNodeSetRef.current = currentSet;
+      draggedPositionsRef.current = {};
+    }
+  }, [visibleNodes]);
+
   useEffect(() => {
     if (flowNodes.length === 0) return;
     const t1 = setTimeout(() => fitView({ padding: 0.18, duration: 400 }), 80);
@@ -741,7 +784,7 @@ function CallFlowGraphInner({
         fitView
         fitViewOptions={{ padding: 0.15, duration: 400 }}
       >
-        <Background variant={BackgroundVariant.Dots} color="#cbd5e1" gap={20} size={1.5} />
+        <Background variant={BackgroundVariant.Lines} color="#f1f5f9" gap={32} size={1} />
         <Controls showInteractive={false} className="!bg-white !border-slate-200/80 !shadow-sm !rounded-xl" />
       </ReactFlow>
 
