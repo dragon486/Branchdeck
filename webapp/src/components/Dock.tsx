@@ -151,15 +151,8 @@ export default function Dock({
   const isHovered = useMotionValue(0);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
-  const maxHeight = useMemo(
-    () => Math.max(dockHeight, magnification + magnification / 2 + 4),
-    [magnification, dockHeight]
-  );
-  const heightRow = useTransform(isHovered, [0, 1], [panelHeight, maxHeight]);
-  const height = useSpring(heightRow, spring);
-
   return (
-    <motion.div style={{ height, scrollbarWidth: 'none' }} className="dock-outer">
+    <div style={{ height: panelHeight }} className="dock-outer">
       <motion.div
         ref={panelRef}
         onMouseMove={({ pageX }: React.MouseEvent) => {
@@ -195,6 +188,6 @@ export default function Dock({
           </DockItem>
         ))}
       </motion.div>
-    </motion.div>
+    </div>
   );
 }
