@@ -669,10 +669,10 @@ function CallFlowGraphInner({
             <span>Center Camera</span>
           </button>
 
-          {/* Fullscreen Mode Button */}
+          {/* High-Contrast Non-Truncated Fullscreen Mode Button */}
           <button
             onClick={onToggleFullscreen}
-            className="bg-slate-100 hover:bg-slate-200/80 text-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-200/80 transition-all flex items-center gap-1.5 shadow-2xs text-[10px] font-bold cursor-pointer"
+            className="bg-slate-950 hover:bg-slate-800 text-white px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shadow-md text-xs font-extrabold shrink-0 cursor-pointer z-30"
             title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Mode'}
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
@@ -762,41 +762,39 @@ function CallFlowGraphInner({
         <Controls showInteractive={false} className="!bg-white !border-slate-200/80 !shadow-sm !rounded-xl" />
       </ReactFlow>
 
-      {/* ── React Bits Floating Dock (Fullscreen Mode) ── */}
-      {isFullscreen && (
-        <Dock
-          items={[
-            {
-              icon: <RefreshCw className="w-4 h-4 text-sky-600" />,
-              label: 'Center Camera',
-              onClick: handleFullViewReset,
-            },
-            {
-              icon: <Layers className="w-4 h-4 text-indigo-600" />,
-              label: 'Request Flow Mode',
-              onClick: () => setActiveViewMode('request'),
-            },
-            {
-              icon: <GitBranch className="w-4 h-4 text-emerald-600" />,
-              label: 'Data Flow Mode',
-              onClick: () => setActiveViewMode('data'),
-            },
-            {
-              icon: <Database className="w-4 h-4 text-amber-600" />,
-              label: 'Dependency Flow Mode',
-              onClick: () => setActiveViewMode('dependency'),
-            },
-            {
-              icon: <Minimize2 className="w-4 h-4 text-rose-600" />,
-              label: 'Exit Fullscreen',
-              onClick: onToggleFullscreen,
-            },
-          ]}
-          panelHeight={58}
-          baseItemSize={40}
-          magnification={58}
-        />
-      )}
+      {/* ── React Bits Floating Dock (Always Visible Canvas Bottom) ── */}
+      <Dock
+        items={[
+          {
+            icon: <RefreshCw className="w-4 h-4 text-sky-600" />,
+            label: 'Center Camera',
+            onClick: handleFullViewReset,
+          },
+          {
+            icon: <Layers className="w-4 h-4 text-indigo-600" />,
+            label: 'Request Flow Mode',
+            onClick: () => setActiveViewMode('request'),
+          },
+          {
+            icon: <GitBranch className="w-4 h-4 text-emerald-600" />,
+            label: 'Data Flow Mode',
+            onClick: () => setActiveViewMode('data'),
+          },
+          {
+            icon: <Database className="w-4 h-4 text-amber-600" />,
+            label: 'Dependency Flow Mode',
+            onClick: () => setActiveViewMode('dependency'),
+          },
+          {
+            icon: isFullscreen ? <Minimize2 className="w-4 h-4 text-rose-600" /> : <Maximize2 className="w-4 h-4 text-purple-600" />,
+            label: isFullscreen ? 'Exit Fullscreen' : 'Toggle Fullscreen',
+            onClick: onToggleFullscreen,
+          },
+        ]}
+        panelHeight={54}
+        baseItemSize={38}
+        magnification={54}
+      />
     </div>
   );
 }
