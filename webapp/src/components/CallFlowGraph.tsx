@@ -767,34 +767,34 @@ function CallFlowGraphInner({
         <Dock
           items={[
             {
-              icon: <RefreshCw className="w-5 h-5 text-sky-400" />,
+              icon: <RefreshCw className="w-4 h-4 text-sky-600" />,
               label: 'Center Camera',
               onClick: handleFullViewReset,
             },
             {
-              icon: <Layers className="w-5 h-5 text-indigo-400" />,
-              label: 'Request Flow',
+              icon: <Layers className="w-4 h-4 text-indigo-600" />,
+              label: 'Request Flow Mode',
               onClick: () => setActiveViewMode('request'),
             },
             {
-              icon: <GitBranch className="w-5 h-5 text-emerald-400" />,
-              label: 'Data Flow',
+              icon: <GitBranch className="w-4 h-4 text-emerald-600" />,
+              label: 'Data Flow Mode',
               onClick: () => setActiveViewMode('data'),
             },
             {
-              icon: <Database className="w-5 h-5 text-amber-400" />,
-              label: 'Dependency Flow',
+              icon: <Database className="w-4 h-4 text-amber-600" />,
+              label: 'Dependency Flow Mode',
               onClick: () => setActiveViewMode('dependency'),
             },
             {
-              icon: <Minimize2 className="w-5 h-5 text-rose-400" />,
+              icon: <Minimize2 className="w-4 h-4 text-rose-600" />,
               label: 'Exit Fullscreen',
               onClick: onToggleFullscreen,
             },
           ]}
-          panelHeight={64}
-          baseItemSize={44}
-          magnification={64}
+          panelHeight={58}
+          baseItemSize={40}
+          magnification={58}
         />
       )}
     </div>

@@ -32,6 +32,9 @@ function DockItem({
   magnification,
   baseItemSize,
   label,
+  index,
+  totalItems,
+  panelRef,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -42,16 +45,22 @@ function DockItem({
   magnification: number;
   baseItemSize: number;
   label: string;
+  index: number;
+  totalItems: number;
+  panelRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const isHovered = useMotionValue(0);
 
+  // Stable index-slot center calculation to prevent layout mutation feedback loops (fluttering)
   const mouseDistance = useTransform(mouseX, (val: number) => {
-    const rect = ref.current?.getBoundingClientRect() ?? {
-      x: 0,
-      width: baseItemSize,
-    };
-    return val - rect.x - baseItemSize / 2;
+    if (val === Infinity || !panelRef.current) return Infinity;
+    const panelRect = panelRef.current.getBoundingClientRect();
+    const itemGap = 10; // 0.625rem gap
+    const padding = 12; // 0.75rem padding
+    // Unmagnified slot center position
+    const slotCenter = panelRect.left + padding + index * (baseItemSize + itemGap) + baseItemSize / 2;
+    return val - slotCenter;
   });
 
   const targetSize = useTransform(mouseDistance, [-distance, 0, distance], [baseItemSize, magnification, baseItemSize]);
@@ -112,7 +121,7 @@ function DockLabel({ children, className = '', ...rest }: any) {
           initial={{ opacity: 0, y: 0 }}
           animate={{ opacity: 1, y: -10 }}
           exit={{ opacity: 0, y: 0 }}
-          transition={{ duration: 0.2 }}
+          transition={{ duration: 0.15 }}
           className={`dock-label ${className}`}
           role="tooltip"
           style={{ x: '-50%' }}
@@ -131,15 +140,16 @@ function DockIcon({ children, className = '' }: { children: React.ReactNode; cla
 export default function Dock({
   items,
   className = '',
-  spring = { mass: 0.1, stiffness: 150, damping: 12 },
-  magnification = 70,
-  distance = 200,
-  panelHeight = 68,
-  dockHeight = 256,
-  baseItemSize = 50,
+  spring = { mass: 0.1, stiffness: 180, damping: 14 },
+  magnification = 60,
+  distance = 160,
+  panelHeight = 60,
+  dockHeight = 200,
+  baseItemSize = 42,
 }: DockProps) {
   const mouseX = useMotionValue(Infinity);
   const isHovered = useMotionValue(0);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   const maxHeight = useMemo(
     () => Math.max(dockHeight, magnification + magnification / 2 + 4),
@@ -151,6 +161,7 @@ export default function Dock({
   return (
     <motion.div style={{ height, scrollbarWidth: 'none' }} className="dock-outer">
       <motion.div
+        ref={panelRef}
         onMouseMove={({ pageX }: React.MouseEvent) => {
           isHovered.set(1);
           mouseX.set(pageX);
@@ -167,6 +178,9 @@ export default function Dock({
         {items.map((item, index) => (
           <DockItem
             key={index}
+            index={index}
+            totalItems={items.length}
+            panelRef={panelRef}
             onClick={item.onClick}
             className={item.className}
             mouseX={mouseX}
