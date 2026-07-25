@@ -670,16 +670,14 @@ function CallFlowGraphInner({
           </button>
 
           {/* Fullscreen Mode Button */}
-          {onToggleFullscreen && (
-            <button
-              onClick={onToggleFullscreen}
-              className="bg-slate-100 hover:bg-slate-200/80 text-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-200/80 transition-all flex items-center gap-1.5 shadow-2xs text-[10px] font-bold"
-              title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Mode'}
-            >
-              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-              <span>{isFullscreen ? 'Exit' : 'Fullscreen'}</span>
-            </button>
-          )}
+          <button
+            onClick={onToggleFullscreen}
+            className="bg-slate-100 hover:bg-slate-200/80 text-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-200/80 transition-all flex items-center gap-1.5 shadow-2xs text-[10px] font-bold cursor-pointer"
+            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Mode'}
+          >
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            <span>{isFullscreen ? 'Exit' : 'Fullscreen'}</span>
+          </button>
         </div>
       </div>
 
@@ -808,12 +806,22 @@ function CallFlowGraphInner({
 /* ──────────────────────────────────────────────────────────────────── */
 
 export default function CallFlowGraph({
-  isFullscreen,
+  isFullscreen: externalFullscreen,
   onToggleFullscreen,
   onResetFocus,
   isFocused,
   ...props
 }: CallFlowGraphProps) {
+  const [internalFullscreen, setInternalFullscreen] = useState(false);
+  const isFullscreen = externalFullscreen !== undefined ? externalFullscreen : internalFullscreen;
+
+  const handleToggleFullscreen = () => {
+    if (onToggleFullscreen) {
+      onToggleFullscreen();
+    }
+    setInternalFullscreen((prev) => !prev);
+  };
+
   const containerClasses = isFullscreen
     ? 'fixed inset-0 z-50 bg-[#f8fafc] p-4 flex flex-col w-screen h-screen font-sans select-none'
     : 'w-full h-full flex-1 min-h-[500px] flex flex-col bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm font-sans';
@@ -823,7 +831,7 @@ export default function CallFlowGraph({
       <ReactFlowProvider>
         <CallFlowGraphInner
           isFullscreen={isFullscreen}
-          onToggleFullscreen={onToggleFullscreen}
+          onToggleFullscreen={handleToggleFullscreen}
           onResetFocus={onResetFocus}
           {...props}
         />
