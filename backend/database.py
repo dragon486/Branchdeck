@@ -177,6 +177,8 @@ class IndexingJob(Base):
     status = Column(String(20), nullable=False, default="queued") # queued, processing, completed, failed
     progress = Column(Integer, nullable=False, default=0)
     error_message = Column(Text, nullable=True)
+    # Pinned commit SHA produced by this job — set on completion so status polling returns a stable SHA
+    commit_sha = Column(String(40), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -214,6 +216,7 @@ def init_db():
     global DATABASE_URL
     max_retries = 5
     backoff = 1.0
+    allow_sqlite_fallback = os.getenv("ALLOW_SQLITE_FALLBACK", "false").lower() == "true"
     for attempt in range(1, max_retries + 1):
         try:
             logger.info(f"Database initialization attempt {attempt}/{max_retries}...")
@@ -222,19 +225,36 @@ def init_db():
                 conn.execute(text("SELECT 1"))
             Base.metadata.create_all(bind=engine)
             logger.info("Database initialized successfully.")
+            # Create pgvector IVFFlat index on code_chunks.embedding for fast ANN search
+            # Runs as IF NOT EXISTS so it is safe to call on every startup
+            if "postgresql" in DATABASE_URL:
+                try:
+                    with engine.begin() as conn:
+                        conn.execute(text(
+                            "CREATE INDEX IF NOT EXISTS idx_chunks_embedding_ivfflat "
+                            "ON code_chunks USING ivfflat (embedding vector_cosine_ops) "
+                            "WITH (lists = 100)"
+                        ))
+                    logger.info("pgvector IVFFlat index on code_chunks.embedding ensured.")
+                except Exception as idx_err:
+                    # pgvector extension may not be installed — log and continue; falls back to seq scan
+                    logger.warning(f"Could not create pgvector IVFFlat index (pgvector not installed?): {idx_err}")
             return
         except Exception as e:
             logger.error(f"Database initialization attempt {attempt} failed: {e}")
             if attempt == max_retries:
-                if "postgresql" in DATABASE_URL:
-                    logger.critical("Max retries reached. PostgreSQL is unreachable. Failing fast to prevent silent database substitution.")
+                if "postgresql" in DATABASE_URL or not allow_sqlite_fallback:
+                    logger.critical(
+                        "Max retries reached. Database is unreachable and ALLOW_SQLITE_FALLBACK is not set. "
+                        "Failing fast to prevent silent database substitution."
+                    )
                     raise e
                 else:
                     fallback_url = "sqlite:///branchdeck.db"
                     logger.critical(f"Max retries reached. Falling back to SQLite: {fallback_url}")
                     setup_db(fallback_url)
                     Base.metadata.create_all(bind=engine)
-                    logger.info("SQLite database initialized successfully.")
+                    logger.info("SQLite database initialized successfully (ALLOW_SQLITE_FALLBACK=true).")
             else:
                 logger.info(f"Retrying in {backoff} seconds...")
                 time.sleep(backoff)
@@ -252,9 +272,12 @@ def get_downstream_impact(commit_sha: str, target_node_id: str, db, organization
             AND e.commit_sha = :commit_sha 
             AND r.organization_id = :organization_id
           
-          UNION ALL
+          UNION
           
           -- Recursive step: callers of those callers
+          -- UNION (not UNION ALL) deduplicates rows, providing cycle protection:
+          -- if A->B->A forms a cycle, the (A,B) pair at depth 3 already exists from depth 1
+          -- and is discarded, preventing exponential intermediate result growth.
           SELECT e.from_id, e.to_id, d.depth + 1
           FROM code_edges e
           INNER JOIN repos r ON e.repo_id = r.id

@@ -7,6 +7,11 @@ from database import CodeChunk
 
 logger = logging.getLogger("branchdeck.vector_store")
 
+# Minimum cosine similarity score for a chunk to be considered relevant.
+# Chunks below this threshold are discarded rather than passed to the LLM,
+# preventing confabulation answers on unrelated queries.
+SIMILARITY_THRESHOLD = 0.4
+
 def dot_product(v1, v2):
     return sum(x * y for x, y in zip(v1, v2))
 
@@ -80,7 +85,7 @@ def search_chunks(db: Session, org_id: str, commit_sha: str, query_embedding: li
                 })
             return results
         except Exception as e:
-            logger.warning(f"PostgreSQL pgvector query failed: {e}. Falling back to Python-based similarity.")
+            logger.error(f"PostgreSQL pgvector query failed, falling back to Python cosine similarity: {e}")
             
     # Python-based Fallback (for SQLite or non-pgvector Postgres)
     query = text("""
@@ -127,9 +132,10 @@ def search_chunks(db: Session, org_id: str, commit_sha: str, query_embedding: li
                 "similarity": sim
             })
             
-        # Sort descending by similarity score
+        # Sort descending by similarity score and apply threshold filter
         candidates.sort(key=lambda x: x["similarity"], reverse=True)
-        return candidates[:limit]
+        above_threshold = [c for c in candidates if c["similarity"] >= SIMILARITY_THRESHOLD]
+        return above_threshold[:limit]
         
     except Exception as e:
         logger.error(f"Search candidates fetch error: {e}")

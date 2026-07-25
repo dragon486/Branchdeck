@@ -57,7 +57,9 @@ Answer:
     try:
         response = httpx.post(url, json=payload, timeout=25.0)
         if response.status_code != 200:
-            logger.error(f"Gemini API returned status {response.status_code} during Q&A: {response.text}")
+            # Truncate to 200 chars to avoid logging any credential-adjacent data from response body
+            body_snippet = response.text[:200] if response.text else ""
+            logger.error(f"Gemini API returned status {response.status_code} during Q&A: {body_snippet}")
             return "Failed to query the AI reasoning service. Please check your credentials or try again."
             
         data = response.json()

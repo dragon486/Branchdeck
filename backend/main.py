@@ -76,13 +76,34 @@ class QueryPayload(BaseModel):
 
 import jwt
 
-SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET") or "super-secret-supabase-jwt-key-for-local-dev"
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+_is_production = os.getenv("BRANCHDECK_ENV", "development").lower() == "production"
+if not SUPABASE_JWT_SECRET:
+    if _is_production:
+        raise RuntimeError(
+            "CRITICAL: SUPABASE_JWT_SECRET environment variable is not set. "
+            "Set it in your Vercel/production environment. Refusing to start."
+        )
+    else:
+        SUPABASE_JWT_SECRET = "super-secret-supabase-jwt-key-for-local-dev"
+        import warnings
+        warnings.warn(
+            "SUPABASE_JWT_SECRET not set — using insecure dev fallback. "
+            "Set BRANCHDECK_ENV=production to enforce strict startup.",
+            UserWarning,
+            stacklevel=2,
+        )
 
 def verify_jwt_hs256(token: str, secret: str) -> dict:
     if not secret:
         raise HTTPException(status_code=500, detail="Server misconfiguration: SUPABASE_JWT_SECRET is not set")
     try:
-        return jwt.decode(token, secret, algorithms=["HS256"])
+        return jwt.decode(
+            token,
+            secret,
+            algorithms=["HS256"],
+            options={"require": ["exp"]},  # Enforce expiry claim presence
+        )
     except jwt.ExpiredSignatureError as e:
         raise HTTPException(status_code=401, detail=f"Token has expired: {e}")
     except jwt.InvalidTokenError as e:
@@ -169,12 +190,15 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(CorrelationIdMiddleware)
 
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
+_allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Correlation-ID"],
 )
 
 # Initialize database tables on startup
@@ -477,6 +501,7 @@ def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str,
             
         job.progress = 100
         job.status = "completed"
+        job.commit_sha = commit_sha  # Pin the produced commit SHA on the job record
         db.commit()
         logger.info(f"Background indexing job {job_id} completed successfully.")
         
@@ -600,48 +625,49 @@ async def get_job_status(job_id: str, db: Session = Depends(get_db), current_use
     
     # If completed successfully, attach the processed call graph data to return directly
     if job.status == "completed":
+        # Use the pinned commit_sha stored on the job to prevent SHA drift between polls
+        pinned_commit_sha = job.commit_sha
         repo = db.query(Repository).filter_by(organization_id=job.organization_id, name=job.repo_name).first()
-        if repo:
-            latest_commit = db.query(Commit).filter_by(repo_id=repo.id).order_by(Commit.created_at.desc()).first()
-            if latest_commit:
-                nodes = db.query(CodeNode).filter_by(repo_id=repo.id, commit_sha=latest_commit.sha).all()
-                edges = db.query(CodeEdge).filter_by(repo_id=repo.id, commit_sha=latest_commit.sha).all()
+        if repo and pinned_commit_sha:
+            nodes = db.query(CodeNode).filter_by(repo_id=repo.id, commit_sha=pinned_commit_sha).all()
+            edges = db.query(CodeEdge).filter_by(repo_id=repo.id, commit_sha=pinned_commit_sha).all()
+            
+            graph_nodes = []
+            for idx, n in enumerate(nodes):
+                graph_nodes.append({
+                    "id": n.id,
+                    "label": n.symbol or n.file_path.split("/")[-1],
+                    "file": n.file_path,
+                    "type": n.kind,
+                    "note": f"Module: {n.file_path}"
+                })
                 
-                graph_nodes = []
-                for idx, n in enumerate(nodes):
-                    graph_nodes.append({
-                        "id": n.id,
-                        "label": n.symbol or n.file_path.split("/")[-1],
-                        "file": n.file_path,
-                        "type": n.kind,
-                        "note": f"Module: {n.file_path}"
-                    })
-                    
-                graph_edges = []
-                for e in edges:
-                    graph_edges.append({
-                        "from": e.from_id,
-                        "to": e.to_id,
-                        "label": "calls" if e.kind == "calls" else "imports",
-                        "animated": True
-                    })
-                    
-                features = [
-                    {
-                        "id": "core",
-                        "name": "Core Module Flow",
-                        "description": f"Aggregated AST files of {job.repo_name}.",
-                        "files": [n.file_path for n in nodes[:10]],
-                        "color": "#3b82f6"
-                    }
-                ]
+            graph_edges = []
+            for e in edges:
+                graph_edges.append({
+                    "from": e.from_id,
+                    "to": e.to_id,
+                    "label": "calls" if e.kind == "calls" else "imports",
+                    "animated": True
+                })
                 
-                response_data["features"] = features
-                response_data["callGraph"] = {
-                    "nodes": graph_nodes,
-                    "edges": graph_edges
+            features = [
+                {
+                    "id": "core",
+                    "name": "Core Module Flow",
+                    "description": f"Aggregated AST files of {job.repo_name}.",
+                    "files": [n.file_path for n in nodes[:10]],
+                    "color": "#3b82f6"
                 }
-                
+            ]
+            
+            response_data["commit_sha"] = pinned_commit_sha
+            response_data["features"] = features
+            response_data["callGraph"] = {
+                "nodes": graph_nodes,
+                "edges": graph_edges
+            }
+            
     return response_data
 
 @app.post("/api/impact")
@@ -875,29 +901,37 @@ async def get_story(payload: StoryPayload, db: Session = Depends(get_db), curren
                 "Persistence layer registered in PostgreSQL database tables."
             ]
 
-    # Verification Pass: check if symbols mentioned in steps are present in graph
+    # Verification Pass: Cross-reference symbols mentioned in steps against the code graph.
+    # Only annotate steps where we find a real CamelCase or snake_case symbol from the DB.
+    # Symbols must be >5 chars and contain mixed-case or underscores to avoid false matches
+    # on common English words (e.g. "main", "get", "auth").
     verified_steps = []
-    all_symbol_names = {n.symbol.lower(): n.symbol for n in all_nodes}
-    
+    all_symbol_names = {n.symbol: n.symbol for n in all_nodes}  # exact-case keyed
+    all_symbol_lower = {k.lower(): v for k, v in all_symbol_names.items()}
+
+    def _is_meaningful_symbol(word: str) -> bool:
+        """Returns True if the word looks like a code symbol (CamelCase or snake_case with len>5)."""
+        if len(word) < 5:
+            return False
+        # CamelCase: has uppercase after position 0
+        has_upper = any(c.isupper() for c in word[1:])
+        # snake_case: contains underscore
+        has_underscore = "_" in word
+        return has_upper or has_underscore
+
     for step in steps:
         import re
-        words = re.findall(r'\b\w+\b', step.lower())
+        words = re.findall(r'\b[A-Za-z_][A-Za-z0-9_]+\b', step)
         
-        # Identify any words that look like symbols and check if they exist in this commit
-        contains_hallucinated_symbol = False
-        for word in words:
-            # If word is a capitalized class/function pattern but NOT in commit symbols
-            if len(word) > 4 and word[0].isupper() and word in all_symbol_names:
-                # Symbol is known, verify it matches
-                pass
-                
-        # Annotate step with verification confirmation
         verified_symbols = []
         for word in words:
-            if word in all_symbol_names:
-                verified_symbols.append(all_symbol_names[word])
-                
-        verified_steps.append(step + f" [Verified: {', '.join(set(verified_symbols))}]" if verified_symbols else step)
+            if _is_meaningful_symbol(word) and word.lower() in all_symbol_lower:
+                verified_symbols.append(all_symbol_lower[word.lower()])
+
+        if verified_symbols:
+            verified_steps.append(step + f" [Verified: {', '.join(set(verified_symbols))}]")
+        else:
+            verified_steps.append(step)
         
     return {
         "success": True,

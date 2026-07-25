@@ -582,3 +582,240 @@ def test_api_query_daily_rate_limiting():
     assert response.status_code == 429
     assert "Daily AI query budget exceeded" in response.json()["detail"]
 
+
+# =============================================================================
+# NEW TESTS — Tier 0 / Tier 1 / Tier 2 / Tier 4 audit requirements
+# =============================================================================
+
+def test_route_auth_coverage():
+    """
+    T0-2 Gap: Enumerate all registered FastAPI routes and assert every non-public
+    endpoint has the get_current_user dependency attached.
+    Public routes: /docs, /openapi.json, /redoc (FastAPI built-ins).
+    All /api/* routes must require auth.
+    """
+    from main import app as fastapi_app, get_current_user
+    from fastapi.routing import APIRoute
+
+    PUBLIC_PATHS = {"/docs", "/openapi.json", "/redoc"}
+
+    def collect_calls(dependant, result: set):
+        """Recursively collect all dependency callables from a FastAPI Dependant tree."""
+        for dep_model in dependant.dependencies:
+            # In FastAPI's internal model, each item is a Dependant object with a .call attribute
+            result.add(dep_model.call)
+            collect_calls(dep_model, result)
+
+    for route in fastapi_app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        if route.path in PUBLIC_PATHS:
+            continue
+
+        all_deps: set = set()
+        collect_calls(route.dependant, all_deps)
+
+        assert get_current_user in all_deps, (
+            f"Route {route.path!r} (methods={route.methods}) is missing the "
+            f"get_current_user auth dependency. All /api routes must require authentication."
+        )
+
+
+def test_sql_injection_symbol_name():
+    """
+    T0-6: Calling /api/callflow with a malicious functionName containing SQL metacharacters
+    must return 200 with an empty or safe result — not a database error or traceback.
+    This confirms SQLAlchemy parameterizes the ilike value correctly.
+    """
+    payload = {
+        "functionName": "'; DROP TABLE code_nodes; --",
+        "commitSha": "nonexistent-sha"
+    }
+    response = client.post("/api/callflow", json=payload, headers=get_auth_headers("local"))
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["nodes"] == []
+    assert data["edges"] == []
+
+
+def test_idempotent_reingest(temp_workspace):
+    """
+    T1-3 / Tier 4: Indexing the same workspace twice must produce identical
+    node and edge counts — not duplicates.
+    """
+    import time
+    db = TestingSessionLocal()
+
+    files = ["src/math.ts", "src/calculator.ts", "src/app.ts"]
+    payload = {"workspacePath": temp_workspace, "files": files}
+    headers = get_auth_headers("tenant-correct")
+
+    # First ingest
+    r1 = client.post("/api/analyze", json=payload, headers=headers)
+    assert r1.status_code == 202
+    s1 = client.get(f"/api/analyze/status/{r1.json()['job_id']}", headers=headers)
+    assert s1.json()["status"] == "completed"
+
+    repo_name = temp_workspace.replace("\\", "/").split("/")[-1]
+    repo = db.query(Repository).filter_by(organization_id="tenant-correct", name=repo_name).first()
+    commit1 = db.query(Commit).filter_by(repo_id=repo.id).first()
+    nodes_after_1st = db.query(CodeNode).filter_by(commit_sha=commit1.sha).count()
+    edges_after_1st = db.query(CodeEdge).filter_by(commit_sha=commit1.sha).count()
+
+    # Second ingest — should delete+recreate, not accumulate
+    r2 = client.post("/api/analyze", json=payload, headers=headers)
+    assert r2.status_code == 202
+    s2 = client.get(f"/api/analyze/status/{r2.json()['job_id']}", headers=headers)
+    assert s2.json()["status"] == "completed"
+
+    db.expire_all()
+    commit2 = db.query(Commit).filter_by(repo_id=repo.id).first()
+    nodes_after_2nd = db.query(CodeNode).filter_by(commit_sha=commit2.sha).count()
+    edges_after_2nd = db.query(CodeEdge).filter_by(commit_sha=commit2.sha).count()
+
+    assert nodes_after_1st == nodes_after_2nd, (
+        f"Re-ingest produced different node count: {nodes_after_1st} → {nodes_after_2nd}. "
+        f"Check delete-before-insert logic."
+    )
+    assert edges_after_1st == edges_after_2nd, (
+        f"Re-ingest produced different edge count: {edges_after_1st} → {edges_after_2nd}. "
+        f"Check delete-before-insert logic."
+    )
+
+
+def test_circular_import_no_hang():
+    """
+    T1-4 / Tier 4: Creating a cyclic dependency graph (A→B→A) and running
+    impact analysis must complete within a bounded depth and not loop infinitely.
+    The CTE uses UNION (cycle-safe) with depth < 10.
+    """
+    db = TestingSessionLocal()
+    repo = Repository(id="cycle-repo", organization_id="local", name="cycle-repo")
+    db.add(repo)
+    commit = Commit(sha="cycle-commit", repo_id=repo.id)
+    db.add(commit)
+
+    node_a = CodeNode(
+        id="cycle-repo:cycle-commit:src/a.ts",
+        repo_id=repo.id, commit_sha=commit.sha,
+        symbol="ModuleA", file_path="src/a.ts", kind="service", content_hash="ha"
+    )
+    node_b = CodeNode(
+        id="cycle-repo:cycle-commit:src/b.ts",
+        repo_id=repo.id, commit_sha=commit.sha,
+        symbol="ModuleB", file_path="src/b.ts", kind="service", content_hash="hb"
+    )
+    db.add(node_a)
+    db.add(node_b)
+
+    # Circular: A→B and B→A
+    db.add(CodeEdge(repo_id=repo.id, commit_sha=commit.sha, from_id=node_a.id, to_id=node_b.id, kind="imports"))
+    db.add(CodeEdge(repo_id=repo.id, commit_sha=commit.sha, from_id=node_b.id, to_id=node_a.id, kind="imports"))
+    db.commit()
+
+    # Run impact analysis on node_a — must not hang or crash
+    import time
+    start = time.time()
+    payload = {"targetNodeId": node_a.id, "commitSha": "cycle-commit"}
+    response = client.post("/api/impact", json=payload, headers=get_auth_headers("local"))
+    elapsed = time.time() - start
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    # Must complete in under 5 seconds even with cyclic graph
+    assert elapsed < 5.0, f"Impact analysis on cyclic graph took {elapsed:.1f}s — possible loop"
+    # The impacted nodes list should be bounded (not infinite)
+    assert isinstance(data["impactedNodes"], list)
+    assert len(data["impactedNodes"]) <= 10  # Bounded by depth < 10
+
+
+def test_rag_similarity_threshold():
+    """
+    T2-2: Chunks with similarity below SIMILARITY_THRESHOLD (0.4) must NOT be
+    returned by search_chunks, even if they are the only candidates.
+    """
+    from services.vector_store import search_chunks, SIMILARITY_THRESHOLD
+
+    db = TestingSessionLocal()
+    repo = Repository(id="thresh-repo", organization_id="local", name="thresh-repo")
+    db.add(repo)
+    commit = Commit(sha="thresh-commit", repo_id=repo.id)
+    db.add(commit)
+    node = CodeNode(
+        id="thresh-repo:thresh-commit:src/unrelated.py",
+        repo_id=repo.id, commit_sha=commit.sha,
+        symbol="unrelated", file_path="src/unrelated.py", kind="service", content_hash="hu"
+    )
+    db.add(node)
+    from database import CodeChunk
+    # Store chunk with all-zeros embedding (orthogonal to any query, similarity ≈ 0)
+    chunk = CodeChunk(
+        node_id=node.id, content="completely unrelated code",
+        embedding=[0.0] * 768, start_line=1, end_line=5
+    )
+    db.add(chunk)
+    db.commit()
+
+    # Query with a unit vector — cosine similarity with zero vector = 0.0, well below threshold
+    query_embedding = [1.0] * 768
+    results = search_chunks(db, "local", "thresh-commit", query_embedding, limit=5)
+
+    # Zero-embedding chunks should be filtered out by the threshold
+    filtered_ids = [r["node_id"] for r in results]
+    assert node.id not in filtered_ids, (
+        f"Chunk with near-zero similarity was returned despite SIMILARITY_THRESHOLD={SIMILARITY_THRESHOLD}. "
+        f"Similarity threshold filtering is not working."
+    )
+
+
+def test_story_verified_badge_accuracy():
+    """
+    T2-1: Steps that contain no meaningful CamelCase/snake_case symbols
+    from the graph must NOT receive a [Verified:] annotation.
+    The verification pass must not annotate steps based on common English words.
+    """
+    db = TestingSessionLocal()
+    repo = Repository(id="story-acc-repo", organization_id="local", name="story-acc-repo")
+    db.add(repo)
+    commit = Commit(sha="story-acc-commit", repo_id=repo.id)
+    db.add(commit)
+    # Symbol that is a common English word (short, no mixed case) — must not trigger badge
+    node = CodeNode(
+        id="story-acc-repo:story-acc-commit:src/main.py",
+        repo_id=repo.id, commit_sha=commit.sha,
+        symbol="main", file_path="src/main.py", kind="service", content_hash="hm"
+    )
+    db.add(node)
+    db.commit()
+
+    payload = {"featureId": "main", "commitSha": "story-acc-commit"}
+    response = client.post("/api/story", json=payload, headers=get_auth_headers("local"))
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+
+    # None of the steps should carry [Verified: main] annotation since "main" is too short (<5 chars)
+    # and has no mixed-case or underscore — it's a common English word
+    for step in data["steps"]:
+        assert "[Verified: main]" not in step, (
+            f"Short common word 'main' should not trigger [Verified:] badge. Step: {step!r}"
+        )
+
+
+def test_missing_jwt_secret_fails_fast_in_production(monkeypatch):
+    """
+    T0-5: When BRANCHDECK_ENV=production and SUPABASE_JWT_SECRET is not set,
+    the application must raise RuntimeError at startup rather than silently
+    falling back to an insecure dev secret.
+    """
+    import importlib
+
+    monkeypatch.delenv("SUPABASE_JWT_SECRET", raising=False)
+    monkeypatch.setenv("BRANCHDECK_ENV", "production")
+
+    with pytest.raises(RuntimeError, match="SUPABASE_JWT_SECRET"):
+        # Re-importing main triggers the module-level secret check
+        import main as main_module
+        importlib.reload(main_module)
