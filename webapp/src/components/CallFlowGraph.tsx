@@ -18,6 +18,7 @@ import '@xyflow/react/dist/style.css';
 import { CallGraphNode, CallGraphEdge } from '@/lib/analyzer';
 import { Layers, MessageSquare, Maximize2, Minimize2, RefreshCw, Search, ArrowRight, ShieldAlert, GitBranch, Database, HardDrive, Server } from 'lucide-react';
 import PillNav from './PillNav';
+import Dock from './Dock';
 
 /* ──────────────────────────────────────────────────────────────────── */
 /*  TYPES & UTILS                                                       */
@@ -672,10 +673,11 @@ function CallFlowGraphInner({
           {onToggleFullscreen && (
             <button
               onClick={onToggleFullscreen}
-              className="bg-slate-100 hover:bg-slate-200/80 text-slate-800 p-1.5 rounded-xl border border-slate-200/80 transition-all flex items-center justify-center shadow-2xs"
+              className="bg-slate-100 hover:bg-slate-200/80 text-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-200/80 transition-all flex items-center gap-1.5 shadow-2xs text-[10px] font-bold"
               title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Mode'}
             >
               {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              <span>{isFullscreen ? 'Exit' : 'Fullscreen'}</span>
             </button>
           )}
         </div>
@@ -761,6 +763,42 @@ function CallFlowGraphInner({
         <Background color="rgba(148, 163, 184, 0.3)" gap={18} size={1} />
         <Controls showInteractive={false} className="!bg-white !border-slate-200/80 !shadow-sm !rounded-xl" />
       </ReactFlow>
+
+      {/* ── React Bits Floating Dock (Fullscreen Mode) ── */}
+      {isFullscreen && (
+        <Dock
+          items={[
+            {
+              icon: <RefreshCw className="w-5 h-5 text-sky-400" />,
+              label: 'Center Camera',
+              onClick: handleFullViewReset,
+            },
+            {
+              icon: <Layers className="w-5 h-5 text-indigo-400" />,
+              label: 'Request Flow',
+              onClick: () => setActiveViewMode('request'),
+            },
+            {
+              icon: <GitBranch className="w-5 h-5 text-emerald-400" />,
+              label: 'Data Flow',
+              onClick: () => setActiveViewMode('data'),
+            },
+            {
+              icon: <Database className="w-5 h-5 text-amber-400" />,
+              label: 'Dependency Flow',
+              onClick: () => setActiveViewMode('dependency'),
+            },
+            {
+              icon: <Minimize2 className="w-5 h-5 text-rose-400" />,
+              label: 'Exit Fullscreen',
+              onClick: onToggleFullscreen,
+            },
+          ]}
+          panelHeight={64}
+          baseItemSize={44}
+          magnification={64}
+        />
+      )}
     </div>
   );
 }
