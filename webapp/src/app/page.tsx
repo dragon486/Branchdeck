@@ -1133,67 +1133,137 @@ export default function Dashboard() {
 
       {/* 3. Workspace Layout */}
       <div className="w-full h-[calc(100vh-140px)] min-h-[550px] flex flex-row gap-4 p-4 pb-4 overflow-hidden relative">
-        
-        {/* Left pane: Project Map */}
-        <div className={`h-full flex flex-col bg-white border border-slate-200/80 rounded-xl shadow-sm transition-all duration-300 overflow-hidden flex-shrink-0 ${
-          leftSidebarCollapsed ? 'w-12' : 'w-80'
-        }`}>
-          {leftSidebarCollapsed ? (
-            <div className="flex flex-col items-center py-4 gap-4 h-full">
-              <button 
-                onClick={() => setLeftSidebarCollapsed(false)}
-                className="p-2 rounded-lg hover:bg-slate-100 text-slate-700 transition-colors"
-                title="Expand File Map"
-              >
-                <Compass className="w-5 h-5 text-slate-850" />
-              </button>
-              <div className="w-6 h-px bg-slate-200" />
-              <button
-                onClick={() => setLeftSidebarCollapsed(false)}
-                className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors mt-auto"
-                title="Expand File Map"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <ProjectMap 
-              features={features} 
-              onSelectFile={handleSelectFile} 
-              selectedFile={selectedFile} 
-              onCollapse={() => setLeftSidebarCollapsed(true)}
-              onSelectFolder={(folder) => {
-                setSelectedFolder(folder);
-                setSelectedFile(null);
-                if (folder) {
-                  if (repoSource === 'mock-ecommerce' || repoSource === '') {
-                    const path = folder.toLowerCase();
-                    if (path.includes('auth') || path.includes('middleware')) {
-                      handleLoadCallFlow('login');
-                    } else if (path.includes('payment') || path.includes('billing')) {
-                      handleLoadCallFlow('payment');
-                    } else {
-                      handleLoadCallFlow('checkout');
-                    }
-                  } else {
-                    handleLoadCallFlow(folder);
-                    handleLoadStory(folder);
-                    setActiveRightTab('story');
-                  }
-                }
-              }}
-              selectedFolder={selectedFolder}
-            />
-          )}
-        </div>
 
-        {/* Central Workspace: Call Flow Graph */}
+        {/* ─── LEFT PANEL: Project Structure ─────────────────────────────── */}
+        {/* Normal mode: fixed sidebar. Fullscreen mode: floating overlay drawer */}
+        {isGraphFullscreen ? (
+          <>
+            {/* Floating pill toggle — always visible on left edge in fullscreen */}
+            <button
+              onClick={() => setLeftSidebarCollapsed(v => !v)}
+              className={`absolute left-6 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl shadow-lg border transition-all duration-200 ${
+                leftSidebarCollapsed
+                  ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  : 'bg-slate-900 border-slate-900 text-white'
+              }`}
+              title={leftSidebarCollapsed ? 'Open Project Structure' : 'Close Project Structure'}
+            >
+              <Layers className="w-4 h-4" />
+              <span className="text-[8px] font-black uppercase tracking-widest [writing-mode:vertical-rl] rotate-180">Structure</span>
+            </button>
+
+            {/* Sliding overlay drawer — left */}
+            <div className={`absolute left-0 top-0 h-full z-40 flex transition-all duration-300 ease-out ${
+              leftSidebarCollapsed ? '-translate-x-full opacity-0 pointer-events-none' : 'translate-x-0 opacity-100'
+            }`}>
+              <div className="w-80 h-full bg-white/95 backdrop-blur-xl border-r border-slate-200/90 shadow-2xl rounded-r-2xl flex flex-col overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/80 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-slate-700" />
+                    <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Project Structure</span>
+                  </div>
+                  <button
+                    onClick={() => setLeftSidebarCollapsed(true)}
+                    className="p-1.5 rounded-lg hover:bg-slate-200/60 text-slate-400 hover:text-slate-700 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <ProjectMap
+                    features={features}
+                    onSelectFile={handleSelectFile}
+                    selectedFile={selectedFile}
+                    onCollapse={() => setLeftSidebarCollapsed(true)}
+                    onSelectFolder={(folder) => {
+                      setSelectedFolder(folder);
+                      setSelectedFile(null);
+                      setLeftSidebarCollapsed(true); // auto-close drawer after selection
+                      if (folder) {
+                        if (repoSource === 'mock-ecommerce' || repoSource === '') {
+                          const path = folder.toLowerCase();
+                          if (path.includes('auth') || path.includes('middleware')) handleLoadCallFlow('login');
+                          else if (path.includes('payment') || path.includes('billing')) handleLoadCallFlow('payment');
+                          else handleLoadCallFlow('checkout');
+                        } else {
+                          handleLoadCallFlow(folder);
+                          handleLoadStory(folder);
+                          setActiveRightTab('story');
+                        }
+                      }
+                    }}
+                    selectedFolder={selectedFolder}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Backdrop for left drawer */}
+            {!leftSidebarCollapsed && (
+              <div
+                className="absolute inset-0 z-30 bg-black/10 backdrop-blur-[1px]"
+                onClick={() => setLeftSidebarCollapsed(true)}
+              />
+            )}
+          </>
+        ) : (
+          /* Normal mode: fixed sidebar */
+          <div className={`h-full flex flex-col bg-white border border-slate-200/80 rounded-xl shadow-sm transition-all duration-300 overflow-hidden flex-shrink-0 ${
+            leftSidebarCollapsed ? 'w-12' : 'w-80'
+          }`}>
+            {leftSidebarCollapsed ? (
+              <div className="flex flex-col items-center py-4 gap-4 h-full">
+                <button
+                  onClick={() => setLeftSidebarCollapsed(false)}
+                  className="p-2 rounded-lg hover:bg-slate-100 text-slate-700 transition-colors"
+                  title="Expand File Map"
+                >
+                  <Compass className="w-5 h-5 text-slate-850" />
+                </button>
+                <div className="w-6 h-px bg-slate-200" />
+                <button
+                  onClick={() => setLeftSidebarCollapsed(false)}
+                  className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors mt-auto"
+                  title="Expand File Map"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <ProjectMap
+                features={features}
+                onSelectFile={handleSelectFile}
+                selectedFile={selectedFile}
+                onCollapse={() => setLeftSidebarCollapsed(true)}
+                onSelectFolder={(folder) => {
+                  setSelectedFolder(folder);
+                  setSelectedFile(null);
+                  if (folder) {
+                    if (repoSource === 'mock-ecommerce' || repoSource === '') {
+                      const path = folder.toLowerCase();
+                      if (path.includes('auth') || path.includes('middleware')) handleLoadCallFlow('login');
+                      else if (path.includes('payment') || path.includes('billing')) handleLoadCallFlow('payment');
+                      else handleLoadCallFlow('checkout');
+                    } else {
+                      handleLoadCallFlow(folder);
+                      handleLoadStory(folder);
+                      setActiveRightTab('story');
+                    }
+                  }
+                }}
+                selectedFolder={selectedFolder}
+              />
+            )}
+          </div>
+        )}
+
+        {/* ─── CENTRE: Call Flow Graph ──────────────────────────────────── */}
         <div className="w-full h-full flex-1 flex flex-col gap-4 overflow-hidden relative min-w-0 min-h-[500px]" style={{ height: '100%', minHeight: '500px' }}>
           <div className="w-full h-full flex-1 flex flex-col min-h-[500px] relative" style={{ height: '100%', minHeight: '500px' }}>
-             <CallFlowGraph 
-              nodes={filteredNodes} 
-              edges={filteredEdges} 
-              onSelectNode={handleSelectNode} 
+            <CallFlowGraph
+              nodes={filteredNodes}
+              edges={filteredEdges}
+              onSelectNode={handleSelectNode}
               selectedFile={selectedFile}
               selectedFolder={selectedFolder}
               selectedFeature={selectedFolder}
@@ -1220,7 +1290,7 @@ export default function Dashboard() {
               }}
             />
           </div>
-          
+
           {/* Active node detail bar if selected */}
           {selectedNode && (
             <div className="bg-white border border-slate-200/80 p-3.5 rounded-xl flex items-center justify-between shadow-sm">
@@ -1231,10 +1301,11 @@ export default function Dashboard() {
                   <div className="text-[10px] text-slate-400 font-mono mt-0.5">{selectedNode.file}</div>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => {
                   handleLoadImpact(selectedNode.label);
                   setActiveRightTab('impact');
+                  if (isGraphFullscreen) setRightSidebarCollapsed(false);
                 }}
                 className="bg-slate-50 hover:bg-slate-100 text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 font-semibold transition-colors shadow-sm"
               >
@@ -1244,98 +1315,174 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Right Pane: Architecture Walkthrough / Impact analysis */}
-        <div className={`h-full flex flex-col bg-white border border-slate-200/80 rounded-xl shadow-sm transition-all duration-300 overflow-hidden flex-shrink-0 ${
-          rightSidebarCollapsed ? 'w-12' : 'w-80'
-        }`}>
-          {rightSidebarCollapsed ? (
-            <div className="flex flex-col items-center py-4 gap-3 h-full">
-              <button 
-                onClick={() => {
-                  setActiveRightTab('story');
-                  setRightSidebarCollapsed(false);
-                }}
-                className={`p-2 rounded-lg hover:bg-slate-100 transition-colors ${activeRightTab === 'story' ? 'text-slate-800 bg-slate-50' : 'text-slate-400'}`}
-                title="Architecture Walkthrough"
-              >
-                <BookOpen className="w-5 h-5" />
-              </button>
-              <button 
-                onClick={() => {
-                  setActiveRightTab('impact');
-                  setRightSidebarCollapsed(false);
-                }}
-                className={`p-2 rounded-lg hover:bg-slate-100 transition-colors ${activeRightTab === 'impact' ? 'text-slate-800 bg-slate-50' : 'text-slate-400'}`}
-                title="Impact Analysis"
-              >
-                <ShieldAlert className="w-5 h-5" />
-              </button>
-              <div className="w-6 h-px bg-slate-200" />
-              <button
-                onClick={() => setRightSidebarCollapsed(false)}
-                className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors mt-auto"
-                title="Expand Details"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <>
-              {/* Header tabs with collapse button */}
-              <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/50 p-1 pr-2 flex-shrink-0">
-                <div className="flex flex-1 gap-1">
+        {/* ─── RIGHT PANEL: Architecture Walkthrough / Impact ───────────── */}
+        {isGraphFullscreen ? (
+          <>
+            {/* Floating pill toggle — always visible on right edge in fullscreen */}
+            <button
+              onClick={() => setRightSidebarCollapsed(v => !v)}
+              className={`absolute right-6 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl shadow-lg border transition-all duration-200 ${
+                rightSidebarCollapsed
+                  ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  : 'bg-slate-900 border-slate-900 text-white'
+              }`}
+              title={rightSidebarCollapsed ? 'Open Architecture Walkthrough' : 'Close Walkthrough'}
+            >
+              <BookOpen className="w-4 h-4" />
+              <span className="text-[8px] font-black uppercase tracking-widest [writing-mode:vertical-rl]">Walkthrough</span>
+            </button>
+
+            {/* Sliding overlay drawer — right */}
+            <div className={`absolute right-0 top-0 h-full z-40 flex transition-all duration-300 ease-out ${
+              rightSidebarCollapsed ? 'translate-x-full opacity-0 pointer-events-none' : 'translate-x-0 opacity-100'
+            }`}>
+              <div className="w-80 h-full bg-white/95 backdrop-blur-xl border-l border-slate-200/90 shadow-2xl rounded-l-2xl flex flex-col overflow-hidden">
+                {/* Tabs header */}
+                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 p-1 pr-2 flex-shrink-0">
+                  <div className="flex flex-1 gap-1">
+                    <button
+                      onClick={() => setActiveRightTab('story')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
+                        activeRightTab === 'story'
+                          ? 'bg-white text-slate-900 shadow-sm border border-slate-200/30'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      <BookOpen className="w-3.5 h-3.5" /> Walkthrough
+                    </button>
+                    <button
+                      onClick={() => setActiveRightTab('impact')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
+                        activeRightTab === 'impact'
+                          ? 'bg-white text-slate-900 shadow-sm border border-slate-200/30'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      <ShieldAlert className="w-3.5 h-3.5" /> Impact
+                    </button>
+                  </div>
                   <button
-                    onClick={() => setActiveRightTab('story')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
-                      activeRightTab === 'story'
-                        ? 'bg-white text-slate-900 shadow-sm border border-slate-200/30'
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
+                    onClick={() => setRightSidebarCollapsed(true)}
+                    className="p-1.5 ml-1 rounded hover:bg-slate-200/60 text-slate-400 hover:text-slate-700 transition-colors"
                   >
-                    <BookOpen className="w-3.5 h-3.5" />
-                    Architecture Walkthrough
-                  </button>
-                  <button
-                    onClick={() => setActiveRightTab('impact')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
-                      activeRightTab === 'impact'
-                        ? 'bg-white text-slate-900 shadow-sm border border-slate-200/30'
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    <ShieldAlert className="w-3.5 h-3.5" />
-                    Impact Analysis
+                    <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
+                <div className="flex-1 overflow-hidden">
+                  {activeRightTab === 'story' ? (
+                    <StoryMode
+                      loading={storyLoading}
+                      story={storyData}
+                      onHoverStep={(idx) => setActiveWalkthroughStep(idx)}
+                      onSelectStep={(idx) => setActiveWalkthroughStep(idx)}
+                      activeStepIndex={activeWalkthroughStep}
+                    />
+                  ) : (
+                    <ImpactPanel
+                      onAnalyzeImpact={handleLoadImpact}
+                      impactResult={impactData}
+                      loading={impactLoading}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Backdrop for right drawer */}
+            {!rightSidebarCollapsed && (
+              <div
+                className="absolute inset-0 z-30 bg-black/10 backdrop-blur-[1px]"
+                onClick={() => setRightSidebarCollapsed(true)}
+              />
+            )}
+          </>
+        ) : (
+          /* Normal mode: fixed sidebar */
+          <div className={`h-full flex flex-col bg-white border border-slate-200/80 rounded-xl shadow-sm transition-all duration-300 overflow-hidden flex-shrink-0 ${
+            rightSidebarCollapsed ? 'w-12' : 'w-80'
+          }`}>
+            {rightSidebarCollapsed ? (
+              <div className="flex flex-col items-center py-4 gap-3 h-full">
                 <button
-                  onClick={() => setRightSidebarCollapsed(true)}
-                  className="p-1.5 ml-1 rounded hover:bg-slate-200/60 text-slate-400 hover:text-slate-700 transition-colors"
-                  title="Collapse Sidebar"
+                  onClick={() => { setActiveRightTab('story'); setRightSidebarCollapsed(false); }}
+                  className={`p-2 rounded-lg hover:bg-slate-100 transition-colors ${activeRightTab === 'story' ? 'text-slate-800 bg-slate-50' : 'text-slate-400'}`}
+                  title="Architecture Walkthrough"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <BookOpen className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => { setActiveRightTab('impact'); setRightSidebarCollapsed(false); }}
+                  className={`p-2 rounded-lg hover:bg-slate-100 transition-colors ${activeRightTab === 'impact' ? 'text-slate-800 bg-slate-50' : 'text-slate-400'}`}
+                  title="Impact Analysis"
+                >
+                  <ShieldAlert className="w-5 h-5" />
+                </button>
+                <div className="w-6 h-px bg-slate-200" />
+                <button
+                  onClick={() => setRightSidebarCollapsed(false)}
+                  className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors mt-auto"
+                  title="Expand Details"
+                >
+                  <ChevronLeft className="w-4 h-4" />
                 </button>
               </div>
-
-              <div className="flex-1 overflow-hidden">
-                {activeRightTab === 'story' ? (
-                  <StoryMode 
-                    loading={storyLoading} 
-                    story={storyData} 
-                    onHoverStep={(idx) => setActiveWalkthroughStep(idx)}
-                    onSelectStep={(idx) => setActiveWalkthroughStep(idx)}
-                    activeStepIndex={activeWalkthroughStep}
-                  />
-                ) : (
-                  <ImpactPanel 
-                    onAnalyzeImpact={handleLoadImpact} 
-                    impactResult={impactData} 
-                    loading={impactLoading} 
-                  />
-                )}
-              </div>
-            </>
-          )}
-        </div>
+            ) : (
+              <>
+                {/* Header tabs with collapse button */}
+                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/50 p-1 pr-2 flex-shrink-0">
+                  <div className="flex flex-1 gap-1">
+                    <button
+                      onClick={() => setActiveRightTab('story')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                        activeRightTab === 'story'
+                          ? 'bg-white text-slate-900 shadow-sm border border-slate-200/30'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      <BookOpen className="w-3.5 h-3.5" />
+                      Architecture Walkthrough
+                    </button>
+                    <button
+                      onClick={() => setActiveRightTab('impact')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                        activeRightTab === 'impact'
+                          ? 'bg-white text-slate-900 shadow-sm border border-slate-200/30'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      <ShieldAlert className="w-3.5 h-3.5" />
+                      Impact Analysis
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setRightSidebarCollapsed(true)}
+                    className="p-1.5 ml-1 rounded hover:bg-slate-200/60 text-slate-400 hover:text-slate-700 transition-colors"
+                    title="Collapse Sidebar"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  {activeRightTab === 'story' ? (
+                    <StoryMode
+                      loading={storyLoading}
+                      story={storyData}
+                      onHoverStep={(idx) => setActiveWalkthroughStep(idx)}
+                      onSelectStep={(idx) => setActiveWalkthroughStep(idx)}
+                      activeStepIndex={activeWalkthroughStep}
+                    />
+                  ) : (
+                    <ImpactPanel
+                      onAnalyzeImpact={handleLoadImpact}
+                      impactResult={impactData}
+                      loading={impactLoading}
+                    />
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
       </div>
       <AuthModal
