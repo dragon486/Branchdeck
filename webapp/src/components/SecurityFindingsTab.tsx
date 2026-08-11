@@ -13,7 +13,6 @@ import {
   RefreshCw,
   FileCode,
   Check,
-  WifiOff,
   AlertCircle,
   Activity,
   Zap,
@@ -205,29 +204,27 @@ export default function SecurityFindingsTab({ commitSha, sessionToken }: Securit
           </div>
         )}
 
-        {/* Backend offline */}
+        {/* Backend not available — informational, not an error */}
         {!loading && errorCode === 'backend_offline' && (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-rose-50 border border-rose-200">
-              <WifiOff className="w-5 h-5 text-rose-500" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-100 border border-slate-200">
+              <ShieldAlert className="w-5 h-5 text-slate-400" />
             </div>
-            <div className="text-center max-w-[220px]">
-              <p className="text-xs font-bold text-slate-700 mb-1">Backend offline</p>
+            <div className="text-center max-w-[230px]">
+              <p className="text-xs font-bold text-slate-700 mb-1">Security analysis runs on the backend</p>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                Start the backend, then click Refresh.
+                Analyze a repo with the full backend running to see MCP security findings, reachability data, and auto-patch suggestions here.
               </p>
-              <code className="mt-2 block text-[9px] px-2 py-1.5 rounded-lg font-mono bg-slate-100 text-slate-500 border border-slate-200">
-                uvicorn main:app --reload
-              </code>
             </div>
             <button
               onClick={fetchFindings}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 transition-colors"
             >
-              <RefreshCw className="w-3 h-3" /> Try again
+              <RefreshCw className="w-3 h-3" /> Check again
             </button>
           </div>
         )}
+
 
         {/* Auth / no analysis */}
         {!loading && errorCode === 'auth_required' && (

@@ -1,0 +1,15 @@
+{
+  "name": "branchdeck",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --names \"backend,webapp\" --prefix-colors \"cyan,magenta\" \"npm run dev:backend\" \"npm run dev:webapp\"",
+    "dev:webapp": "cd webapp && npm run dev",
+    "dev:backend": "cd backend && cross-env DATABASE_URL=sqlite:///./branchdeck.db ALLOW_SQLITE_FALLBACK=true ALLOWED_ORIGINS=http://localhost:3000 venv/Scripts/python.exe -m uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "install:all": "cd webapp && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3"
+  }
+}
