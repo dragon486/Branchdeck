@@ -16,6 +16,7 @@ import ProjectMap from '@/components/ProjectMap';
 import CallFlowGraph from '@/components/CallFlowGraph';
 import ImpactPanel from '@/components/ImpactPanel';
 import StoryMode from '@/components/StoryMode';
+import SecurityFindingsTab from '@/components/SecurityFindingsTab';
 import MarketingLanding from '@/components/MarketingLanding';
 import AuthModal from '@/components/AuthModal';
 import RepoPickerModal from '@/components/RepoPickerModal';
@@ -29,6 +30,7 @@ import {
   Code,
   BookOpen,
   ShieldAlert,
+  ShieldCheck,
   Compass,
   ArrowLeft,
   Radio,
@@ -133,7 +135,7 @@ export default function Dashboard() {
   const [callEdges, setCallEdges] = useState<CallGraphEdge[]>([]);
 
   // Right sidebar configurations
-  const [activeRightTab, setActiveRightTab] = useState<'story' | 'impact'>('story');
+  const [activeRightTab, setActiveRightTab] = useState<'story' | 'impact' | 'security'>('story');
   const [activeWalkthroughStep, setActiveWalkthroughStep] = useState<number | null>(null);
   
   // Selected detail values
@@ -1338,29 +1340,39 @@ export default function Dashboard() {
             <div className={`absolute right-0 top-0 h-full z-40 flex transition-all duration-300 ease-out ${
               rightSidebarCollapsed ? 'translate-x-full opacity-0 pointer-events-none' : 'translate-x-0 opacity-100'
             }`}>
-              <div className="w-80 h-full bg-white/95 backdrop-blur-xl border-l border-slate-200/90 shadow-2xl rounded-l-2xl flex flex-col overflow-hidden">
+              <div className="w-96 h-full bg-white/95 backdrop-blur-xl border-l border-slate-200/90 shadow-2xl rounded-l-2xl flex flex-col overflow-hidden">
                 {/* Tabs header */}
                 <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 p-1 pr-2 flex-shrink-0">
                   <div className="flex flex-1 gap-1">
                     <button
                       onClick={() => setActiveRightTab('story')}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
+                      className={`flex-1 flex items-center justify-center gap-1 py-2 text-[11px] font-bold rounded-lg transition-all ${
                         activeRightTab === 'story'
                           ? 'bg-white text-slate-900 shadow-sm border border-slate-200/30'
                           : 'text-slate-500 hover:text-slate-700'
                       }`}
                     >
-                      <BookOpen className="w-3.5 h-3.5" /> Walkthrough
+                      <BookOpen className="w-3.5 h-3.5" /> Story
                     </button>
                     <button
                       onClick={() => setActiveRightTab('impact')}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
+                      className={`flex-1 flex items-center justify-center gap-1 py-2 text-[11px] font-bold rounded-lg transition-all ${
                         activeRightTab === 'impact'
                           ? 'bg-white text-slate-900 shadow-sm border border-slate-200/30'
                           : 'text-slate-500 hover:text-slate-700'
                       }`}
                     >
                       <ShieldAlert className="w-3.5 h-3.5" /> Impact
+                    </button>
+                    <button
+                      onClick={() => setActiveRightTab('security')}
+                      className={`flex-1 flex items-center justify-center gap-1 py-2 text-[11px] font-bold rounded-lg transition-all ${
+                        activeRightTab === 'security'
+                          ? 'bg-emerald-500 text-slate-950 shadow-sm font-extrabold'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" /> Security
                     </button>
                   </div>
                   <button
@@ -1379,11 +1391,16 @@ export default function Dashboard() {
                       onSelectStep={(idx) => setActiveWalkthroughStep(idx)}
                       activeStepIndex={activeWalkthroughStep}
                     />
-                  ) : (
+                  ) : activeRightTab === 'impact' ? (
                     <ImpactPanel
                       onAnalyzeImpact={handleLoadImpact}
                       impactResult={impactData}
                       loading={impactLoading}
+                    />
+                  ) : (
+                    <SecurityFindingsTab
+                      commitSha={null}
+                      sessionToken={session?.access_token || null}
                     />
                   )}
                 </div>
@@ -1401,7 +1418,7 @@ export default function Dashboard() {
         ) : (
           /* Normal mode: fixed sidebar */
           <div className={`h-full flex flex-col bg-white border border-slate-200/80 rounded-xl shadow-sm transition-all duration-300 overflow-hidden flex-shrink-0 ${
-            rightSidebarCollapsed ? 'w-12' : 'w-80'
+            rightSidebarCollapsed ? 'w-12' : 'w-[420px]'
           }`}>
             {rightSidebarCollapsed ? (
               <div className="flex flex-col items-center py-4 gap-3 h-full">
@@ -1419,6 +1436,13 @@ export default function Dashboard() {
                 >
                   <ShieldAlert className="w-5 h-5" />
                 </button>
+                <button
+                  onClick={() => { setActiveRightTab('security'); setRightSidebarCollapsed(false); }}
+                  className={`p-2 rounded-lg hover:bg-slate-100 transition-colors ${activeRightTab === 'security' ? 'text-emerald-500 bg-slate-50' : 'text-slate-400'}`}
+                  title="Security Findings"
+                >
+                  <ShieldCheck className="w-5 h-5" />
+                </button>
                 <div className="w-6 h-px bg-slate-200" />
                 <button
                   onClick={() => setRightSidebarCollapsed(false)}
@@ -1435,25 +1459,36 @@ export default function Dashboard() {
                   <div className="flex flex-1 gap-1">
                     <button
                       onClick={() => setActiveRightTab('story')}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold rounded-lg transition-all ${
                         activeRightTab === 'story'
                           ? 'bg-white text-slate-900 shadow-sm border border-slate-200/30'
                           : 'text-slate-500 hover:text-slate-700'
                       }`}
                     >
                       <BookOpen className="w-3.5 h-3.5" />
-                      Architecture Walkthrough
+                      Walkthrough
                     </button>
                     <button
                       onClick={() => setActiveRightTab('impact')}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold rounded-lg transition-all ${
                         activeRightTab === 'impact'
                           ? 'bg-white text-slate-900 shadow-sm border border-slate-200/30'
                           : 'text-slate-500 hover:text-slate-700'
                       }`}
                     >
                       <ShieldAlert className="w-3.5 h-3.5" />
-                      Impact Analysis
+                      Impact
+                    </button>
+                    <button
+                      onClick={() => setActiveRightTab('security')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold rounded-lg transition-all ${
+                        activeRightTab === 'security'
+                          ? 'bg-emerald-500 text-slate-950 font-extrabold shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      Security
                     </button>
                   </div>
                   <button
@@ -1473,11 +1508,16 @@ export default function Dashboard() {
                       onSelectStep={(idx) => setActiveWalkthroughStep(idx)}
                       activeStepIndex={activeWalkthroughStep}
                     />
-                  ) : (
+                  ) : activeRightTab === 'impact' ? (
                     <ImpactPanel
                       onAnalyzeImpact={handleLoadImpact}
                       impactResult={impactData}
                       loading={impactLoading}
+                    />
+                  ) : (
+                    <SecurityFindingsTab
+                      commitSha={null}
+                      sessionToken={session?.access_token || null}
                     />
                   )}
                 </div>

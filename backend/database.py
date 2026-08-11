@@ -6,7 +6,7 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-from sqlalchemy import create_engine, Column, String, ForeignKey, DateTime, JSON, Text, select, text, Float, Integer, Index, UniqueConstraint
+from sqlalchemy import create_engine, Column, String, ForeignKey, DateTime, JSON, Text, select, text, Float, Integer, Index, UniqueConstraint, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from sqlalchemy.types import TypeDecorator, NullType
 
@@ -198,6 +198,45 @@ class UsageLog(Base):
 
     __table_args__ = (
         Index("idx_usage_org_date", "organization_id", "created_at"),
+    )
+
+class SecurityNodeTag(Base):
+    __tablename__ = "security_node_tags"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    node_id = Column(String(150), ForeignKey("code_nodes.id", ondelete="CASCADE"), nullable=False)
+    tag_name = Column(String(50), nullable=False) # MCP_TOOL, MCP_MANIFEST, MCP_AUTH_BOUNDARY, MCP_PATH_SINK, MCP_SANITIZER
+    repo_id = Column(String(36), ForeignKey("repos.id", ondelete="CASCADE"), nullable=False)
+    commit_sha = Column(String(40), ForeignKey("commits.sha", ondelete="CASCADE"), nullable=False)
+    details = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("idx_sec_tags_repo_commit", "repo_id", "commit_sha"),
+        Index("idx_sec_tags_node", "node_id"),
+    )
+
+class SecurityFinding(Base):
+    __tablename__ = "security_findings"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    repo_id = Column(String(36), ForeignKey("repos.id", ondelete="CASCADE"), nullable=False)
+    commit_sha = Column(String(40), ForeignKey("commits.sha", ondelete="CASCADE"), nullable=False)
+    rule_id = Column(String(50), nullable=False) # missing-auth-check, overly-broad-oauth-scope, unsanitized-path-param
+    title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=False)
+    severity = Column(String(20), nullable=False, default="HIGH") # HIGH, MEDIUM, LOW, CRITICAL
+    target_node_id = Column(String(150), nullable=True)
+    file_path = Column(String(255), nullable=False)
+    is_reachable = Column(Boolean, nullable=False, default=True)
+    patch_diff = Column(Text, nullable=True)
+    pr_url = Column(String(255), nullable=True)
+    details = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("idx_findings_repo_commit", "repo_id", "commit_sha"),
+        Index("idx_findings_rule", "rule_id"),
     )
 
 # Database Session Dependency

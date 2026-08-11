@@ -8,7 +8,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import FastAPI, Depends, HTTPException, Header, Request, BackgroundTasks, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from database import get_db, init_db, Repository, Commit, CodeNode, CodeEdge, FileCache, get_downstream_impact, IndexingJob, UsageLog
+from database import get_db, init_db, Repository, Commit, CodeNode, CodeEdge, FileCache, get_downstream_impact, IndexingJob, UsageLog, SecurityNodeTag, SecurityFinding
 from parser import parse_file
 from secure_file_handler import validate_repository_path, check_file_permission
 from services.chunker import chunk_code
@@ -16,6 +16,7 @@ from services.embeddings import get_embedding
 from services.vector_store import store_chunk, search_chunks
 from services.retrieval import retrieve_code_context
 from services.ai_agent import generate_answer
+from mcp_security import detect_mcp_surface, evaluate_rules, create_github_fix_pr
 from pydantic import BaseModel
 from typing import List, Optional
 import httpx
@@ -73,6 +74,9 @@ class StoryPayload(BaseModel):
 class QueryPayload(BaseModel):
     queryText: str
     commitSha: Optional[str] = None
+
+class FixPRPayload(BaseModel):
+    findingId: str
 
 import jwt
 
@@ -499,6 +503,15 @@ def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str,
             job.progress = progress_pct
             db.commit()
             
+        # MCP Security analysis pass
+        try:
+            logger.info(f"Running MCP surface detection and rule evaluation for job {job_id}...")
+            detect_mcp_surface(db, repo.id, commit_sha, indexed_files, validated_files)
+            evaluate_rules(db, repo.id, commit_sha, validated_files)
+            logger.info(f"MCP Security analysis complete for job {job_id}.")
+        except Exception as mcp_err:
+            logger.error(f"MCP Security analysis failed for job {job_id}: {mcp_err}")
+
         job.progress = 100
         job.status = "completed"
         job.commit_sha = commit_sha  # Pin the produced commit SHA on the job record
@@ -999,3 +1012,70 @@ async def query_codebase(payload: QueryPayload, db: Session = Depends(get_db), c
             for c in chunks
         ]
     }
+
+@app.get("/api/security/findings")
+async def get_security_findings(commit_sha: Optional[str] = None, db: Session = Depends(get_db), current_user: AuthenticatedUser = Depends(get_current_user)):
+    if not commit_sha:
+        latest_commit = db.query(Commit).join(Repository).filter(
+            Repository.organization_id == current_user.organization_id
+        ).order_by(Commit.created_at.desc()).first()
+        if latest_commit:
+            commit_sha = latest_commit.sha
+        else:
+            return {"success": True, "findings": [], "tags": [], "commit_sha": None}
+
+    # Verify organization ownership of commit
+    commit = db.query(Commit).join(Repository).filter(
+        Commit.sha == commit_sha,
+        Repository.organization_id == current_user.organization_id
+    ).first()
+
+    if not commit:
+        raise HTTPException(status_code=403, detail="Access denied: organization mismatch")
+
+    findings = db.query(SecurityFinding).filter_by(repo_id=commit.repo_id, commit_sha=commit_sha).all()
+    tags = db.query(SecurityNodeTag).filter_by(repo_id=commit.repo_id, commit_sha=commit_sha).all()
+
+    return {
+        "success": True,
+        "commit_sha": commit_sha,
+        "findings": [
+            {
+                "id": f.id,
+                "rule_id": f.rule_id,
+                "title": f.title,
+                "description": f.description,
+                "severity": f.severity,
+                "target_node_id": f.target_node_id,
+                "file_path": f.file_path,
+                "is_reachable": f.is_reachable,
+                "patch_diff": f.patch_diff,
+                "pr_url": f.pr_url,
+                "details": f.details
+            }
+            for f in findings
+        ],
+        "tags": [
+            {
+                "id": t.id,
+                "node_id": t.node_id,
+                "tag_name": t.tag_name,
+                "details": t.details
+            }
+            for t in tags
+        ]
+    }
+
+@app.post("/api/security/fix-pr")
+async def create_fix_pr(payload: FixPRPayload, db: Session = Depends(get_db), current_user: AuthenticatedUser = Depends(get_current_user)):
+    try:
+        res = create_github_fix_pr(db, payload.findingId, current_user)
+        return res
+    except ValueError as ve:
+        raise HTTPException(status_code=404, detail=str(ve))
+    except PermissionError as pe:
+        raise HTTPException(status_code=403, detail=str(pe))
+    except Exception as e:
+        logger.error(f"Error generating fix PR: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate fix PR: {e}")
+

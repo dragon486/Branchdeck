@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ report_title }} — Branchdeck Health Report</title>
+  <style>
+    /* ------------------------------------------------------------------ */
+    /* RESET & TOKENS                                                       */
+    /* ------------------------------------------------------------------ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary:     #0d0d1a;
+      --bg-card:        #12122a;
+      --bg-card-hover:  #181832;
+      --border:         rgba(124, 58, 237, 0.22);
+      --border-light:   rgba(124, 58, 237, 0.10);
+      --purple-deep:    #7c3aed;
+      --purple-mid:     #a855f7;
+      --purple-light:   #d8b4fe;
+      --teal:           #06b6d4;
+      --teal-light:     #a5f3fc;
+      --text-primary:   #f1f0ff;
+      --text-secondary: #a09cb5;
+      --text-muted:     #5e5a75;
+      --severity-crit:  #ef4444;
+      --severity-high:  #f97316;
+      --severity-med:   #facc15;
+      --severity-low:   #22c55e;
+      --ui-color:       #3b82f6;
+      --api-color:      #10b981;
+      --db-color:       #f59e0b;
+      --service-color:  #8b5cf6;
+      --worker-color:   #ec4899;
+      --external-color: #06b6d4;
+    }
+
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    html { font-size: 16px; }
+    body {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* LAYOUT                                                               */
+    /* ------------------------------------------------------------------ */
+    .page { max-width: 1100px; margin: 0 auto; padding: 0 2rem 4rem; }
+
+    /* ------------------------------------------------------------------ */
+    /* HERO / COVER                                                         */
+    /* ------------------------------------------------------------------ */
+    .hero {
+      background: linear-gradient(135deg, #0f0a2e 0%, #12122a 40%, #0d1a2e 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 3rem 2rem 2.5rem;
+      margin-bottom: 3rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 80% 50%, rgba(124,58,237,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 60% at 20% 80%, rgba(6,182,212,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-inner { max-width: 1100px; margin: 0 auto; position: relative; z-index: 1; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--purple-mid);
+      background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.3);
+      border-radius: 99px; padding: 0.25rem 0.75rem; margin-bottom: 1rem;
+    }
+    .hero h1 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, #f1f0ff 0%, #a855f7 50%, #06b6d4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.15;
+      margin-bottom: 0.5rem;
+    }
+    .hero-subtitle {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      margin-bottom: 1.8rem;
+    }
+    .hero-meta {
+      display: flex; flex-wrap: wrap; gap: 1.5rem;
+      font-size: 0.85rem; color: var(--text-muted);
+    }
+    .hero-meta span strong { color: var(--text-secondary); font-weight: 500; }
+
+    /* ------------------------------------------------------------------ */
+    /* SECTION CHROME                                                       */
+    /* ------------------------------------------------------------------ */
+    .section {
+      margin-bottom: 2.5rem;
+      border: 1px solid var(--border-light);
+      border-radius: 1rem;
+      overflow: hidden;
+      background: var(--bg-card);
+    }
+    .section-header {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 1.1rem 1.5rem;
+      border-bottom: 1px solid var(--border-light);
+      background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(6,182,212,0.04));
+    }
+    .section-icon {
+      width: 2rem; height: 2rem; border-radius: 0.5rem;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      background: rgba(124,58,237,0.2); border: 1px solid rgba(124,58,237,0.3);
+    }
+    .section-title {
+      font-size: 1.05rem; font-weight: 700;
+      color: var(--text-primary);
+    }
+    .section-pill {
+      margin-left: auto; font-size: 0.7rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      padding: 0.2rem 0.6rem; border-radius: 99px;
+      background: rgba(6,182,212,0.15); color: var(--teal);
+      border: 1px solid rgba(6,182,212,0.25);
+    }
+    .section-pill.unavailable {
+      background: rgba(100,100,120,0.15); color: var(--text-muted);
+      border-color: rgba(100,100,120,0.25);
+    }
+    .section-body { padding: 1.5rem; }
+
+    /* UNAVAILABLE state */
+    .unavailable-box {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      padding: 1.1rem 1.25rem;
+      border-radius: 0.6rem;
+      background: rgba(100,100,120,0.08);
+      border: 1px solid rgba(100,100,120,0.2);
+      color: var(--text-muted);
+    }
+    .unavailable-box .icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 0.05rem; }
+    .unavailable-box .msg { font-size: 0.9rem; line-height: 1.5; }
+    .unavailable-box .msg strong { color: var(--text-secondary); }
+
+    /* ------------------------------------------------------------------ */
+    /* STAT GRID                                                            */
+    /* ------------------------------------------------------------------ */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-card {
+      background: rgba(124,58,237,0.07);
+      border: 1px solid var(--border-light);
+      border-radius: 0.75rem;
+      padding: 1rem 1.1rem;
+    }
+    .stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.25rem; }
+    .stat-value { font-size: 1.9rem; font-weight: 700; color: var(--text-primary); line-height: 1; }
+    .stat-sub { font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.2rem; }
+
+    /* ------------------------------------------------------------------ */
+    /* LANGUAGE / LAYER BARS                                               */
+    /* ------------------------------------------------------------------ */
+    .bar-list { display: flex; flex-direction: column; gap: 0.6rem; }
+    .bar-item { display: flex; align-items: center; gap: 0.75rem; }
+    .bar-label { font-size: 0.82rem; color: var(--text-secondary); width: 130px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar-track { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 99px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--purple-deep), var(--teal)); }
+    .bar-count { font-size: 0.78rem; color: var(--text-muted); min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* ------------------------------------------------------------------ */
+    /* ARCH OVERVIEW TABLE                                                  */
+    /* ------------------------------------------------------------------ */
+    .layer-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 0.75rem;
+    }
+    .layer-card {
+      border-radius: 0.6rem;
+      padding: 0.85rem 0.9rem;
+      border: 1px solid transparent;
+      text-align: center;
+    }
+    .layer-card .l-icon { font-size: 1.3rem; margin-bottom: 0.3rem; }
+    .layer-card .l-name { font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.2rem; }
+    .layer-card .l-count { font-size: 1.5rem; font-weight: 700; line-height: 1; }
+
+    .layer-card.ui     { background: rgba(59,130,246,0.08);  border-color: rgba(59,130,246,0.2);  color: #60a5fa; }
+    .layer-card.api    { background: rgba(16,185,129,0.08);  border-color: rgba(16,185,129,0.2);  color: #34d399; }
+    .layer-card.db     { background: rgba(245,158,11,0.08);  border-color: rgba(245,158,11,0.2);  color: #fbbf24; }
+    .layer-card.service{ background: rgba(139,92,246,0.08);  border-color: rgba(139,92,246,0.2);  color: #a78bfa; }
+    .layer-card.worker { background: rgba(236,72,153,0.08);  border-color: rgba(236,72,153,0.2);  color: #f472b6; }
+    .layer-card.external{background: rgba(6,182,212,0.08);   border-color: rgba(6,182,212,0.2);   color: #22d3ee; }
+
+    /* ------------------------------------------------------------------ */
+    /* CALL FLOW                                                            */
+    /* ------------------------------------------------------------------ */
+    .mermaid-box {
+      background: rgba(6,182,212,0.04);
+      border: 1px solid rgba(6,182,212,0.15);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      overflow-x: auto;
+    }
+    .mermaid { font-family: 'Inter', sans-serif; }
+    .callflow-meta {
+      font-size: 0.82rem; color: var(--text-muted);
+      margin-top: 0.75rem;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* IMPACT ANALYSIS                                                      */
+    /* ------------------------------------------------------------------ */
+    .impact-list { display: flex; flex-direction: column; gap: 0.65rem; }
+    .impact-item {
+      display: flex; align-items: center; gap: 0.9rem;
+      background: rgba(124,58,237,0.06);
+      border: 1px solid var(--border-light);
+      border-radius: 0.6rem;
+      padding: 0.85rem 1rem;
+      position: relative;
+    }
+    .impact-rank {
+      font-size: 0.9rem; font-weight: 700; color: var(--purple-mid);
+      min-width: 1.5rem; text-align: center;
+    }
+    .impact-info { flex: 1; min-width: 0; }
+    .impact-file { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); word-break: break-all; }
+    .impact-symbol { font-size: 0.78rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+    .impact-badge {
+      font-size: 0.7rem; font-weight: 700;
+      padding: 0.2rem 0.55rem; border-radius: 99px; flex-shrink: 0;
+    }
+    .impact-badge.ui      { background: rgba(59,130,246,0.18);  color: #60a5fa; }
+    .impact-badge.api     { background: rgba(16,185,129,0.18);  color: #34d399; }
+    .impact-badge.db      { background: rgba(245,158,11,0.18);  color: #fbbf24; }
+    .impact-badge.service { background: rgba(139,92,246,0.18);  color: #a78bfa; }
+    .impact-badge.worker  { background: rgba(236,72,153,0.18);  color: #f472b6; }
+    .impact-badge.external{ background: rgba(6,182,212,0.18);   color: #22d3ee; }
+    .impact-blast {
+      font-size: 0.8rem; color: var(--text-secondary); text-align: right; flex-shrink: 0; min-width: 70px;
+    }
+    .impact-blast strong { font-size: 1.1rem; font-weight: 700; color: var(--severity-high); }
+
+    /* ------------------------------------------------------------------ */
+    /* STORY MODE                                                           */
+    /* ------------------------------------------------------------------ */
+    .story-steps { display: flex; flex-direction: column; gap: 0; counter-reset: step-counter; }
+    .story-step {
+      display: flex; gap: 1rem;
+      padding: 1.1rem 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .story-step:last-child { border-bottom: none; }
+    .step-number {
+      display: flex; align-items: flex-start; padding-top: 0.1rem;
+    }
+    .step-dot {
+      width: 1.8rem; height: 1.8rem; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--purple-deep), var(--teal));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 700; color: #fff;
+    }
+    .step-content { flex: 1; }
+    .step-text { font-size: 0.92rem; color: var(--text-primary); line-height: 1.6; }
+    .step-verified {
+      display: inline-block; margin-top: 0.3rem;
+      font-size: 0.72rem; color: var(--teal); background: rgba(6,182,212,0.1);
+      border: 1px solid rgba(6,182,212,0.2); border-radius: 99px;
+      padding: 0.15rem 0.55rem;
+    }
+    .story-provenance {
+      margin-top: 1rem; font-size: 0.78rem; color: var(--text-muted);
+      padding: 0.5rem 0.75rem;
+      background: rgba(124,58,237,0.06);
+      border-radius: 0.4rem;
+      border-left: 2px solid var(--purple-deep);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* SECURITY FINDINGS                                                    */
+    /* ------------------------------------------------------------------ */
+    .findings-summary {
+      display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem;
+    }
+    .sev-pill {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.78rem; font-weight: 600;
+      padding: 0.3rem 0.75rem; border-radius: 99px;
+    }
+    .sev-pill.CRITICAL { background: rgba(239,68,68,0.15);  color: var(--severity-crit);  border: 1px solid rgba(239,68,68,0.3); }
+    .sev-pill.HIGH     { background: rgba(249,115,22,0.15); color: var(--severity-high);  border: 1px solid rgba(249,115,22,0.3); }
+    .sev-pill.MEDIUM   { background: rgba(250,204,21,0.15); color: var(--severity-med);   border: 1px solid rgba(250,204,21,0.3); }
+    .sev-pill.LOW      { background: rgba(34,197,94,0.15);  color: var(--severity-low);   border: 1px solid rgba(34,197,94,0.3); }
+
+    .finding-card {
+      border-radius: 0.65rem;
+      padding: 1rem 1.1rem;
+      margin-bottom: 0.75rem;
+      border-left: 3px solid;
+    }
+    .finding-card.CRITICAL { background: rgba(239,68,68,0.06);  border-color: var(--severity-crit); }
+    .finding-card.HIGH     { background: rgba(249,115,22,0.06); border-color: var(--severity-high); }
+    .finding-card.MEDIUM   { background: rgba(250,204,21,0.06); border-color: var(--severity-med);  }
+    .finding-card.LOW      { background: rgba(34,197,94,0.06);  border-color: var(--severity-low);  }
+    .finding-header { display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.4rem; }
+    .finding-sev {
+      font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; padding: 0.15rem 0.45rem; border-radius: 4px; flex-shrink: 0;
+    }
+    .finding-sev.CRITICAL { background: rgba(239,68,68,0.25);  color: var(--severity-crit); }
+    .finding-sev.HIGH     { background: rgba(249,115,22,0.25); color: var(--severity-high); }
+    .finding-sev.MEDIUM   { background: rgba(250,204,21,0.25); color: var(--severity-med);  }
+    .finding-sev.LOW      { background: rgba(34,197,94,0.25);  color: var(--severity-low);  }
+    .finding-title { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); }
+    .finding-file  { font-size: 0.78rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; margin-bottom: 0.4rem; }
+    .finding-desc  { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
+
+    .no-findings {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 1.1rem 1.25rem;
+      background: rgba(34,197,94,0.06);
+      border: 1px solid rgba(34,197,94,0.2);
+      border-radius: 0.6rem;
+      color: var(--severity-low);
+      font-size: 0.9rem;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* CTA FOOTER                                                           */
+    /* ------------------------------------------------------------------ */
+    .cta-section {
+      margin-top: 3rem;
+      border-radius: 1.25rem;
+      padding: 2.5rem;
+      background: linear-gradient(135deg, rgba(124,58,237,0.18) 0%, rgba(6,182,212,0.10) 100%);
+      border: 1px solid rgba(124,58,237,0.3);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-section::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 80% at 50% 0%, rgba(124,58,237,0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta-logo {
+      font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--purple-light), var(--teal-light));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      display: inline-block; margin-bottom: 0.75rem;
+    }
+    .cta-heading {
+      font-size: 1.5rem; font-weight: 700; color: var(--text-primary);
+      margin-bottom: 0.75rem; line-height: 1.3;
+    }
+    .cta-body {
+      font-size: 0.95rem; color: var(--text-secondary);
+      max-width: 640px; margin: 0 auto 1.5rem; line-height: 1.65;
+    }
+    .cta-features {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 0.6rem;
+      margin-bottom: 1.75rem;
+    }
+    .cta-feature {
+      font-size: 0.82rem; font-weight: 500;
+      padding: 0.35rem 0.9rem; border-radius: 99px;
+      background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.3);
+      color: var(--purple-light);
+    }
+    .cta-btn {
+      display: inline-block;
+      padding: 0.8rem 2rem; border-radius: 0.6rem;
+      background: linear-gradient(135deg, var(--purple-deep), var(--teal));
+      color: #fff; font-weight: 700; font-size: 0.95rem;
+      text-decoration: none; letter-spacing: 0.01em;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* PRINT OVERRIDES                                                      */
+    /* ------------------------------------------------------------------ */
+    @media print {
+      body { background: #fff; color: #111; }
+      .section, .hero { border-color: #ddd; }
+      .cta-section { background: #f0f0ff; border-color: #c4b5fd; }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* UTILITIES                                                            */
+    /* ------------------------------------------------------------------ */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+    .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+    .text-muted { color: var(--text-muted); }
+    .mt-1 { margin-top: 0.5rem; }
+    .mt-2 { margin-top: 1rem; }
+  </style>
+  <!-- Mermaid for call-flow diagrams -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      mermaid.initialize({ startOnLoad: true, theme: "dark",
+        themeVariables: { primaryColor: "#7c3aed", edgeLabelBackground: "#12122a",
+                          lineColor: "#06b6d4", secondaryColor: "#12122a", tertiaryColor: "#181832" }
+      });
+    });
+  </script>
+</head>
+<body>
+
+<!-- ============================================================ HERO === -->
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge">🗺️ Branchdeck Health Report</div>
+    <h1>{{ report_title }}</h1>
+    <p class="hero-subtitle">
+      Codebase intelligence analysis prepared by Branchdeck
+      {% if client_name %} for <strong>{{ client_name }}</strong>{% endif %}
+    </p>
+    <div class="hero-meta">
+      <span><strong>Repository:</strong> {{ repo_url }}</span>
+      <span><strong>Branch:</strong> {{ branch }}</span>
+      <span><strong>Generated:</strong> {{ generated_at }}</span>
+      <span><strong>Duration:</strong> {{ duration_seconds }}s</span>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+
+<!-- ============================================= 1. EXECUTIVE SUMMARY === -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">📊</div>
+    <span class="section-title">Executive Summary</span>
+    {% if summary_available %}
+    <span class="section-pill">Live</span>
+    {% else %}
+    <span class="section-pill unavailable">Unavailable</span>
+    {% endif %}
+  </div>
+  <div class="section-body">
+    {% if summary_available %}
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Files</div>
+        <div class="stat-value">{{ stats.file_count | commify }}</div>
+        <div class="stat-sub">{{ stats.source_file_count | commify }} source files</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Lines of Code</div>
+        <div class="stat-value">{{ stats.total_loc | commify }}</div>
+        <div class="stat-sub">across all source files</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Graph Nodes</div>
+        <div class="stat-value">{{ stats.node_count | commify }}</div>
+        <div class="stat-sub">indexed code units</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Graph Edges</div>
+        <div class="stat-value">{{ stats.edge_count | commify }}</div>
+        <div class="stat-sub">calls + imports</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- Languages -->
+      <div>
+        <div style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:0.75rem;">Languages Detected</div>
+        {% if stats.languages %}
+        <div class="bar-list">
+          {% set lang_max = stats.languages.values() | max %}
+          {% for lang, count in stats.languages.items() %}
+          <div class="bar-item">
+            <span class="bar-label">{{ lang }}</span>
+            <div class="bar-track">
+              <div class="bar-fill" style="width:{{ (count / lang_max * 100) | int }}%"></div>
+            </div>
+            <span class="bar-count">{{ count }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted" style="font-size:0.85rem;">No language data available.</p>
+        {% endif %}
+      </div>
+
+      <!-- Health flags -->
+      <div>
+        <div style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:0.75rem;">Codebase Signals</div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;">
+          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.88rem;">
+            <span>{% if stats.has_readme %}✅{% else %}⚠️{% endif %}</span>
+            <span style="color:{% if stats.has_readme %}var(--severity-low){% else %}var(--severity-med){% endif %}">
+              {% if stats.has_readme %}README present{% else %}No README detected{% endif %}
+            </span>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.88rem;">
+            <span>{% if stats.has_tests %}✅{% else %}⚠️{% endif %}</span>
+            <span style="color:{% if stats.has_tests %}var(--severity-low){% else %}var(--severity-med){% endif %}">
+              {% if stats.has_tests %}Test files detected{% else %}No test/spec files found{% endif %}
+            </span>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.88rem;">
+            <span>{% if stats.edge_count > 0 %}✅{% else %}ℹ️{% endif %}</span>
+            <span style="color:var(--text-secondary);">
+              {{ stats.edge_count | commify }} dependency edges mapped
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% else %}
+    <div class="unavailable-box">
+      <span class="icon">⚠️</span>
+      <div class="msg"><strong>Executive summary unavailable.</strong> {{ summary_error }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- =========================================== 2. ARCHITECTURE OVERVIEW === -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">🏗️</div>
+    <span class="section-title">Architecture Overview</span>
+    {% if summary_available %}
+    <span class="section-pill">Live</span>
+    {% else %}
+    <span class="section-pill unavailable">Unavailable</span>
+    {% endif %}
+  </div>
+  <div class="section-body">
+    {% if summary_available and stats.layer_distribution %}
+
+    <div class="layer-grid" style="margin-bottom:1.5rem;">
+      {% set layer_icons = {"ui":"🎨","api":"🔌","db":"🗄️","service":"⚙️","worker":"⏱️","external":"🌐"} %}
+      {% for kind, count in stats.layer_distribution.items() %}
+      <div class="layer-card {{ kind }}">
+        <div class="l-icon">{{ layer_icons.get(kind, "📁") }}</div>
+        <div class="l-name">{{ kind }}</div>
+        <div class="l-count">{{ count }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if stats.edge_count > 0 %}
+    <div style="font-size:0.85rem;color:var(--text-secondary);line-height:1.6;padding:0.75rem 1rem;background:rgba(124,58,237,0.06);border-radius:0.5rem;border-left:2px solid var(--purple-deep);">
+      The dependency graph contains <strong style="color:var(--text-primary);">{{ stats.node_count }}</strong> nodes
+      connected by <strong style="color:var(--text-primary);">{{ stats.edge_count }}</strong> edges
+      across {{ stats.layer_distribution | length }} architectural layers.
+      {% if stats.layer_distribution.get("api", 0) > 0 and stats.layer_distribution.get("db", 0) > 0 %}
+      API and persistence layers are both present, indicating a full-stack or backend-heavy codebase.
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="unavailable-box">
+      <span class="icon">⚠️</span>
+      <div class="msg"><strong>Architecture overview unavailable.</strong> {{ summary_error }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- =========================================== 3. VISUAL CALL FLOW === -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">🔀</div>
+    <span class="section-title">Visual Call Flow</span>
+    {% if callflow_available %}
+    <span class="section-pill">Live</span>
+    {% else %}
+    <span class="section-pill unavailable">Unavailable</span>
+    {% endif %}
+  </div>
+  <div class="section-body">
+    {% if callflow_available %}
+
+    {% for flow in call_flows %}
+    <div style="margin-bottom:1.5rem;">
+      <div style="font-size:0.82rem;font-weight:600;color:var(--text-secondary);margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:0.07em;">
+        Entry point: <span style="color:var(--teal);" class="mono">{{ flow.entry_point }}</span>
+      </div>
+      {% if flow.mermaid_code %}
+      <div class="mermaid-box">
+        <div class="mermaid">{{ flow.mermaid_code }}</div>
+      </div>
+      <p class="callflow-meta">{{ flow.node_count }} nodes · {{ flow.edge_count }} edges in call chain (BFS depth 3)</p>
+      {% else %}
+      <div class="unavailable-box">
+        <span class="icon">ℹ️</span>
+        <div class="msg">No call edges found for entry point <strong>{{ flow.entry_point }}</strong>. This may indicate an isolated module or a file with no parsed outbound calls.</div>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    {% else %}
+    <div class="unavailable-box">
+      <span class="icon">⚠️</span>
+      <div class="msg"><strong>Call flow analysis unavailable.</strong> {{ callflow_error }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ======================================= 4. IMPACT ANALYSIS === -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">💥</div>
+    <span class="section-title">Impact Analysis — Highest Blast-Radius Files</span>
+    {% if impact_available %}
+    <span class="section-pill">Live</span>
+    {% else %}
+    <span class="section-pill unavailable">Unavailable</span>
+    {% endif %}
+  </div>
+  <div class="section-body">
+    {% if impact_available %}
+
+    <p style="font-size:0.88rem;color:var(--text-secondary);margin-bottom:1.1rem;line-height:1.5;">
+      The following files have the highest downstream impact — changing them would cascade to the most other modules.
+      These are the highest-risk targets for refactoring and the best candidates for deep test coverage.
+    </p>
+
+    {% if impact_ranking %}
+    <div class="impact-list">
+      {% for item in impact_ranking %}
+      <div class="impact-item">
+        <div class="impact-rank">#{{ loop.index }}</div>
+        <div class="impact-info">
+          <div class="impact-file">{{ item.file }}</div>
+          <div class="impact-symbol">{{ item.symbol }}</div>
+        </div>
+        <span class="impact-badge {{ item.kind }}">{{ item.kind }}</span>
+        <div class="impact-blast">
+          <strong>{{ item.blast_radius }}</strong><br>
+          <span style="font-size:0.7rem;color:var(--text-muted);">dependents</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="unavailable-box">
+      <span class="icon">ℹ️</span>
+      <div class="msg">No impact data computed. This usually means the graph has no dependency edges (e.g. a single-file or pure-data repo).</div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="unavailable-box">
+      <span class="icon">⚠️</span>
+      <div class="msg"><strong>Impact analysis unavailable.</strong> {{ impact_error }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ========================================= 5. STORY MODE === -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">📖</div>
+    <span class="section-title">Architecture Walkthrough (Story Mode)</span>
+    {% if story_available %}
+    <span class="section-pill">{% if story.provenance == 'database-llm' %}Gemini AI{% else %}Graph Narrator{% endif %}</span>
+    {% else %}
+    <span class="section-pill unavailable">Unavailable</span>
+    {% endif %}
+  </div>
+  <div class="section-body">
+    {% if story_available %}
+    <h3 style="font-size:1rem;font-weight:700;color:var(--purple-light);margin-bottom:1rem;">{{ story.title }}</h3>
+    <div class="story-steps">
+      {% for step in story.steps %}
+      {% set parts = step.split('[Verified:') %}
+      <div class="story-step">
+        <div class="step-number">
+          <div class="step-dot">{{ loop.index }}</div>
+        </div>
+        <div class="step-content">
+          <div class="step-text">{{ parts[0].strip() }}</div>
+          {% if parts | length > 1 %}
+          <span class="step-verified">✓ {{ parts[1].replace(']','').strip() }}</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="story-provenance">
+      Narrative generated via <strong>{{ story.provenance }}</strong> ·
+      {{ story.node_count }} nodes · {{ story.edge_count }} edges analysed
+    </div>
+    {% else %}
+    <div class="unavailable-box">
+      <span class="icon">⚠️</span>
+      <div class="msg"><strong>Story Mode unavailable.</strong> {{ story_error }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ========================================= 6. SECURITY FINDINGS === -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">🔒</div>
+    <span class="section-title">Security Findings</span>
+    {% if security_available %}
+    <span class="section-pill">Live</span>
+    {% else %}
+    <span class="section-pill unavailable">Unavailable</span>
+    {% endif %}
+  </div>
+  <div class="section-body">
+    {% if security_available %}
+
+    {% set findings = security.findings %}
+    {% if findings %}
+
+    <!-- Severity summary pills -->
+    <div class="findings-summary">
+      {% set sev_counts = {} %}
+      {% for f in findings %}
+        {% if f.severity in sev_counts %}
+          {% set _ = sev_counts.update({f.severity: sev_counts[f.severity] + 1}) %}
+        {% else %}
+          {% set _ = sev_counts.update({f.severity: 1}) %}
+        {% endif %}
+      {% endfor %}
+      {% for sev in ["CRITICAL","HIGH","MEDIUM","LOW"] %}
+        {% if sev_counts.get(sev, 0) > 0 %}
+        <span class="sev-pill {{ sev }}">
+          ● {{ sev }}: {{ sev_counts[sev] }}
+        </span>
+        {% endif %}
+      {% endfor %}
+      <span style="font-size:0.82rem;color:var(--text-muted);align-self:center;">{{ findings | length }} total finding(s)</span>
+    </div>
+
+    {% for f in findings | sort(attribute='severity') %}
+    <div class="finding-card {{ f.severity }}">
+      <div class="finding-header">
+        <span class="finding-sev {{ f.severity }}">{{ f.severity }}</span>
+        <span class="finding-title">{{ f.title }}</span>
+      </div>
+      <div class="finding-file">{{ f.file_path }}</div>
+      <div class="finding-desc">{{ f.description }}</div>
+      {% if f.patch_diff %}
+      <details style="margin-top:0.75rem;">
+        <summary style="font-size:0.8rem;color:var(--teal);cursor:pointer;">View suggested patch</summary>
+        <pre style="margin-top:0.5rem;padding:0.75rem;background:rgba(0,0,0,0.3);border-radius:0.4rem;font-size:0.76rem;overflow-x:auto;white-space:pre-wrap;color:var(--text-secondary);">{{ f.patch_diff }}</pre>
+      </details>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    {% else %}
+    <div class="no-findings">
+      <span>✅</span>
+      <span>No security findings detected in this repository scan. The MCP surface detection and rule evaluation passes completed without identifying known vulnerability patterns.</span>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="unavailable-box">
+      <span class="icon">⚠️</span>
+      <div class="msg"><strong>Security analysis unavailable.</strong> {{ security_error }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ============================================================= CTA === -->
+<div class="cta-section">
+  <div class="cta-logo">🗺️ Branchdeck</div>
+  <h2 class="cta-heading">What Branchdeck can do for your team, ongoing</h2>
+  <p class="cta-body">
+    This report is a point-in-time snapshot. Branchdeck integrates directly into your developer workflow —
+    live in your VS Code editor and accessible via a web dashboard — so every engineer on the team
+    understands every PR, every refactor, and every breaking change <em>before</em> it ships.
+  </p>
+  <div class="cta-features">
+    <span class="cta-feature">🗺️ Live Dependency Graph</span>
+    <span class="cta-feature">🔀 Real-Time Call Flow</span>
+    <span class="cta-feature">💥 Pre-Merge Impact Alerts</span>
+    <span class="cta-feature">📖 AI Architecture Walkthroughs</span>
+    <span class="cta-feature">🔒 Continuous Security Scanning</span>
+    <span class="cta-feature">🔌 VS Code Extension</span>
+  </div>
+  <a href="https://branchdeck.io" class="cta-btn">Book a Demo →</a>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

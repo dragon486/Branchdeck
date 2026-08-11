@@ -1,0 +1,42 @@
+version: "1.0"
+rules:
+  - id: missing-auth-check
+    name: Missing Authentication Check on MCP Tool Handler
+    severity: HIGH
+    description: Untrusted entrypoint reaches an MCP tool handler with no authentication boundary node on the call path.
+    category: mcp-security
+    doc_url: https://docs.branchdeck.dev/rules/missing-auth-check
+    graph_query:
+      target_tag: MCP_TOOL
+      missing_intermediate_tag: MCP_AUTH_BOUNDARY
+    autofix_template: |
+      +// Verify authentication token before processing tool request
+      +if (!request.headers.get("authorization")) {
+      +  throw new Error("Unauthorized: Authentication boundary check missing");
+      +}
+
+  - id: overly-broad-oauth-scope
+    name: Overly Broad OAuth Scope in Manifest
+    severity: MEDIUM
+    description: MCP manifest declares a wildcard scope where a narrower, explicit scope is required.
+    category: mcp-security
+    doc_url: https://docs.branchdeck.dev/rules/overly-broad-oauth-scope
+    graph_query:
+      target_tag: MCP_MANIFEST
+      pattern: wildcard_scope
+    autofix_template: |
+      - "scope": "*"
+      + "scope": "read:tools write:tools"
+
+  - id: unsanitized-path-param
+    name: Unsanitized Path Parameter Reaches Filesystem Sink
+    severity: HIGH
+    description: A path-typed input reaches a filesystem read/write sink with no path sanitizer node in between.
+    category: mcp-security
+    doc_url: https://docs.branchdeck.dev/rules/unsanitized-path-param
+    graph_query:
+      target_tag: MCP_PATH_SINK
+      missing_intermediate_tag: MCP_SANITIZER
+    autofix_template: |
+      - const targetPath = inputPath;
+      + const targetPath = sanitizeFilename(inputPath);
