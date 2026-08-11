@@ -1,22 +1,25 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { 
-  ShieldAlert, 
-  ShieldCheck, 
-  GitPullRequest, 
-  AlertTriangle, 
-  CheckCircle2, 
-  ChevronDown, 
-  ChevronRight, 
-  Code2, 
-  ExternalLink, 
-  Filter, 
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  ShieldAlert,
+  ShieldCheck,
+  GitPullRequest,
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  Code2,
+  ExternalLink,
   RefreshCw,
-  Zap,
-  Lock,
   FileCode,
-  Check
+  Check,
+  Wifi,
+  WifiOff,
+  Zap,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Activity,
 } from 'lucide-react';
 
 export interface SecurityFindingItem {
@@ -45,30 +48,68 @@ interface SecurityFindingsTabProps {
   sessionToken?: string | null;
 }
 
+const SEV_CONFIG: Record<string, { label: string; dot: string; badge: string; text: string }> = {
+  CRITICAL: {
+    label: 'Critical',
+    dot: 'bg-rose-500',
+    badge: 'bg-rose-500/15 border-rose-500/30 text-rose-300',
+    text: 'text-rose-400',
+  },
+  HIGH: {
+    label: 'High',
+    dot: 'bg-orange-500',
+    badge: 'bg-orange-500/15 border-orange-500/30 text-orange-300',
+    text: 'text-orange-400',
+  },
+  MEDIUM: {
+    label: 'Medium',
+    dot: 'bg-amber-400',
+    badge: 'bg-amber-400/15 border-amber-400/30 text-amber-300',
+    text: 'text-amber-400',
+  },
+  LOW: {
+    label: 'Low',
+    dot: 'bg-blue-400',
+    badge: 'bg-blue-400/15 border-blue-400/30 text-blue-300',
+    text: 'text-blue-400',
+  },
+};
+
+function SevBadge({ severity }: { severity: string }) {
+  const cfg = SEV_CONFIG[severity] || SEV_CONFIG['LOW'];
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest rounded border ${cfg.badge}`}
+    >
+      <span className={`w-1 h-1 rounded-full ${cfg.dot}`} />
+      {severity}
+    </span>
+  );
+}
+
+type ErrorCode = 'backend_offline' | 'auth_required' | 'generic' | null;
+
 export default function SecurityFindingsTab({ commitSha, sessionToken }: SecurityFindingsTabProps) {
   const [findings, setFindings] = useState<SecurityFindingItem[]>([]);
   const [tags, setTags] = useState<SecurityTagItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [expandedDiffs, setExpandedDiffs] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
+  const [errorCode, setErrorCode] = useState<ErrorCode>(null);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [creatingPR, setCreatingPR] = useState<Record<string, boolean>>({});
   const [prResults, setPRResults] = useState<Record<string, { pr_url?: string; branch?: string; note?: string }>>({});
-  const [filterSeverity, setFilterSeverity] = useState<string>('ALL');
-  const [filterReachable, setFilterReachable] = useState<boolean | null>(null);
+  const [filterSeverity, setFilterSeverity] = useState('ALL');
+  const [filterReachable, setFilterReachable] = useState(false);
 
-  const fetchFindings = async () => {
+  const fetchFindings = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setErrorCode(null);
+    setErrorMsg('');
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        Authorization: sessionToken ? `Bearer ${sessionToken}` : 'Bearer local',
       };
-      if (sessionToken) {
-        headers['Authorization'] = `Bearer ${sessionToken}`;
-      } else {
-        headers['Authorization'] = 'Bearer local';
-      }
-
       const url = `/api/security/findings${commitSha ? `?commitSha=${encodeURIComponent(commitSha)}` : ''}`;
       const res = await fetch(url, { headers });
       const data = await res.json();
@@ -76,93 +117,80 @@ export default function SecurityFindingsTab({ commitSha, sessionToken }: Securit
       if (data.success) {
         setFindings(data.findings || []);
         setTags(data.tags || []);
+      } else if (data.error === 'backend_offline') {
+        setErrorCode('backend_offline');
+        setErrorMsg(data.message || '');
+      } else if (data.error === 'auth_required') {
+        setErrorCode('auth_required');
+        setErrorMsg(data.message || '');
       } else {
-        setError(data.error || 'Failed to load security findings.');
+        setErrorCode('generic');
+        setErrorMsg(data.error || data.message || 'Unknown error');
       }
     } catch (err: any) {
-      setError(err.message || 'Network error fetching security findings.');
+      setErrorCode('backend_offline');
+      setErrorMsg('Could not reach the backend. Make sure it is running.');
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchFindings();
   }, [commitSha, sessionToken]);
 
-  const toggleDiff = (id: string) => {
-    setExpandedDiffs((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
+  useEffect(() => { fetchFindings(); }, [fetchFindings]);
 
   const handleCreateFixPR = async (findingId: string) => {
-    setCreatingPR((prev) => ({ ...prev, [findingId]: true }));
+    setCreatingPR(prev => ({ ...prev, [findingId]: true }));
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (sessionToken) {
-        headers['Authorization'] = `Bearer ${sessionToken}`;
-      } else {
-        headers['Authorization'] = 'Bearer local';
-      }
-
       const res = await fetch('/api/security/fix-pr', {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: sessionToken ? `Bearer ${sessionToken}` : 'Bearer local',
+        },
         body: JSON.stringify({ findingId }),
       });
-
       const data = await res.json();
       if (data.success) {
-        setPRResults((prev) => ({
-          ...prev,
-          [findingId]: {
-            pr_url: data.pr_url,
-            branch: data.branch,
-            note: data.note,
-          },
-        }));
-        // Update local finding PR URL
-        setFindings((prev) =>
-          prev.map((f) => (f.id === findingId ? { ...f, pr_url: data.pr_url } : f))
-        );
-      } else {
-        alert(`Failed to create fix PR: ${data.error || 'Unknown error'}`);
+        setPRResults(prev => ({ ...prev, [findingId]: { pr_url: data.pr_url, branch: data.branch, note: data.note } }));
+        setFindings(prev => prev.map(f => f.id === findingId ? { ...f, pr_url: data.pr_url } : f));
       }
-    } catch (err: any) {
-      alert(`Error creating fix PR: ${err.message}`);
-    } finally {
-      setCreatingPR((prev) => ({ ...prev, [findingId]: false }));
+    } catch { /* silent */ } finally {
+      setCreatingPR(prev => ({ ...prev, [findingId]: false }));
     }
   };
 
-  const filteredFindings = findings.filter((f) => {
+  const filtered = findings.filter(f => {
     if (filterSeverity !== 'ALL' && f.severity !== filterSeverity) return false;
-    if (filterReachable !== null && f.is_reachable !== filterReachable) return false;
+    if (filterReachable && !f.is_reachable) return false;
     return true;
   });
 
-  const reachableCount = findings.filter((f) => f.is_reachable).length;
-  const highSevCount = findings.filter((f) => f.severity === 'HIGH' || f.severity === 'CRITICAL').length;
-  const patchableCount = findings.filter((f) => Boolean(f.patch_diff)).length;
+  const reachableCount = findings.filter(f => f.is_reachable).length;
+  const highCount = findings.filter(f => f.severity === 'CRITICAL' || f.severity === 'HIGH').length;
+  const patchCount = findings.filter(f => Boolean(f.patch_diff)).length;
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-100 rounded-xl overflow-hidden border border-slate-800 shadow-2xl">
-      {/* Header Bar */}
-      <div className="flex items-center justify-between px-6 py-4 bg-slate-900/80 border-b border-slate-800 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400">
-            <ShieldAlert className="w-5 h-5 text-emerald-400" />
+    <div
+      className="flex flex-col h-full text-white overflow-hidden"
+      style={{ background: 'transparent' }}
+    >
+      {/* ── Header ─────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-4 py-3 border-b"
+        style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.25)' }}>
+            <ShieldAlert className="w-3.5 h-3.5 text-blue-400" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-white tracking-tight">MCP Security Findings & Remediation</h2>
-              <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full">
-                Active Module
+              <span className="text-[13px] font-bold tracking-tight text-white">Security Findings</span>
+              <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest rounded"
+                style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.25)', color: '#86efac' }}>
+                MCP Active
               </span>
             </div>
-            <p className="text-xs text-slate-400">
-              AST call-graph reachability verification & automated patch remediation pass
+            <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              AST call-graph reachability &amp; automated patch pass
             </p>
           </div>
         </div>
@@ -170,242 +198,282 @@ export default function SecurityFindingsTab({ commitSha, sessionToken }: Securit
         <button
           onClick={fetchFindings}
           disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all disabled:opacity-40"
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.09)'; (e.currentTarget as HTMLElement).style.color = '#fff'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.5)'; }}
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </button>
       </div>
 
-      {/* Metrics Summary Strip */}
-      <div className="grid grid-cols-4 gap-4 px-6 py-4 bg-slate-900/40 border-b border-slate-800">
-        <div className="p-3 bg-slate-900/80 border border-slate-800/80 rounded-lg">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Findings</div>
-          <div className="text-2xl font-black text-white mt-1">{findings.length}</div>
-        </div>
-
-        <div className="p-3 bg-slate-900/80 border border-slate-800/80 rounded-lg">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Confirmed Reachable</div>
-          <div className="text-2xl font-black text-emerald-400 mt-1">{reachableCount}</div>
-        </div>
-
-        <div className="p-3 bg-slate-900/80 border border-slate-800/80 rounded-lg">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-rose-400">High / Critical</div>
-          <div className="text-2xl font-black text-rose-400 mt-1">{highSevCount}</div>
-        </div>
-
-        <div className="p-3 bg-slate-900/80 border border-slate-800/80 rounded-lg">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-cyan-400">Auto-Patchable</div>
-          <div className="text-2xl font-black text-cyan-400 mt-1">{patchableCount}</div>
-        </div>
+      {/* ── Stat Strip ────────────────────────────────────────── */}
+      <div className="grid grid-cols-4 gap-2 px-4 py-3 border-b"
+        style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+        {[
+          { label: 'Total', value: findings.length, color: 'rgba(255,255,255,0.7)' },
+          { label: 'Reachable', value: reachableCount, color: '#34d399' },
+          { label: 'High+', value: highCount, color: '#f87171' },
+          { label: 'Patchable', value: patchCount, color: '#60a5fa' },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="flex flex-col items-center py-2 rounded-xl"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <span className="text-[18px] font-black" style={{ color }}>{value}</span>
+            <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5"
+              style={{ color: 'rgba(255,255,255,0.3)' }}>{label}</span>
+          </div>
+        ))}
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="flex items-center justify-between px-6 py-3 bg-slate-900/20 border-b border-slate-800/60 text-xs">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1 font-semibold text-slate-400">
-            <Filter className="w-3.5 h-3.5" /> Severity:
-          </span>
-          {['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map((sev) => (
-            <button
-              key={sev}
-              onClick={() => setFilterSeverity(sev)}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
-                filterSeverity === sev
-                  ? 'bg-emerald-500 text-slate-950 font-extrabold shadow-sm'
-                  : 'bg-slate-800/60 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-              }`}
-            >
-              {sev}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setFilterReachable(filterReachable === true ? null : true)}
-            className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
-              filterReachable === true
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                : 'bg-slate-800/60 text-slate-400 hover:bg-slate-800'
-            }`}
-          >
-            Reachable Only
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content List */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        {loading && (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3">
-            <RefreshCw className="w-8 h-8 animate-spin text-emerald-400" />
-            <span className="text-xs font-semibold">Evaluating call-graph rules & reachability...</span>
-          </div>
-        )}
-
-        {error && (
-          <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-300 text-xs flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {!loading && !error && filteredFindings.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 border border-dashed border-slate-800 rounded-xl bg-slate-900/30 text-slate-400">
-            <ShieldCheck className="w-12 h-12 text-emerald-400 mb-3" />
-            <h3 className="text-sm font-bold text-slate-200">No Security Findings Detected</h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm text-center">
-              All MCP tool endpoints, OAuth scopes, and filesystem parameters passed reachability and sanitizer checks.
-            </p>
-          </div>
-        )}
-
-        {!loading &&
-          !error &&
-          filteredFindings.map((finding) => {
-            const isDiffExpanded = Boolean(expandedDiffs[finding.id]);
-            const isPRLoading = Boolean(creatingPR[finding.id]);
-            const prInfo = prResults[finding.id] || (finding.pr_url ? { pr_url: finding.pr_url } : null);
-
+      {/* ── Filter Bar ────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-4 py-2 border-b"
+        style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+        <div className="flex items-center gap-1">
+          {['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(sev => {
+            const active = filterSeverity === sev;
+            const cfg = SEV_CONFIG[sev];
             return (
-              <div
-                key={finding.id}
-                className="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition-all shadow-lg"
+              <button
+                key={sev}
+                onClick={() => setFilterSeverity(sev)}
+                className="px-2 py-0.5 rounded text-[10px] font-bold transition-all"
+                style={{
+                  background: active ? (cfg ? `rgba(255,255,255,0.1)` : 'rgba(255,255,255,0.08)') : 'transparent',
+                  color: active ? '#fff' : 'rgba(255,255,255,0.3)',
+                  border: active ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
+                }}
               >
-                {/* Finding Header */}
-                <div className="p-4 flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 flex-1">
-                    <div className="mt-1">
-                      {finding.severity === 'CRITICAL' || finding.severity === 'HIGH' ? (
-                        <ShieldAlert className="w-5 h-5 text-rose-400" />
-                      ) : (
-                        <AlertTriangle className="w-5 h-5 text-amber-400" />
-                      )}
-                    </div>
+                {sev === 'ALL' ? 'All' : sev.charAt(0) + sev.slice(1).toLowerCase()}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          onClick={() => setFilterReachable(v => !v)}
+          className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold transition-all"
+          style={{
+            background: filterReachable ? 'rgba(52,211,153,0.12)' : 'transparent',
+            color: filterReachable ? '#6ee7b7' : 'rgba(255,255,255,0.3)',
+            border: filterReachable ? '1px solid rgba(52,211,153,0.25)' : '1px solid transparent',
+          }}
+        >
+          <Activity className="w-2.5 h-2.5" />
+          Reachable only
+        </button>
+      </div>
 
-                    <div className="space-y-1.5 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {/* Severity Badge */}
-                        <span
-                          className={`px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider rounded ${
-                            finding.severity === 'CRITICAL' || finding.severity === 'HIGH'
-                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                          }`}
-                        >
-                          {finding.severity}
-                        </span>
+      {/* ── Body ──────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
 
-                        {/* Reachability Badge */}
-                        <span
-                          className={`flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider rounded ${
-                            finding.is_reachable
-                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                              : 'bg-slate-800 text-slate-400 border border-slate-700'
-                          }`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              finding.is_reachable ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'
-                            }`}
-                          />
-                          {finding.is_reachable ? 'Reachable Path' : 'Dead Code / Isolated'}
-                        </span>
+        {/* Loading */}
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)' }}>
+              <RefreshCw className="w-5 h-5 text-blue-400 animate-spin" />
+            </div>
+            <span className="text-[11px] font-medium" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              Evaluating call-graph reachability…
+            </span>
+          </div>
+        )}
 
-                        {/* Rule ID Tag */}
-                        <span className="font-mono text-[10px] text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700">
-                          {finding.rule_id}
-                        </span>
-                      </div>
+        {/* Backend offline */}
+        {!loading && errorCode === 'backend_offline' && (
+          <div className="flex flex-col items-center justify-center py-14 gap-4">
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center"
+              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)' }}>
+              <WifiOff className="w-5 h-5 text-rose-400" />
+            </div>
+            <div className="text-center max-w-[240px]">
+              <p className="text-[12px] font-bold text-white mb-1">Backend offline</p>
+              <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                Start the backend server, then click Refresh.
+              </p>
+              <code className="mt-2 block text-[9px] px-2 py-1.5 rounded-lg font-mono"
+                style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                uvicorn main:app --reload
+              </code>
+            </div>
+            <button onClick={fetchFindings}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>
+              <RefreshCw className="w-3 h-3" /> Try again
+            </button>
+          </div>
+        )}
 
-                      <h3 className="text-sm font-bold text-white">{finding.title}</h3>
-                      <p className="text-xs text-slate-300 leading-relaxed">{finding.description}</p>
+        {/* Auth required */}
+        {!loading && errorCode === 'auth_required' && (
+          <div className="flex flex-col items-center justify-center py-14 gap-3">
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center"
+              style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.18)' }}>
+              <AlertCircle className="w-5 h-5 text-amber-400" />
+            </div>
+            <div className="text-center max-w-[240px]">
+              <p className="text-[12px] font-bold text-white mb-1">Analysis required</p>
+              <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                Run an analysis on your repo first, then security findings will appear here.
+              </p>
+            </div>
+          </div>
+        )}
 
-                      <div className="flex items-center gap-3 text-[11px] text-slate-400 pt-1 font-mono">
-                        <span className="flex items-center gap-1">
-                          <FileCode className="w-3.5 h-3.5 text-slate-400" />
-                          {finding.file_path}
-                        </span>
-                        {finding.details?.doc_url && (
-                          <a
-                            href={finding.details.doc_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-emerald-400 hover:underline"
-                          >
-                            Rule Doc <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
-                      </div>
-                    </div>
+        {/* Generic error */}
+        {!loading && errorCode === 'generic' && (
+          <div className="flex items-start gap-3 p-3 rounded-xl"
+            style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.15)' }}>
+            <AlertTriangle className="w-4 h-4 text-rose-400 mt-0.5 shrink-0" />
+            <p className="text-[11px] text-rose-300 leading-relaxed">{errorMsg}</p>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!loading && !errorCode && filtered.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-14 gap-3">
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center"
+              style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.18)' }}>
+              <ShieldCheck className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div className="text-center max-w-[240px]">
+              <p className="text-[12px] font-bold text-white mb-1">All clear</p>
+              <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                No security findings detected for this commit.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Finding cards */}
+        {!loading && !errorCode && filtered.map(finding => {
+          const isOpen = expandedId === finding.id;
+          const isPRLoading = Boolean(creatingPR[finding.id]);
+          const prInfo = prResults[finding.id] || (finding.pr_url ? { pr_url: finding.pr_url } : null);
+          const sevCfg = SEV_CONFIG[finding.severity] || SEV_CONFIG['LOW'];
+
+          return (
+            <div key={finding.id}
+              className="rounded-xl overflow-hidden transition-all"
+              style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
+
+              {/* Card header */}
+              <div className="p-3 flex items-start gap-3">
+                {/* Severity stripe */}
+                <div className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${sevCfg.dot}`} style={{ marginTop: '5px' }} />
+
+                <div className="flex-1 min-w-0">
+                  {/* Top row */}
+                  <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                    <SevBadge severity={finding.severity} />
+                    <span
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold rounded border"
+                      style={finding.is_reachable
+                        ? { background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)', color: '#6ee7b7' }
+                        : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.3)' }
+                      }
+                    >
+                      <span className={`w-1 h-1 rounded-full ${finding.is_reachable ? 'bg-emerald-400 animate-pulse' : 'bg-white/20'}`} />
+                      {finding.is_reachable ? 'Reachable' : 'Isolated'}
+                    </span>
+                    <span className="font-mono text-[9px] px-1.5 py-0.5 rounded"
+                      style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      {finding.rule_id}
+                    </span>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    {finding.patch_diff && (
-                      <button
-                        onClick={() => toggleDiff(finding.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors"
-                      >
-                        <Code2 className="w-3.5 h-3.5" />
-                        {isDiffExpanded ? 'Hide Patch' : 'View Patch'}
-                        {isDiffExpanded ? (
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        ) : (
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    )}
+                  <p className="text-[12px] font-semibold text-white leading-snug">{finding.title}</p>
+                  <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                    {finding.description}
+                  </p>
 
-                    {prInfo?.pr_url ? (
-                      <a
-                        href={prInfo.pr_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-lg hover:bg-emerald-500/30 transition-colors"
-                      >
-                        <GitPullRequest className="w-3.5 h-3.5" />
-                        View Fix PR <ExternalLink className="w-3 h-3" />
-                      </a>
-                    ) : (
-                      finding.patch_diff && (
-                        <button
-                          onClick={() => handleCreateFixPR(finding.id)}
-                          disabled={isPRLoading}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow-md transition-all disabled:opacity-50"
-                        >
-                          <GitPullRequest className={`w-3.5 h-3.5 ${isPRLoading ? 'animate-spin' : ''}`} />
-                          {isPRLoading ? 'Opening PR...' : 'Create Fix PR'}
-                        </button>
-                      )
-                    )}
+                  {/* File path */}
+                  <div className="flex items-center gap-1 mt-1.5">
+                    <FileCode className="w-3 h-3 shrink-0" style={{ color: 'rgba(255,255,255,0.25)' }} />
+                    <span className="font-mono text-[10px] truncate" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                      {finding.file_path}
+                    </span>
                   </div>
                 </div>
 
-                {/* Expanded Diff Preview */}
-                {isDiffExpanded && finding.patch_diff && (
-                  <div className="border-t border-slate-800 bg-slate-950/90 p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[11px] font-bold text-slate-400 font-mono">Automated Patch Diff</span>
-                      <span className="text-[10px] text-emerald-400 font-semibold">Verified Safe Autofix</span>
-                    </div>
-                    <pre className="font-mono text-xs bg-slate-900 border border-slate-800 rounded-lg p-3 overflow-x-auto text-slate-200 leading-relaxed">
-                      {finding.patch_diff}
-                    </pre>
-                  </div>
-                )}
+                {/* Action buttons */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {finding.patch_diff && (
+                    <button
+                      onClick={() => setExpandedId(isOpen ? null : finding.id)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
+                    >
+                      <Code2 className="w-3 h-3" />
+                      Patch
+                      {isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                    </button>
+                  )}
 
-                {/* PR Note / Success Notification */}
-                {prInfo?.note && (
-                  <div className="px-4 py-2 bg-emerald-500/10 border-t border-slate-800 text-[11px] text-emerald-300 flex items-center gap-2 font-mono">
-                    <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    <span>{prInfo.note}</span>
-                  </div>
-                )}
+                  {prInfo?.pr_url ? (
+                    <a href={prInfo.pr_url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all"
+                      style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)', color: '#6ee7b7' }}>
+                      <GitPullRequest className="w-3 h-3" />
+                      PR
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  ) : finding.patch_diff ? (
+                    <button
+                      onClick={() => handleCreateFixPR(finding.id)}
+                      disabled={isPRLoading}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50"
+                      style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.25)', color: '#93c5fd' }}
+                    >
+                      <GitPullRequest className={`w-3 h-3 ${isPRLoading ? 'animate-spin' : ''}`} />
+                      {isPRLoading ? 'Creating…' : 'Fix PR'}
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            );
-          })}
+
+              {/* Expanded diff */}
+              {isOpen && finding.patch_diff && (
+                <div className="border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                  <div className="flex items-center justify-between px-3 py-1.5"
+                    style={{ background: 'rgba(255,255,255,0.02)' }}>
+                    <span className="text-[10px] font-bold font-mono" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                      Automated patch diff
+                    </span>
+                    <span className="text-[9px] font-semibold text-emerald-400">✓ Verified safe autofix</span>
+                  </div>
+                  <pre className="px-3 pb-3 font-mono text-[10px] leading-relaxed overflow-x-auto"
+                    style={{ color: 'rgba(255,255,255,0.6)' }}>
+                    {finding.patch_diff.split('\n').map((line, i) => (
+                      <div key={i}
+                        style={{
+                          color: line.startsWith('+') ? '#6ee7b7'
+                            : line.startsWith('-') ? '#fca5a5'
+                            : line.startsWith('@') ? '#93c5fd'
+                            : 'rgba(255,255,255,0.5)',
+                          background: line.startsWith('+') ? 'rgba(52,211,153,0.05)'
+                            : line.startsWith('-') ? 'rgba(239,68,68,0.05)'
+                            : 'transparent',
+                        }}
+                      >
+                        {line || ' '}
+                      </div>
+                    ))}
+                  </pre>
+                </div>
+              )}
+
+              {/* PR success note */}
+              {prResults[finding.id]?.note && (
+                <div className="px-3 py-2 flex items-center gap-2 border-t"
+                  style={{ borderColor: 'rgba(255,255,255,0.05)', background: 'rgba(52,211,153,0.05)' }}>
+                  <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+                  <span className="text-[10px] font-mono text-emerald-300">{prResults[finding.id].note}</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

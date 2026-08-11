@@ -149,6 +149,7 @@ export default function Dashboard() {
   // Dynamic analysis statuses
   const [impactData, setImpactData] = useState<ImpactAnalysisResult | null>(null);
   const [impactLoading, setImpactLoading] = useState(false);
+  const [currentCommitSha, setCurrentCommitSha] = useState<string | null>(null);
   
   const [storyData, setStoryData] = useState<{ title: string; steps: (string | { text: string; author?: string; role?: string; avatar?: string; avatarColor?: string; avatarUrl?: string; date?: string | null; sha?: string; file?: string; stepType?: string; verified?: boolean })[]; provenance?: string } | null>(null);
   const [storyLoading, setStoryLoading] = useState(false);
@@ -405,6 +406,12 @@ export default function Dashboard() {
             setWarningMsg(result.warning);
           }
           setHasData(true);
+
+          // Capture commit sha for security tab
+          if (result.callGraph.nodes?.length > 0) {
+            const parts = result.callGraph.nodes[0].id.split(':');
+            if (parts.length >= 2) setCurrentCommitSha(parts[1]);
+          }
           
           // Auto trigger first story
           if (cleanFeatures.length > 0) {
@@ -1399,7 +1406,7 @@ export default function Dashboard() {
                     />
                   ) : (
                     <SecurityFindingsTab
-                      commitSha={null}
+                      commitSha={currentCommitSha}
                       sessionToken={session?.access_token || null}
                     />
                   )}
@@ -1516,7 +1523,7 @@ export default function Dashboard() {
                     />
                   ) : (
                     <SecurityFindingsTab
-                      commitSha={null}
+                      commitSha={currentCommitSha}
                       sessionToken={session?.access_token || null}
                     />
                   )}
