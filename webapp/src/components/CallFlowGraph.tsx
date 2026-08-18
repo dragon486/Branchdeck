@@ -19,9 +19,27 @@ import {
 import '@xyflow/react/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import { CallGraphNode, CallGraphEdge } from '@/lib/analyzer';
-import { Layers, MessageSquare, Maximize2, Minimize2, RefreshCw, Search, ArrowRight, ShieldAlert, GitBranch, Database, HardDrive, Server, BookOpen, FolderTree } from 'lucide-react';
+import { Layers, Maximize2, Minimize2, RefreshCw, Search, ShieldAlert, GitBranch, Database, BookOpen, FolderTree } from 'lucide-react';
 import PillNav from './PillNav';
 import Dock from './Dock';
+
+/* ──────────────────────────────────────────────────────────────────── */
+/*  TIER COLOUR SYSTEM                                                  */
+/* ──────────────────────────────────────────────────────────────────── */
+
+const TIER_COLOR: Record<string, string> = {
+  ui:       '#0EA5B7',   // teal
+  api:      '#E8641C',   // burnt orange
+  service:  '#6D4FC2',   // violet
+  worker:   '#6D4FC2',   // violet (same family as service)
+  db:       '#1A9E6B',   // green
+  lib:      '#B23A82',   // magenta
+  external: '#B23A82',   // magenta (same family as lib)
+};
+
+function tierColor(type: string): string {
+  return TIER_COLOR[type] ?? '#64748b';
+}
 
 /* ──────────────────────────────────────────────────────────────────── */
 /*  TYPES & UTILS                                                       */
@@ -37,9 +55,7 @@ interface CallFlowGraphProps {
   activeStepIndex?: number | null;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
-  /** Called when the user clicks the Project Structure expand button inside the graph */
   onToggleLeftPanel?: () => void;
-  /** Called when the user clicks the Architecture Walkthrough expand button inside the graph */
   onToggleRightPanel?: () => void;
   members?: any[];
   repoSource?: string;
@@ -57,7 +73,6 @@ interface LiveCollaborator {
 const norm = (p: string) =>
   p?.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, '') ?? '';
 
-/** Deduplicate nodes by canonical file path */
 function dedupeNodes(nodes: CallGraphNode[]): CallGraphNode[] {
   const seen = new Map<string, CallGraphNode>();
   for (const n of nodes) {
@@ -74,7 +89,6 @@ function dedupeNodes(nodes: CallGraphNode[]): CallGraphNode[] {
   return Array.from(seen.values());
 }
 
-/** Check if a file belongs to a target folder */
 function isInsideFolder(file: string, folder: string): boolean {
   const f = norm(file);
   const fol = norm(folder);
@@ -83,7 +97,7 @@ function isInsideFolder(file: string, folder: string): boolean {
 }
 
 /* ──────────────────────────────────────────────────────────────────── */
-/*  VISUAL HIERARCHY NODE CARD                                          */
+/*  REDESIGNED NODE CARD                                                */
 /* ──────────────────────────────────────────────────────────────────── */
 
 function CustomCallNode({
@@ -98,162 +112,178 @@ function CustomCallNode({
     stepActive?: boolean;
   };
 }) {
-  const isEntryPoint = data.type === 'ui' || data.type === 'api';
+  const color = tierColor(data.type);
 
-  const tierStyle = useMemo(() => {
-    switch (data.type) {
-      case 'ui':
-        return {
-          topBorder: 'border-t-4 border-t-cyan-500',
-          badge: 'bg-cyan-50 text-cyan-700 border-cyan-200/80',
-          glow: 'hover:shadow-[0_12px_28px_rgba(6,182,212,0.2)]',
-          cardSize: 'w-[300px]',
-        };
-      case 'api':
-        return {
-          topBorder: 'border-t-4 border-t-orange-500',
-          badge: 'bg-orange-50 text-orange-700 border-orange-200/80',
-          glow: 'hover:shadow-[0_12px_28px_rgba(249,115,22,0.2)]',
-          cardSize: 'w-[290px]',
-        };
-      case 'service':
-        return {
-          topBorder: 'border-t-4 border-t-indigo-500',
-          badge: 'bg-indigo-50 text-indigo-700 border-indigo-200/80',
-          glow: 'hover:shadow-[0_8px_24px_rgba(99,102,241,0.15)]',
-          cardSize: 'w-[270px]',
-        };
-      case 'db':
-        return {
-          topBorder: 'border-t-4 border-t-emerald-600',
-          badge: 'bg-emerald-50 text-emerald-800 border-emerald-200/80',
-          glow: 'hover:shadow-[0_8px_24px_rgba(16,185,129,0.15)]',
-          cardSize: 'w-[260px]',
-        };
-      case 'lib':
-        return {
-          topBorder: 'border-t-4 border-t-purple-500',
-          badge: 'bg-purple-50 text-purple-700 border-purple-200/80',
-          glow: 'hover:shadow-[0_8px_24px_rgba(168,85,247,0.15)]',
-          cardSize: 'w-[260px]',
-        };
-      default:
-        return {
-          topBorder: 'border-t-4 border-t-slate-400',
-          badge: 'bg-slate-50 text-slate-700 border-slate-200/80',
-          glow: 'hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)]',
-          cardSize: 'w-[260px]',
-        };
-    }
-  }, [data.type]);
-
+  // File extension badge
   const extBadge = useMemo(() => {
     const parts = data.file.split('.');
     return parts.length > 1 ? parts[parts.length - 1].toUpperCase() : 'FILE';
   }, [data.file]);
 
-  const devColors = useMemo(() => {
-    const initials = data.developer?.avatar || '';
-    if (initials === 'SC') return 'bg-rose-100 text-rose-700 border-rose-200';
-    if (initials === 'AR') return 'bg-sky-100 text-sky-700 border-sky-200';
-    if (initials === 'ER') return 'bg-violet-100 text-violet-700 border-violet-200';
-    if (initials === 'MV') return 'bg-amber-100 text-amber-700 border-amber-200';
-    return 'bg-slate-100 text-slate-700 border-slate-200';
-  }, [data.developer]);
+  // File path (shorter display: last 2 segments)
+  const displayPath = useMemo(() => {
+    const parts = norm(data.file).split('/');
+    return parts.length > 2 ? '…/' + parts.slice(-2).join('/') : data.file;
+  }, [data.file]);
 
   const liveUsers = data.liveUsers || [];
 
+  // Opacity
+  const opacity = data.isDimmed ? 0.08 : 1;
+
+  // Ring / border highlight state
+  let ringClass = '';
+  let borderColor = '#e2e8f0';
+  if (data.stepActive) {
+    ringClass = 'ring-4';
+    borderColor = color;
+  } else if (data.isHighlighted) {
+    ringClass = 'ring-2';
+    borderColor = color;
+  } else if (data.activeFileSelected || data.isTarget) {
+    borderColor = color;
+  }
+
   return (
     <div
-      className={`p-4 rounded-2xl border bg-white shadow-[0_6px_20px_rgba(0,0,0,0.05)] ${tierStyle.cardSize} transition-all duration-300 relative ${tierStyle.topBorder} ${tierStyle.glow} ${data.isDimmed ? 'opacity-10 grayscale' : 'opacity-100'
-        } ${data.stepActive
-          ? 'border-slate-950 ring-4 ring-sky-500/40 shadow-[0_16px_36px_rgba(2,132,199,0.35)] scale-[1.05]'
-          : data.isHighlighted
-            ? 'border-slate-950 ring-4 ring-sky-500/25 shadow-[0_10px_28px_rgba(2,132,199,0.25)] scale-[1.02]'
-            : data.activeFileSelected
-              ? 'border-slate-950 ring-4 ring-slate-950/10'
-              : data.isTarget
-                ? 'border-slate-950 ring-2 ring-slate-950/20'
-                : 'border-slate-200/90 hover:border-slate-400'
-        }`}
+      style={{
+        opacity,
+        borderColor,
+        // Left colored stripe — the signature design element
+        borderLeftColor: color,
+        borderLeftWidth: 4,
+        '--ring-color': color,
+        transition: 'opacity 0.2s, box-shadow 0.2s',
+      } as React.CSSProperties}
+      className={`
+        relative w-[280px] bg-white border border-slate-200/80 rounded-lg
+        shadow-sm hover:shadow-[0_8px_24px_rgba(0,0,0,0.10)]
+        transition-all duration-200
+        ${ringClass ? `ring-2` : ''}
+      `}
     >
-      {/* Target handle — top of node (data flows in from above in TB layout) */}
-      <Handle type="target" position={Position.Top} className="w-3 h-3 !bg-slate-900 border-2 border-white" />
+      {/* Target handle — top (TB layout) */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="!w-2.5 !h-2.5 !border-2 !border-white"
+        style={{ background: color }}
+      />
 
+      {/* Live collaborator badge */}
       {liveUsers.length > 0 && (
-        <div className="absolute -top-3.5 -right-2 flex items-center gap-1 bg-white border border-slate-200 shadow-sm px-2 py-0.5 rounded-full z-20">
+        <div className="absolute -top-3 -right-2 flex items-center gap-1 bg-white border border-slate-200 shadow-sm px-2 py-0.5 rounded-full z-20">
           <span className="relative flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
           </span>
           <div className="flex -space-x-1">
             {liveUsers.map((user, idx) => (
               <div
                 key={idx}
-                className={`w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold text-white ring-1 ring-white ${user.color.startsWith('bg-') ? user.color : `bg-${user.color}`
-                  } cursor-default`}
+                className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold text-white ring-1 ring-white"
+                style={{ background: color }}
                 title={`${user.name} is actively ${user.action}`}
               >
                 {user.avatar}
               </div>
             ))}
           </div>
-          <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">{liveUsers[0].action}</span>
+          <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">
+            {liveUsers[0].action}
+          </span>
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
-        {/* Card Header: Title & Badges */}
+      <div className="p-3 flex flex-col gap-1.5">
+        {/* ── Header row: step number + filename + ext badge + tier badge ── */}
         <div className="flex items-center justify-between gap-1.5">
-          <div className="flex items-center gap-1.5 truncate">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {/* Step circle — tier-colored */}
             {data.stepNumber && (
-              <span className="w-5 h-5 rounded-full bg-slate-950 text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 shadow-xs">
+              <span
+                className="w-5 h-5 rounded-full text-white text-[9px] font-black flex items-center justify-center flex-shrink-0 shadow-xs"
+                style={{ background: color }}
+              >
                 {data.stepNumber}
               </span>
             )}
-            <span className={`font-black text-slate-900 truncate ${isEntryPoint ? 'text-sm' : 'text-xs'}`} title={data.label}>
+            {/* Filename */}
+            <span
+              className="font-semibold text-[#1C2333] text-xs truncate leading-tight tracking-tight"
+              title={data.label}
+              style={{ letterSpacing: '-0.01em' }}
+            >
               {data.label}
             </span>
           </div>
+
+          {/* Right badges */}
           <div className="flex items-center gap-1 flex-shrink-0">
-            <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200/70">
+            {/* Extension badge */}
+            <span className="text-[7.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200/70 leading-none">
               {extBadge}
             </span>
-            <span className={`text-[8.5px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border ${tierStyle.badge}`}>
+            {/* Tier badge — filled with tier color, white text */}
+            <span
+              className="text-[7.5px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full text-white leading-none"
+              style={{ background: color }}
+            >
               {data.type}
             </span>
           </div>
         </div>
 
-        {/* Subtitle / API Route / Table */}
-        <div className="text-[10px] text-slate-500 font-mono font-semibold truncate bg-slate-50 px-2 py-1 rounded-lg border border-slate-100" title={data.subtitle || data.file}>
-          {data.subtitle || data.file}
+        {/* ── File path — monospace, signals "this is code" ── */}
+        <div
+          className="text-[9.5px] text-slate-400 truncate leading-tight px-1"
+          style={{ fontFamily: "'JetBrains Mono', 'IBM Plex Mono', 'Fira Code', monospace" }}
+          title={data.file}
+        >
+          {displayPath}
         </div>
 
-        {/* Exported Methods / Functions List */}
+        {/* ── Exported methods ── */}
         {data.methods && data.methods.length > 0 && (
-          <div className="flex flex-col gap-0.5 border-t border-slate-100 pt-1.5 mt-0.5 bg-slate-50/70 p-2 rounded-xl border border-slate-100/60 font-mono text-[9.5px] text-slate-700">
+          <div
+            className="flex flex-col gap-0.5 pt-1.5 border-t border-slate-100"
+            style={{ fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace" }}
+          >
             {data.methods.slice(0, 2).map((method, idx) => (
               <div key={idx} className="flex items-center gap-1.5 truncate">
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 flex-shrink-0" />
-                <span className="font-bold truncate text-slate-800">{method}</span>
+                <span
+                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                  style={{ background: color }}
+                />
+                <span className="text-[9px] font-medium truncate text-slate-600">{method}</span>
               </div>
             ))}
           </div>
         )}
 
+        {/* ── Developer avatar ── */}
         {data.developer && (
-          <div className="flex items-center gap-1.5 border-t border-slate-100 pt-1.5 mt-0.5">
-            <div className={`w-4 h-4 rounded-full border flex items-center justify-center text-[7.5px] font-bold ${devColors}`}>
+          <div className="flex items-center gap-1.5 border-t border-slate-100 pt-1.5">
+            <div
+              className="w-4 h-4 rounded-full border-2 border-white flex items-center justify-center text-[7px] font-bold text-white shadow-xs"
+              style={{ background: color }}
+            >
               {data.developer.avatar}
             </div>
-            <span className="text-[9px] font-bold text-slate-700 truncate">{data.developer.name}</span>
+            <span className="text-[9px] font-medium text-slate-500 truncate">
+              {data.developer.name}
+            </span>
           </div>
         )}
       </div>
 
-      {/* Source handle — bottom of node (data flows out downward in TB layout) */}
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 !bg-slate-900 border-2 border-white" />
+      {/* Source handle — bottom (TB layout) */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!w-2.5 !h-2.5 !border-2 !border-white"
+        style={{ background: color }}
+      />
     </div>
   );
 }
@@ -295,13 +325,16 @@ function CallFlowGraphInner({
     const nodes = dedupeNodes(rawNodes);
     const validIds = new Set(nodes.map((n) => n.id));
 
-    const edges = rawEdges.filter((e: CallGraphEdge) => validIds.has(e.from) && validIds.has(e.to) && e.from !== e.to);
+    const edges = rawEdges.filter(
+      (e: CallGraphEdge) => validIds.has(e.from) && validIds.has(e.to) && e.from !== e.to
+    );
 
     const edgeMap = new Map<string, { from: string; to: string; labels: string[] }>();
     for (const e of edges) {
       const key = `${e.from}->${e.to}`;
       if (!edgeMap.has(key)) edgeMap.set(key, { from: e.from, to: e.to, labels: [] });
-      if (e.label && !edgeMap.get(key)!.labels.includes(e.label)) edgeMap.get(key)!.labels.push(e.label);
+      if (e.label && !edgeMap.get(key)!.labels.includes(e.label))
+        edgeMap.get(key)!.labels.push(e.label);
     }
 
     return { allNodes: nodes, allEdges: Array.from(edgeMap.values()) };
@@ -309,24 +342,23 @@ function CallFlowGraphInner({
 
   const validNodeIds = useMemo(() => new Set(allNodes.map((n) => n.id)), [allNodes]);
 
-  /* ── 2. Capped Focus Graph Filtering (6 to 10 Nodes Max per View Mode) ── */
+  /* ── 2. Filtered & capped focus graph ── */
   const { visibleNodes, visibleEdges } = useMemo(() => {
     let nodes = allNodes;
     let edges = allEdges;
 
-    // A. Mode Specific Filter
     if (activeViewMode === 'request') {
-      // Request Flow: UI -> API Routes -> Controllers
-      nodes = nodes.filter(n => n.type === 'ui' || n.type === 'api' || n.type === 'service');
+      nodes = nodes.filter((n) => n.type === 'ui' || n.type === 'api' || n.type === 'service');
     } else if (activeViewMode === 'data') {
-      // Data Flow: Controllers -> Services -> Repositories -> Database
-      nodes = nodes.filter(n => n.type === 'api' || n.type === 'service' || n.type === 'db' || n.type === 'ui');
+      nodes = nodes.filter(
+        (n) => n.type === 'api' || n.type === 'service' || n.type === 'db' || n.type === 'ui'
+      );
     } else if (activeViewMode === 'dependency') {
-      // Dependency Flow: UI -> Services -> Libraries -> External SDKs
-      nodes = nodes.filter(n => n.type === 'service' || n.type === 'lib' || n.type === 'external' || n.type === 'db');
+      nodes = nodes.filter(
+        (n) => n.type === 'service' || n.type === 'lib' || n.type === 'external' || n.type === 'db'
+      );
     }
 
-    // B. Scope Drill-Down (File / Folder)
     if (selectedFile) {
       const target = allNodes.find((n) => n.file === selectedFile);
       if (target) {
@@ -350,7 +382,6 @@ function CallFlowGraphInner({
       nodes = nodes.filter((n) => keep.has(n.id));
     }
 
-    // C. Search Query Filter
     const q = searchQuery.trim().toLowerCase();
     if (q) {
       const matched = new Set(
@@ -366,17 +397,15 @@ function CallFlowGraphInner({
       nodes = nodes.filter((n) => keep.has(n.id));
     }
 
-    // D. Node cap — default 20 nodes for clarity, expandable to full graph via showAll toggle.
-    // BFS from the best root node guarantees the most connected subgraph is always shown first.
+    // Node cap — BFS from best root, max 20 by default
     const NODE_CAP = showAll ? Infinity : 20;
     if (nodes.length > NODE_CAP) {
       const rootNode =
-        nodes.find(n => n.type === 'ui') ||
-        nodes.find(n => n.type === 'api') ||
+        nodes.find((n) => n.type === 'ui') ||
+        nodes.find((n) => n.type === 'api') ||
         nodes[0];
       if (rootNode) {
         const cappedIds = new Set<string>([rootNode.id]);
-        // BFS hop expansion
         let frontier = [rootNode.id];
         while (cappedIds.size < NODE_CAP && frontier.length > 0) {
           const next: string[] = [];
@@ -389,7 +418,7 @@ function CallFlowGraphInner({
           }
           frontier = next;
         }
-        nodes = nodes.filter(n => cappedIds.has(n.id));
+        nodes = nodes.filter((n) => cappedIds.has(n.id));
       } else {
         nodes = nodes.slice(0, NODE_CAP);
       }
@@ -401,79 +430,55 @@ function CallFlowGraphInner({
     return { visibleNodes: nodes, visibleEdges: edges };
   }, [allNodes, allEdges, selectedFile, selectedFolder, searchQuery, activeViewMode, showAll]);
 
-  /* ── 3. Dagre hierarchical layout ─────────────────────────────────────────
-   *  Uses the Sugiyama-style ranking algorithm:
-   *   - rankdir: TB (top → bottom, canonical tree/data-flow direction)
-   *   - Nodes are ranked by their architectural tier (ui=0, api=1, service=2, db/external=3)
-   *   - Dagre minimises edge crossings within each rank automatically
-   *   - nodesep / ranksep control whitespace so cards never overlap
-   * ─────────────────────────────────────────────────────────────────────── */
+  /* ── 3. Dagre TB hierarchical layout ── */
   const layoutedNodes = useMemo(() => {
     if (visibleNodes.length === 0) return [];
 
-    // Node dimensions — must match the CSS card sizes in CustomCallNode
-    const NODE_W = 300;
-    const NODE_H = 130;
+    const NODE_W = 280;
+    const NODE_H = 120;
 
-    // Tier rank — dagre uses these to lock nodes into horizontal rows (layers)
     const tierRank: Record<string, number> = {
-      ui:       0,
-      api:      1,
-      worker:   1,
-      service:  2,
-      lib:      2,
-      db:       3,
-      external: 3,
+      ui: 0, api: 1, worker: 1, service: 2, lib: 2, db: 3, external: 3,
     };
 
-    // Build dagre graph
     const g = new dagre.graphlib.Graph({ multigraph: false });
     g.setDefaultEdgeLabel(() => ({}));
     g.setGraph({
-      rankdir: 'TB',       // top-to-bottom tree flow
-      align:   'UL',       // align upper-left within rank
-      nodesep: 60,         // horizontal gap between nodes in the same rank
-      ranksep: 100,        // vertical gap between ranks (layers)
+      rankdir: 'TB',
+      align: 'UL',
+      nodesep: 60,
+      ranksep: 100,
       edgesep: 20,
-      ranker:  'tight-tree', // tightest valid tree ranking
+      ranker: 'tight-tree',
     });
 
-    // Add nodes with fixed rank hints
-    visibleNodes.forEach(node => {
+    visibleNodes.forEach((node) => {
       g.setNode(node.id, { width: NODE_W, height: NODE_H, rank: tierRank[node.type] ?? 2 });
     });
 
-    // Add edges
-    visibleEdges.forEach(edge => {
+    visibleEdges.forEach((edge) => {
       if (g.hasNode(edge.from) && g.hasNode(edge.to)) {
         g.setEdge(edge.from, edge.to);
       }
     });
 
-    // Run layout
     dagre.layout(g);
 
-    // Extract positions — dagre gives centre-point, React Flow wants top-left
     const pos: Record<string, { x: number; y: number }> = {};
-    g.nodes().forEach(nodeId => {
+    g.nodes().forEach((nodeId) => {
       const n = g.node(nodeId);
-      if (n) {
-        pos[nodeId] = {
-          x: n.x - NODE_W / 2,
-          y: n.y - NODE_H / 2,
-        };
-      }
+      if (n) pos[nodeId] = { x: n.x - NODE_W / 2, y: n.y - NODE_H / 2 };
     });
 
     let stepCount = 1;
-    return visibleNodes.map(node => ({
+    return visibleNodes.map((node) => ({
       ...node,
       stepNumber: stepCount++,
       _pos: pos[node.id] || { x: 0, y: 0 },
     }));
   }, [visibleNodes, visibleEdges]);
 
-  /* ── 4. Build React Flow nodes & edges ── */
+  /* ── 4. Build React Flow nodes ── */
   const computedNodes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
 
@@ -519,12 +524,16 @@ function CallFlowGraphInner({
       const isTarget = selectedFile
         ? node.file === selectedFile
         : selectedFolder
-          ? isInsideFolder(node.file, selectedFolder)
-          : false;
+        ? isInsideFolder(node.file, selectedFolder)
+        : false;
 
-      const stepActive = activeStepIndex !== null && activeStepIndex !== undefined ? idx === activeStepIndex : false;
-      const isHighlighted = (hoveredNodeId && connected.has(node.id)) || (q && connected.has(node.id)) || stepActive;
-      const isDimmed = (hoveredNodeId && !connected.has(node.id)) || (q && !connected.has(node.id));
+      const hasActiveFilter = !!(hoveredNodeId || q);
+      const isInConnected = connected.has(node.id);
+      const stepActive =
+        activeStepIndex !== null && activeStepIndex !== undefined ? idx === activeStepIndex : false;
+      const isHighlighted = isInConnected || stepActive;
+      // Aggressive dimming: 8% opacity for non-connected nodes when hovering
+      const isDimmed = hasActiveFilter && !isInConnected && !stepActive;
 
       return {
         id: node.id,
@@ -541,11 +550,23 @@ function CallFlowGraphInner({
         },
       };
     });
-  }, [layoutedNodes, visibleEdges, selectedFile, selectedFolder, members, hoveredNodeId, searchQuery, validNodeIds, visibleNodes, activeStepIndex]);
+  }, [
+    layoutedNodes,
+    visibleEdges,
+    selectedFile,
+    selectedFolder,
+    members,
+    hoveredNodeId,
+    searchQuery,
+    validNodeIds,
+    visibleNodes,
+    activeStepIndex,
+  ]);
 
+  /* ── 5. Build React Flow edges — color-coded by type ── */
   const computedEdges = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    const active = hoveredNodeId || q;
+    const hasActiveFilter = !!(hoveredNodeId || q);
 
     const connEdges = new Set<string>();
     if (hoveredNodeId) {
@@ -569,48 +590,86 @@ function CallFlowGraphInner({
 
     return visibleEdges.map((edge) => {
       const key = `${edge.from}->${edge.to}`;
-      const isConn = active ? connEdges.has(key) : false;
-      const isDimmed = active ? !isConn : false;
+      const isConn = hasActiveFilter ? connEdges.has(key) : false;
+      const isDimmed = hasActiveFilter && !isConn;
 
-      // Show the import label if meaningful, otherwise nothing (keep edges clean)
       const rawLabel = edge.labels?.[0] || '';
-      const label = rawLabel && rawLabel !== 'imports' && rawLabel !== 'calls' ? rawLabel : '';
+      const isContains = rawLabel === 'contains';
+      const isCalls = rawLabel === 'calls';
+      const label = rawLabel && rawLabel !== 'imports' && rawLabel !== 'calls' && rawLabel !== 'contains'
+        ? rawLabel
+        : '';
+
+      // "contains" edges: structural, quieter — thin gray, no arrowhead
+      if (isContains) {
+        return {
+          id: `edge-${edge.from}-${edge.to}`,
+          source: edge.from,
+          target: edge.to,
+          type: 'default' as const,
+          style: {
+            stroke: isDimmed ? 'rgba(148,163,184,0.08)' : 'rgba(148,163,184,0.35)',
+            strokeWidth: 1,
+            strokeDasharray: '4 4',
+          },
+          // No arrowhead for structural edges
+          markerEnd: undefined,
+        };
+      }
+
+      // Flow edges (calls / imports): tier-colored, with animated highlight
+      // Source node determines the edge color
+      const sourceNode = visibleNodes.find((n) => n.id === edge.from);
+      const edgeColor = sourceNode ? tierColor(sourceNode.type) : '#94a3b8';
+      const activeColor = edgeColor;
+      const restColor = '#cbd5e1';
+
+      const strokeColor = isConn ? activeColor : restColor;
+      const strokeOpacity = isDimmed ? 0.08 : 1;
 
       return {
         id: `edge-${edge.from}-${edge.to}`,
         source: edge.from,
         target: edge.to,
-        // 'default' gives organic bezier curves — smooth, tree-style connections
-        // that follow the natural top→bottom data flow without right-angle elbows
         type: 'default' as const,
         label: label || undefined,
         animated: isConn,
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          width: 14,
-          height: 14,
-          color: isConn ? '#0284c7' : '#94a3b8',
+          width: 12,
+          height: 12,
+          color: strokeColor,
         },
         style: {
-          stroke: isConn ? '#0284c7' : '#cbd5e1',
+          stroke: strokeColor,
           strokeWidth: isConn ? 2.5 : 1.5,
-          opacity: isDimmed ? 0.12 : 1,
+          // "calls" edges: dashed; "imports" edges: solid
+          strokeDasharray: isCalls ? '6 3' : undefined,
+          opacity: strokeOpacity,
+          transition: 'stroke 0.15s, opacity 0.15s',
         },
-        ...(label ? {
-          labelStyle: { fill: isConn ? '#0284c7' : '#64748b', fontSize: 9, fontWeight: 700, fontFamily: 'monospace' },
-          labelBgPadding: [5, 3] as [number, number],
-          labelBgBorderRadius: 5,
-          labelBgStyle: {
-            fill: '#f8fafc',
-            stroke: isConn ? '#bae6fd' : '#e2e8f0',
-            strokeWidth: 1,
-          },
-        } : {}),
+        ...(label
+          ? {
+              labelStyle: {
+                fill: isConn ? activeColor : '#64748b',
+                fontSize: 9,
+                fontWeight: 700,
+                fontFamily: 'monospace',
+              },
+              labelBgPadding: [5, 3] as [number, number],
+              labelBgBorderRadius: 5,
+              labelBgStyle: {
+                fill: '#f8fafc',
+                stroke: isConn ? activeColor : '#e2e8f0',
+                strokeWidth: 1,
+              },
+            }
+          : {}),
       };
     });
   }, [visibleEdges, visibleNodes, hoveredNodeId, searchQuery]);
 
-  /* ── 5. React Flow state & Google Maps Style Camera Auto-Centering ── */
+  /* ── 6. React Flow state ── */
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(computedNodes);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>(computedEdges);
 
@@ -619,25 +678,23 @@ function CallFlowGraphInner({
     setFlowEdges(computedEdges);
   }, [computedNodes, computedEdges, setFlowNodes, setFlowEdges]);
 
-  // Clear stale drag overrides whenever Dagre produces a new layout
-  // (node set changed: different repo, different filter, etc.)
+  // Clear stale drag overrides when node set changes
   const prevNodeSetRef = useRef<string>('');
   useEffect(() => {
-    const currentSet = visibleNodes.map(n => n.id).sort().join(',');
+    const currentSet = visibleNodes.map((n) => n.id).sort().join(',');
     if (currentSet !== prevNodeSetRef.current) {
       prevNodeSetRef.current = currentSet;
       draggedPositionsRef.current = {};
     }
   }, [visibleNodes]);
 
+  // fitView: re-run after nodes/edges settle. Two-pass (80ms + 300ms) handles
+  // the case where the layout is still being applied when the first pass fires.
   useEffect(() => {
     if (flowNodes.length === 0) return;
-    const t1 = setTimeout(() => fitView({ padding: 0.18, duration: 400 }), 80);
-    const t2 = setTimeout(() => fitView({ padding: 0.18, duration: 300 }), 300);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
+    const t1 = setTimeout(() => fitView({ padding: 0.20, duration: 350 }), 80);
+    const t2 = setTimeout(() => fitView({ padding: 0.20, duration: 300 }), 320);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [flowNodes.length, flowEdges.length, fitKey, activeViewMode, fitView]);
 
   const handleNodesChange = useCallback(
@@ -664,10 +721,11 @@ function CallFlowGraphInner({
 
   return (
     <div className="w-full h-full flex-1 min-h-0 relative font-sans select-none flex flex-col">
-      {/* ── Single Minimal Glass Floating Bar ── */}
+
+      {/* ── Floating Top Bar ── */}
       <div className="absolute top-3 left-3 right-3 z-20 pointer-events-auto flex items-center justify-between gap-3 bg-white/95 backdrop-blur-md border border-slate-200/90 p-2 rounded-2xl shadow-sm">
-        
-        {/* Left Section: Title & Scope Badge + Project Structure Toggle */}
+
+        {/* Left: Project Map toggle + Title */}
         <div className="flex items-center gap-2.5">
           {onToggleLeftPanel && (
             <button
@@ -679,25 +737,37 @@ function CallFlowGraphInner({
               <span className="hidden sm:inline">Project Map</span>
             </button>
           )}
+
           <div className="w-7 h-7 rounded-xl bg-slate-950 text-white flex items-center justify-center shadow-xs shrink-0">
             <Layers className="w-3.5 h-3.5" />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-black text-slate-950 tracking-tight">Codebase Focus Graph</span>
-            <span className="text-[9px] font-extrabold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-              {selectedFeature ? `Feature: ${selectedFeature}` : selectedFile ? `File: ${selectedFile.split('/').pop()}` : 'Dependency View'}
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className="text-xs font-black text-slate-950 tracking-tight"
+              style={{ letterSpacing: '-0.02em' }}
+            >
+              Codebase Focus Graph
             </span>
-            {/* Node count badge */}
+            <span className="text-[9px] font-extrabold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+              {selectedFeature
+                ? `Feature: ${selectedFeature}`
+                : selectedFile
+                ? `File: ${selectedFile.split('/').pop()}`
+                : 'Dependency View'}
+            </span>
             <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
               {visibleNodes.length} nodes · {visibleEdges.length} edges
             </span>
-            {/* Expand/collapse toggle when graph has more nodes than cap */}
             {allNodes.length > 20 && (
               <button
-                onClick={() => setShowAll(v => !v)}
-                className="text-[9px] font-bold px-2.5 py-0.5 rounded-full border transition-colors
-                  bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 cursor-pointer"
-                title={showAll ? 'Collapse to focused view (20 nodes)' : `Expand to full graph (${allNodes.length} nodes)`}
+                onClick={() => setShowAll((v) => !v)}
+                className="text-[9px] font-bold px-2.5 py-0.5 rounded-full border transition-colors bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 cursor-pointer"
+                title={
+                  showAll
+                    ? 'Collapse to focused view (20 nodes)'
+                    : `Expand to full graph (${allNodes.length} nodes)`
+                }
               >
                 {showAll ? '⊟ Collapse' : `⊞ Expand all ${allNodes.length}`}
               </button>
@@ -705,7 +775,7 @@ function CallFlowGraphInner({
           </div>
         </div>
 
-        {/* Right Section: Clean Search Box + Walkthrough Toggle */}
+        {/* Right: Search + Walkthrough toggle */}
         <div className="flex items-center gap-1.5 shrink-0">
           <div className="bg-slate-100/90 border border-slate-200/80 rounded-xl px-3 py-1.5 flex items-center gap-2 focus-within:bg-white focus-within:border-slate-400 focus-within:shadow-xs transition-all duration-200 shrink-0">
             <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -737,46 +807,51 @@ function CallFlowGraphInner({
             </button>
           )}
         </div>
-
       </div>
 
-      {/* ── Compact Bottom-Right Legend Bar (XL screens only to prevent Dock overlap) ── */}
-      <div className="absolute bottom-3 right-3 z-10 hidden xl:flex bg-white/95 backdrop-blur border border-slate-200/90 px-2.5 py-1.5 rounded-xl shadow-xs items-center gap-2.5 text-[9px] font-extrabold text-slate-600 pointer-events-auto select-none">
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded bg-cyan-500" />
-          <span>UI</span>
+      {/* ── Legend bar (bottom-right) ── */}
+      <div className="absolute bottom-3 right-3 z-10 hidden xl:flex bg-white/95 backdrop-blur border border-slate-200/90 px-3 py-2 rounded-xl shadow-xs items-center gap-3 text-[9px] font-extrabold text-slate-600 pointer-events-auto select-none">
+        {/* Tier dots */}
+        {[
+          { label: 'UI', color: TIER_COLOR.ui },
+          { label: 'API', color: TIER_COLOR.api },
+          { label: 'SERVICE', color: TIER_COLOR.service },
+          { label: 'DB', color: TIER_COLOR.db },
+          { label: 'LIB', color: TIER_COLOR.lib },
+        ].map(({ label, color }) => (
+          <div key={label} className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+            <span style={{ color }}>{label}</span>
+          </div>
+        ))}
+        <div className="h-3 w-px bg-slate-200 mx-1" />
+        {/* Edge type legend */}
+        <div className="flex items-center gap-1 text-slate-500">
+          <span className="font-mono text-[10px] font-black text-slate-700">──►</span>
+          <span>Imports</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded bg-orange-500" />
-          <span>API</span>
+        <div className="flex items-center gap-1 text-slate-500">
+          <span className="font-mono text-[10px] font-black text-slate-700">╌╌►</span>
+          <span>Calls</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded bg-indigo-500" />
-          <span>SERVICE</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded bg-emerald-600" />
-          <span>DB</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded bg-purple-500" />
-          <span>LIB</span>
-        </div>
-        <div className="h-2.5 w-px bg-slate-200" />
-        <div className="flex items-center gap-1 text-slate-400 font-mono">
-          <span className="text-[10px] font-bold text-slate-700">──►</span>
-          <span>HTTP</span>
-        </div>
-        <div className="flex items-center gap-1 text-slate-400 font-mono">
-          <span className="text-[10px] font-bold text-slate-700">- - ►</span>
-          <span>Data Access</span>
+        <div className="flex items-center gap-1 text-slate-400">
+          <span className="font-mono text-[10px]">╌╌╌</span>
+          <span>Contains</span>
         </div>
       </div>
 
       {/* ── Empty State ── */}
       {isEmpty && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-slate-400 bg-[#f8fafc]">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-slate-300 mb-3">
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-slate-400 bg-[#FAFBFC]">
+          <svg
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+            className="text-slate-300 mb-3"
+          >
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <path d="M3 9h18M9 21V9" />
           </svg>
@@ -807,21 +882,33 @@ function CallFlowGraphInner({
         onNodeClick={(_, node) => onSelectNode(node.data as unknown as CallGraphNode)}
         onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
         onNodeMouseLeave={() => setHoveredNodeId(null)}
-        minZoom={0.6}
-        maxZoom={1.5}
+        /* ── ZOOM FIX: minZoom 0.05 means a 280px-wide card in a 13-node
+           row can shrink enough to fit even a 1280px viewport at 0.05×.
+           Max 2× is sufficient for reading card details. ── */
+        minZoom={0.05}
+        maxZoom={2}
         onlyRenderVisibleElements={false}
         nodesDraggable={true}
         nodesConnectable={false}
-        className="w-full h-full min-h-[500px] flex-1 bg-[#f8fafc]"
+        className="w-full h-full min-h-[500px] flex-1 bg-[#FAFBFC]"
         style={{ height: '100%', minHeight: '500px' }}
         fitView
-        fitViewOptions={{ padding: 0.15, duration: 400 }}
+        fitViewOptions={{ padding: 0.20, duration: 400 }}
       >
-        <Background variant={BackgroundVariant.Lines} color="#f1f5f9" gap={32} size={1} />
-        <Controls showInteractive={false} className="!bg-white !border-slate-200/80 !shadow-sm !rounded-xl" />
+        {/* Subtle dot grid — keeps the canvas feeling like an infinite board */}
+        <Background
+          variant={BackgroundVariant.Dots}
+          color="#e2e8f0"
+          gap={24}
+          size={1.2}
+        />
+        <Controls
+          showInteractive={false}
+          className="!bg-white !border-slate-200/80 !shadow-sm !rounded-xl"
+        />
       </ReactFlow>
 
-      {/* ── React Bits Floating Dock (Always Visible Canvas Bottom) ── */}
+      {/* ── Floating Dock ── */}
       <Dock
         items={[
           {
@@ -845,7 +932,9 @@ function CallFlowGraphInner({
             onClick: () => setActiveViewMode('dependency'),
           },
           {
-            icon: isFullscreen ? <Minimize2 className="w-4 h-4 text-rose-600" /> : <Maximize2 className="w-4 h-4 text-purple-600" />,
+            icon: isFullscreen
+              ? <Minimize2 className="w-4 h-4 text-rose-600" />
+              : <Maximize2 className="w-4 h-4 text-purple-600" />,
             label: isFullscreen ? 'Exit Fullscreen' : 'Toggle Fullscreen',
             onClick: onToggleFullscreen,
           },
@@ -870,18 +959,17 @@ export default function CallFlowGraph({
   ...props
 }: CallFlowGraphProps) {
   const [internalFullscreen, setInternalFullscreen] = useState(false);
-  const isFullscreen = externalFullscreen !== undefined ? externalFullscreen : internalFullscreen;
+  const isFullscreen =
+    externalFullscreen !== undefined ? externalFullscreen : internalFullscreen;
 
   const handleToggleFullscreen = () => {
-    if (onToggleFullscreen) {
-      onToggleFullscreen();
-    }
+    if (onToggleFullscreen) onToggleFullscreen();
     setInternalFullscreen((prev) => !prev);
   };
 
   const containerClasses = isFullscreen
-    ? 'fixed inset-0 z-50 bg-[#f8fafc] p-4 flex flex-col w-screen h-screen font-sans select-none'
-    : 'w-full h-full flex-1 min-h-[500px] flex flex-col bg-[#f8fafc] rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm font-sans';
+    ? 'fixed inset-0 z-50 bg-[#FAFBFC] p-4 flex flex-col w-screen h-screen font-sans select-none'
+    : 'w-full h-full flex-1 min-h-[500px] flex flex-col bg-[#FAFBFC] rounded-xl overflow-hidden border border-slate-200/80 relative shadow-sm font-sans';
 
   return (
     <div className={containerClasses} style={{ height: '100%', minHeight: '500px' }}>
