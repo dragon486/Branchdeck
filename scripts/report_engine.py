@@ -662,9 +662,9 @@ def compute_summary_stats(workspace_path: str, files: list[str], nodes, edges) -
 def cleanup_run(db, org_id: str) -> None:
     """
     Delete all database rows scoped to this report's org_id.
-    CASCADE constraints handle code_nodes, code_edges, file_cache references.
+    Handles FK ordering manually since SQLite doesn't enforce CASCADE by default.
     """
-    from database import Repository, Commit, CodeNode, CodeEdge
+    from database import Repository, Commit, CodeNode, CodeEdge, CodeChunk, SecurityFinding, SecurityNodeTag
 
     repos = db.query(Repository).filter_by(organization_id=org_id).all()
     if not repos:
@@ -673,7 +673,16 @@ def cleanup_run(db, org_id: str) -> None:
 
     repo_ids = [r.id for r in repos]
 
-    # Delete edges and nodes first (no cascade on SQLite without FK enforcement)
+    # Delete in dependency order (children before parents)
+    db.query(SecurityFinding).filter(SecurityFinding.repo_id.in_(repo_ids)).delete(synchronize_session=False)
+    db.query(SecurityNodeTag).filter(SecurityNodeTag.repo_id.in_(repo_ids)).delete(synchronize_session=False)
+
+    # CodeChunk references CodeNode — delete chunks first
+    node_ids_q = db.query(CodeNode.id).filter(CodeNode.repo_id.in_(repo_ids))
+    node_id_list = [row[0] for row in node_ids_q.all()]
+    if node_id_list:
+        db.query(CodeChunk).filter(CodeChunk.node_id.in_(node_id_list)).delete(synchronize_session=False)
+
     db.query(CodeEdge).filter(CodeEdge.repo_id.in_(repo_ids)).delete(synchronize_session=False)
     db.query(CodeNode).filter(CodeNode.repo_id.in_(repo_ids)).delete(synchronize_session=False)
     db.query(Commit).filter(Commit.repo_id.in_(repo_ids)).delete(synchronize_session=False)

@@ -36,11 +36,21 @@ def parse_ts_js(content_bytes: bytes) -> dict:
             expr = node.child_by_field_name("function")
             if expr:
                 if expr.type == "identifier":
-                    calls.append(expr.text.decode("utf8"))
+                    fn_name = expr.text.decode("utf8")
+                    calls.append(fn_name)
+                    # CommonJS require('module') — capture the string arg as an import
+                    if fn_name == "require":
+                        args_node = node.child_by_field_name("arguments")
+                        if args_node:
+                            for arg in args_node.children:
+                                if arg.type == "string":
+                                    imports.append(clean_quote(arg.text.decode("utf8")))
+                                    break  # only first arg matters
                 elif expr.type == "member_expression":
                     property_node = expr.child_by_field_name("property")
                     if property_node:
                         calls.append(property_node.text.decode("utf8"))
+
         
         # 3. Capture new expressions (e.g. new PrismaClient(), new OpenAI())
         if node.type == "new_expression":

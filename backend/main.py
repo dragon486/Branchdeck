@@ -1,4 +1,5 @@
 import os
+from datetime import timezone
 import hashlib
 import contextvars
 import uuid
@@ -305,17 +306,24 @@ def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str,
         clean_workspace = workspace_path.replace("\\", "/")
         repo_name = clean_workspace.split("/")[-1]
         
-        # 1. Secure path validation
+        # 1. Secure path validation — skip files with unsupported extensions, fail hard on
+        # path-traversal attempts (those indicate malicious input, not just unknown file types).
         validated_files = {}
         for file in files:
             try:
                 validated_files[file] = validate_repository_path(clean_workspace, file)
             except ValueError as e:
-                logger.error(f"Security validation failed for path '{file}' in job {job_id}: {e}")
-                job.status = "failed"
-                job.error_message = f"Path validation failed: {e}"
-                db.commit()
-                return
+                err_str = str(e).lower()
+                if "traversal" in err_str or "symlink" in err_str or "escape" in err_str:
+                    # Path traversal / symlink escape — abort the entire job (security violation)
+                    logger.error(f"Security violation blocked for path '{file}' in job {job_id}: {e}")
+                    job.status = "failed"
+                    job.error_message = f"Path security violation blocked: {e}"
+                    db.commit()
+                    return
+                else:
+                    # Unsupported extension or benign validation issue — skip the file
+                    logger.warning(f"Skipping file '{file}' in job {job_id}: {e}")
                 
         # Filter files to only source code files for AST graph indexing
         filtered_source_files = [f for f in files if is_source_file(f)]
@@ -344,6 +352,9 @@ def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str,
         
         total_files = len(indexed_files)
         seen_paths = set()
+        # In-memory content cache: avoids reading each file 3 times (once per pass).
+        # Key: normalised relative path, Value: raw text content (str)
+        _file_content_cache: dict[str, str] = {}
         
         # First Pass: Parse files and save nodes + chunks
         for idx, raw_file in enumerate(indexed_files):
@@ -374,6 +385,7 @@ def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str,
                 if full_path and check_file_permission(full_path):
                     with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
                         content = f.read()
+                    _file_content_cache[file] = content  # cache for Passes 2 & 3
             except ValueError as e:
                 logger.error(f"Security limitation violation: {e}")
                 job.status = "failed"
@@ -419,18 +431,12 @@ def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str,
             job.progress = progress_pct
             db.commit()
             
-        # Build declarations map
+        # Build declarations map — reuses cached content from Pass 1 (no re-reads)
         decl_to_node = {}
         for idx, file in enumerate(indexed_files):
+            file = normalize_path(file)
             source_node_id = f"{repo.id}:{commit_sha}:{file}"
-            content = ""
-            full_path = validated_files.get(file) or (validated_files[file] if file in validated_files else None)
-            try:
-                if full_path and check_file_permission(full_path):
-                    with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
-                        content = f.read()
-            except Exception:
-                pass
+            content = _file_content_cache.get(file, "")
             file_hash = hashlib.sha256(bytes(content, "utf8")).hexdigest()
             cached = db.query(FileCache).filter_by(content_hash=file_hash).first()
             if cached:
@@ -442,16 +448,10 @@ def index_codebase_task(job_id: str, workspace_path: str, files: list, url: str,
             job.progress = progress_pct
             db.commit()
             
-        # Create edges
+        # Create edges — reuses cached content from Pass 1 (no re-reads)
         for idx, file in enumerate(indexed_files):
-            full_path = validated_files.get(file) or (validated_files[file] if file in validated_files else None)
-            content = ""
-            try:
-                if full_path and check_file_permission(full_path):
-                    with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
-                        content = f.read()
-            except Exception:
-                pass
+            file = normalize_path(file)
+            content = _file_content_cache.get(file, "")
             file_hash = hashlib.sha256(bytes(content, "utf8")).hexdigest()
             cached = db.query(FileCache).filter_by(content_hash=file_hash).first()
             if not cached:
@@ -563,8 +563,8 @@ async def analyze_codebase(payload: AnalyzePayload, background_tasks: Background
             raise HTTPException(status_code=400, detail=f"Unsafe path input blocked: {e}")
         
     # 3. Enforce daily indexing cap (maximum 5 indexing operations per 24 hours per org)
-    from datetime import datetime, timedelta
-    day_ago = datetime.utcnow() - timedelta(days=1)
+    from datetime import datetime, timedelta, timezone
+    day_ago = datetime.now(timezone.utc) - timedelta(days=1)
     daily_indexing_ops = db.query(UsageLog).filter(
         UsageLog.organization_id == current_user.organization_id,
         UsageLog.action == "index",
@@ -959,8 +959,8 @@ async def query_codebase(payload: QueryPayload, db: Session = Depends(get_db), c
     commit_sha = payload.commitSha
     
     # 1. Enforce query limit: check organization daily query volume
-    from datetime import datetime, timedelta
-    day_ago = datetime.utcnow() - timedelta(days=1)
+    from datetime import datetime, timedelta, timezone
+    day_ago = datetime.now(timezone.utc) - timedelta(days=1)
     daily_queries = db.query(UsageLog).filter(
         UsageLog.organization_id == current_user.organization_id,
         UsageLog.action == "query",

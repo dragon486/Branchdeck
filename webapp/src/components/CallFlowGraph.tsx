@@ -177,7 +177,8 @@ function CustomCallNode({
                 : 'border-slate-200/90 hover:border-slate-400'
         }`}
     >
-      <Handle type="target" position={Position.Left} className="w-3 h-3 !bg-slate-900 border-2 border-white" />
+      {/* Target handle — top of node (data flows in from above in TB layout) */}
+      <Handle type="target" position={Position.Top} className="w-3 h-3 !bg-slate-900 border-2 border-white" />
 
       {liveUsers.length > 0 && (
         <div className="absolute -top-3.5 -right-2 flex items-center gap-1 bg-white border border-slate-200 shadow-sm px-2 py-0.5 rounded-full z-20">
@@ -251,7 +252,8 @@ function CustomCallNode({
         )}
       </div>
 
-      <Handle type="source" position={Position.Right} className="w-3 h-3 !bg-slate-900 border-2 border-white" />
+      {/* Source handle — bottom of node (data flows out downward in TB layout) */}
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3 !bg-slate-900 border-2 border-white" />
     </div>
   );
 }
@@ -401,7 +403,7 @@ function CallFlowGraphInner({
 
   /* ── 3. Dagre hierarchical layout ─────────────────────────────────────────
    *  Uses the Sugiyama-style ranking algorithm:
-   *   - rankdir: LR (left → right, matching data-flow direction)
+   *   - rankdir: TB (top → bottom, canonical tree/data-flow direction)
    *   - Nodes are ranked by their architectural tier (ui=0, api=1, service=2, db/external=3)
    *   - Dagre minimises edge crossings within each rank automatically
    *   - nodesep / ranksep control whitespace so cards never overlap
@@ -413,7 +415,7 @@ function CallFlowGraphInner({
     const NODE_W = 300;
     const NODE_H = 130;
 
-    // Tier rank — dagre uses these to lock nodes into columns
+    // Tier rank — dagre uses these to lock nodes into horizontal rows (layers)
     const tierRank: Record<string, number> = {
       ui:       0,
       api:      1,
@@ -428,10 +430,10 @@ function CallFlowGraphInner({
     const g = new dagre.graphlib.Graph({ multigraph: false });
     g.setDefaultEdgeLabel(() => ({}));
     g.setGraph({
-      rankdir: 'LR',       // left-to-right flow
-      align:   'UL',       // align top-left within rank
-      nodesep: 40,         // vertical gap between nodes in same rank
-      ranksep: 120,        // horizontal gap between ranks
+      rankdir: 'TB',       // top-to-bottom tree flow
+      align:   'UL',       // align upper-left within rank
+      nodesep: 60,         // horizontal gap between nodes in the same rank
+      ranksep: 100,        // vertical gap between ranks (layers)
       edgesep: 20,
       ranker:  'tight-tree', // tightest valid tree ranking
     });
@@ -578,8 +580,9 @@ function CallFlowGraphInner({
         id: `edge-${edge.from}-${edge.to}`,
         source: edge.from,
         target: edge.to,
-        // 'smoothstep' gives clean orthogonal elbow routing — looks like a tree
-        type: 'smoothstep' as const,
+        // 'default' gives organic bezier curves — smooth, tree-style connections
+        // that follow the natural top→bottom data flow without right-angle elbows
+        type: 'default' as const,
         label: label || undefined,
         animated: isConn,
         markerEnd: {

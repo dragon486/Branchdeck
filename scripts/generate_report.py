@@ -501,24 +501,30 @@ def main() -> int:
             except Exception:
                 pass
             db = None
-        # Dispose the SQLAlchemy engine to fully release SQLite file locks
+        # Dispose the SQLAlchemy engine to fully release SQLite file locks.
+        # Import the live module-level engine (not a stale captured reference).
         try:
-            from database import engine as _db_engine
-            if _db_engine is not None:
-                _db_engine.dispose()
+            import database as _db_module
+            if _db_module.engine is not None:
+                _db_module.engine.dispose()
+                _db_module.engine = None
         except Exception:
             pass
         gc.collect()  # flush any lingering connection refs on Windows
-        # Delete the per-run SQLite file (retry once on Windows lock)
+        # Windows: SQLAlchemy connection pool releases file handles asynchronously.
+        # Wait up to 2s before attempting deletion to avoid PermissionError.
         if sqlite_path and os.path.exists(sqlite_path):
-            for _attempt in range(3):
+            time.sleep(2.0)
+        # Delete the per-run SQLite file (retry up to 5 times on Windows lock)
+        if sqlite_path and os.path.exists(sqlite_path):
+            for _attempt in range(5):
                 try:
                     os.remove(sqlite_path)
                     _ok(f"Removed SQLite DB: {sqlite_path}")
                     break
                 except OSError:
-                    if _attempt < 2:
-                        time.sleep(0.5)
+                    if _attempt < 4:
+                        time.sleep(1.0)
                     else:
                         _warn(f"SQLite DB file will be removed on next run: {sqlite_path}")
             sqlite_path = ""

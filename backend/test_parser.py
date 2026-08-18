@@ -55,3 +55,32 @@ def test_is_source_file():
     assert is_source_file("README.md") is False
     assert is_source_file("package.json") is False
     assert is_source_file("package-lock.json") is False
+
+def test_commonjs_require_imports():
+    """Regression test for P1 bug: require('module') was captured as a call
+    but NOT as an import, causing zero import edges in CommonJS repos."""
+    js_code = """
+    const fs = require('fs');
+    const path = require('path');
+    const express = require('express');
+    """
+    result = parse_file("server.js", js_code)
+    
+    # Static require() args must appear in imports
+    assert "fs" in result["imports"], f"'fs' missing from imports: {result['imports']}"
+    assert "path" in result["imports"], f"'path' missing from imports: {result['imports']}"
+    assert "express" in result["imports"], f"'express' missing from imports: {result['imports']}"
+    # require is still captured as a call
+    assert "require" in result["calls"]
+
+def test_extension_whitelist_accepts_all_source_types():
+    """Regression test for P0 bug: validate_repository_path only accepted 6 extensions
+    but SOURCE_EXTENSIONS had 23, causing indexing jobs to crash for Java/Rust/etc."""
+    from secure_file_handler import ALLOWED_EXTENSIONS
+    from main import SOURCE_EXTENSIONS
+    
+    missing = SOURCE_EXTENSIONS - ALLOWED_EXTENSIONS
+    assert not missing, (
+        f"These extensions are in SOURCE_EXTENSIONS but NOT in ALLOWED_EXTENSIONS "
+        f"(would crash indexing jobs): {sorted(missing)}"
+    )

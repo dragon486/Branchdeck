@@ -2,7 +2,17 @@ import os
 import re
 from pathlib import Path
 
-ALLOWED_EXTENSIONS = {".ts", ".tsx", ".js", ".jsx", ".py", ".go"}
+ALLOWED_EXTENSIONS = {
+    # Web / scripting (primary)
+    ".ts", ".tsx", ".js", ".jsx",
+    # Systems / compiled
+    ".py", ".go", ".rs", ".java", ".kt", ".swift",
+    ".c", ".cc", ".cpp", ".h", ".hpp", ".cs",
+    # Scripting / legacy
+    ".rb", ".php",
+    # Stylesheet / component DSLs
+    ".css", ".scss", ".sass", ".vue", ".svelte",
+}
 MAX_FILE_SIZE_MB = 2.0
 
 def is_subpath(child: Path, parent: Path) -> bool:
